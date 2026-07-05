@@ -274,7 +274,9 @@ svg {
   height: 34px;
   padding: 0 14px;
   color: rgba(255, 255, 255, 0.78);
-  background: rgba(0, 0, 0, 0.86);
+  background: rgba(0, 0, 0, 0.55);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
   border: 1px solid var(--line-dark);
   border-radius: 8px;
   box-shadow: 0 32px 90px rgba(0, 0, 0, 0.22);
@@ -314,7 +316,9 @@ svg {
   grid-template-rows: minmax(0, 1fr);
   padding: 12px;
   color: var(--white);
-  background: var(--dark);
+  background: rgba(0, 0, 0, 0.55);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
   border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 8px;
   box-shadow: 0 50px 120px rgba(0, 0, 0, 0.32);
@@ -343,9 +347,9 @@ svg {
 .mock-card {
   padding: 14px;
   background:
-    linear-gradient(160deg, rgba(255, 255, 255, 0.05), transparent 55%),
-    #201d1a;
-  border: 1px solid rgba(255, 255, 255, 0.09);
+    linear-gradient(160deg, rgba(255, 255, 255, 0.07), transparent 55%),
+    rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 12px;
 }
 
@@ -422,6 +426,24 @@ svg {
   width: 12px;
   height: 12px;
   color: rgba(255, 255, 255, 0.45);
+  transition: color 0.2s var(--ease);
+}
+
+.mock-clip-row.copied svg {
+  color: var(--accent);
+  animation: clip-copy-pop 0.45s var(--ease);
+}
+
+@keyframes clip-copy-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.55) rotate(-8deg);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .mock-pomo-state {
@@ -527,43 +549,6 @@ svg {
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.08em;
-}
-
-.mock-draw-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-}
-
-.mock-draw-row strong {
-  display: block;
-  font-size: 13px;
-  font-weight: 780;
-}
-
-.mock-draw-row small {
-  display: block;
-  margin-top: 3px;
-  color: rgba(255, 255, 255, 0.45);
-  font-size: 11px;
-}
-
-.mock-toggle {
-  flex: none;
-  width: 40px;
-  height: 24px;
-  padding: 3px;
-  display: inline-flex;
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 999px;
-}
-
-.mock-toggle i {
-  width: 18px;
-  height: 18px;
-  border-radius: 999px;
-  background: var(--white);
 }
 
 .metric-spark {

@@ -27,7 +27,7 @@
   let selectedTool = "capture";
   let focusTimer = null;
   let focusRemaining = 25 * 60;
-  const focusTotal = 25 * 60;
+  let focusTotal = 25 * 60;
 
   function showToast(message) {
     const region = document.getElementById("toast-region");
@@ -226,9 +226,21 @@
     showToast("Focus timer started.");
   }
 
+  function adjustFocus(deltaMinutes) {
+    const next = focusTotal + deltaMinutes * 60;
+    focusTotal = Math.min(60 * 60, Math.max(5 * 60, next));
+    focusRemaining = focusTotal;
+    updateFocus();
+    showToast(`Session length: ${focusTotal / 60} min`);
+  }
+
   function initFocus() {
     const button = document.getElementById("focus-toggle");
+    const minus = document.getElementById("focus-minus");
+    const plus = document.getElementById("focus-plus");
     if (button) button.addEventListener("click", toggleFocus);
+    if (minus) minus.addEventListener("click", () => adjustFocus(-1));
+    if (plus) plus.addEventListener("click", () => adjustFocus(1));
     updateFocus();
   }
 
@@ -236,6 +248,10 @@
     document.querySelectorAll("[data-copy]").forEach((button) => {
       button.addEventListener("click", async () => {
         const value = button.dataset.copy || "";
+        button.classList.remove("copied");
+        void button.offsetWidth;
+        button.classList.add("copied");
+        window.setTimeout(() => button.classList.remove("copied"), 900);
         try {
           await navigator.clipboard.writeText(value);
           showToast(`Copied: ${value}`);

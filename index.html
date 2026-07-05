@@ -80,18 +80,29 @@
                   <div class="mock-card-head">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1"></rect></svg>
                     <strong>Clipboard</strong>
-                    <em aria-hidden="true">&rarr;</em>
                   </div>
-                  <button class="mock-clip-row" type="button" data-copy="npm install toolkit">
-                    <span>npm install toolkit</span>
+                  <button class="mock-clip-row" type="button" data-copy="https://mackit.rojhot.com">
+                    <span>https://mackit.rojhot.com</span>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                   </button>
-                  <button class="mock-clip-row" type="button" data-copy="~/Users/mahsum/Desktop">
-                    <span>~/Users/mahsum/Desktop</span>
+                  <button class="mock-clip-row" type="button" data-copy="~/Desktop/screenshot.png">
+                    <span>~/Desktop/screenshot.png</span>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                   </button>
-                  <button class="mock-clip-row" type="button" data-copy="file:///Users/mahsum/notes.md">
-                    <span>file:///Users/mahsum/notes.md</span>
+                  <button class="mock-clip-row" type="button" data-copy="~/Documents/notes.md">
+                    <span>~/Documents/notes.md</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  </button>
+                  <button class="mock-clip-row" type="button" data-copy="hello@rojhot.com">
+                    <span>hello@rojhot.com</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  </button>
+                  <button class="mock-clip-row" type="button" data-copy="#F4F2ED">
+                    <span>#F4F2ED</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  </button>
+                  <button class="mock-clip-row" type="button" data-copy="Meeting notes — June 11">
+                    <span>Meeting notes — June 11</span>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                   </button>
                 </div>
@@ -100,7 +111,6 @@
                   <div class="mock-card-head">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"></circle><path d="M12 9v4l2 2"></path><path d="M9 2h6"></path></svg>
                     <strong>Pomodoro</strong>
-                    <em aria-hidden="true">&rarr;</em>
                   </div>
                   <div class="mock-pomo-state">
                     <i></i>
@@ -108,9 +118,9 @@
                     <strong id="focus-time">25:00</strong>
                   </div>
                   <div class="mock-pomo-controls">
-                    <button type="button" aria-label="Shorter session">&minus;</button>
+                    <button type="button" id="focus-minus" aria-label="Shorter session">&minus;</button>
                     <button class="mock-btn-accent" id="focus-toggle" type="button">Start</button>
-                    <button type="button" aria-label="Longer session">+</button>
+                    <button type="button" id="focus-plus" aria-label="Longer session">+</button>
                   </div>
                 </div>
               </div>
@@ -120,7 +130,6 @@
                   <div class="mock-card-head">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
                     <strong>Screenshot</strong>
-                    <em aria-hidden="true">&rarr;</em>
                   </div>
                   <div class="mock-shot-grid">
                     <button type="button">Full</button>
@@ -134,7 +143,6 @@
                   <div class="mock-card-head">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.7s6 6.3 6 10.3a6 6 0 0 1-12 0c0-4 6-10.3 6-10.3z"></path></svg>
                     <strong>Color Picker</strong>
-                    <em aria-hidden="true">&rarr;</em>
                   </div>
                   <div class="mock-color-row">
                     <span class="mock-swatch" aria-hidden="true"></span>
@@ -146,21 +154,6 @@
                     <span>HSL</span>
                   </div>
                   <button class="mock-btn-accent" type="button">Pick Color</button>
-                </div>
-
-                <div class="mock-card">
-                  <div class="mock-card-head">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"></path></svg>
-                    <strong>Screen Draw</strong>
-                    <em aria-hidden="true">&rarr;</em>
-                  </div>
-                  <div class="mock-draw-row">
-                    <div>
-                      <strong>Drawing inactive</strong>
-                      <small>Toggle to draw on screen</small>
-                    </div>
-                    <span class="mock-toggle" aria-hidden="true"><i></i></span>
-                  </div>
                 </div>
               </div>
             </div>
