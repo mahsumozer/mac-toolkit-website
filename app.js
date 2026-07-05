@@ -311,10 +311,10 @@
 
   function initShowcaseRail() {
     const viewMeta = {
-      control:   { label: "Light panel layout",    title: "Controls without switching apps" },
-      capture:   { label: "Screenshot & recording", title: "Capture anything in one click" },
-      clipboard: { label: "Clipboard history",      title: "Recent text, ready to paste" },
-      focus:     { label: "Pomodoro timer",         title: "Focus sessions in the menu bar" },
+      control:   { label: "Quick controls without switching apps.", title: "Home" },
+      capture:   { label: "Capture or record your screen.", title: "Screenshot & Recording" },
+      clipboard: { label: "Everything you copy is saved here. Click any item to copy it again.", title: "Clipboard History" },
+      focus:     { label: "Focus. Rest. Repeat.", title: "Pomodoro" },
     };
     const viewOrder = ["control", "capture", "clipboard", "focus"];
 
@@ -390,8 +390,8 @@
       const progress = 1 - showcaseFocusRemaining / focusTotalSecs;
       const deg = Math.round(progress * 360);
       if (showcaseFocusRingEl) {
-        showcaseFocusRingEl.style.borderColor = `rgba(255,255,255,0.14)`;
-        showcaseFocusRingEl.style.borderTopColor = `var(--white)`;
+        showcaseFocusRingEl.style.borderColor = `rgba(255,255,255,0.12)`;
+        showcaseFocusRingEl.style.borderTopColor = `var(--sw-accent)`;
         showcaseFocusRingEl.style.transform = `rotate(${deg}deg)`;
       }
     }, 1000);
