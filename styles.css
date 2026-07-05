@@ -650,12 +650,12 @@ svg {
   flex-direction: column;
   overflow: hidden;
   color: var(--sw-text);
-  background: rgba(0, 0, 0, 0.55);
-  -webkit-backdrop-filter: blur(18px);
-  backdrop-filter: blur(18px);
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.05), transparent 46%),
+    #131316;
+  border: 1px solid var(--sw-border);
   border-radius: 12px;
-  box-shadow: 0 50px 120px rgba(0, 0, 0, 0.32);
+  box-shadow: 0 38px 100px rgba(0, 0, 0, 0.3), inset 0 0 0 0.5px rgba(255, 255, 255, 0.05);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
 }
 
