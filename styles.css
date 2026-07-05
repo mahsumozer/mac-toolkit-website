@@ -311,35 +311,13 @@ svg {
   height: 496px;
   margin-top: -76px;
   display: grid;
-  grid-template-rows: 30px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   padding: 12px;
   color: var(--white);
   background: var(--dark);
   border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 8px;
   box-shadow: 0 50px 120px rgba(0, 0, 0, 0.32);
-}
-
-.window-chrome {
-  height: 30px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 8px;
-  border-bottom: 1px solid var(--line-dark);
-}
-
-.window-chrome span {
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.34);
-}
-
-.window-chrome strong {
-  justify-self: center;
-  color: rgba(255, 255, 255, 0.82);
-  font-size: 12px;
 }
 
 .app-mock {
