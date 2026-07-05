@@ -24,10 +24,19 @@
     },
   };
 
+  const paddleCheckout = {
+    token: "live_fae4413c36b1d1ea863f37f9ab2",
+    prices: {
+      monthly: "pri_01kws963debaa0y28k1m93syc9",
+      yearly: "pri_01kwsv2vs7ek3s48fnyvena2yf",
+    },
+  };
+
   let selectedTool = "capture";
   let focusTimer = null;
   let focusRemaining = 25 * 60;
   let focusTotal = 25 * 60;
+  let paddleInitialized = false;
 
   function showToast(message) {
     const region = document.getElementById("toast-region");
@@ -275,11 +284,107 @@
     });
   }
 
+  function getSourcePage() {
+    const path = window.location.pathname;
+    if (path.endsWith("pricing.html")) return "pricing";
+    if (path.endsWith("success.html")) return "success";
+    return "home";
+  }
+
+  function getCheckoutCustomData(plan) {
+    const params = new URLSearchParams(window.location.search);
+    const customData = {
+      app: "mac-kit",
+      plan,
+      source_page: getSourcePage(),
+    };
+    const campaignKeys = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"];
+
+    campaignKeys.forEach((key) => {
+      const value = params.get(key);
+      if (value) customData[key] = value.slice(0, 250);
+    });
+
+    if (document.referrer) {
+      customData.referrer = document.referrer.slice(0, 500);
+    }
+
+    return customData;
+  }
+
+  function getSuccessUrl() {
+    return new URL("success.html", window.location.href).toString();
+  }
+
+  function initializePaddle() {
+    if (paddleInitialized) return true;
+    if (!window.Paddle || typeof window.Paddle.Initialize !== "function") return false;
+
+    try {
+      window.Paddle.Initialize({
+        token: paddleCheckout.token,
+        eventCallback: function (data) {
+          if (data && data.name === "checkout.completed") {
+            showToast("Payment complete. Check your inbox for the Paddle receipt.");
+          }
+        },
+      });
+      paddleInitialized = true;
+      return true;
+    } catch (error) {
+      console.error(error);
+      return false;
+    }
+  }
+
+  function openPaddleCheckout(plan) {
+    const priceId = paddleCheckout.prices[plan];
+    if (!priceId) {
+      showToast("Checkout plan is not configured.");
+      return;
+    }
+
+    if (!initializePaddle()) {
+      showToast("Checkout is still loading. Please try again.");
+      return;
+    }
+
+    try {
+      window.Paddle.Checkout.open({
+        settings: {
+          displayMode: "overlay",
+          theme: "light",
+          locale: "en",
+          successUrl: getSuccessUrl(),
+        },
+        items: [
+          {
+            priceId,
+            quantity: 1,
+          },
+        ],
+        customData: getCheckoutCustomData(plan),
+      });
+    } catch (error) {
+      console.error(error);
+      showToast("Checkout could not be opened. Please try again.");
+    }
+  }
+
+  function initCheckoutButtons() {
+    document.querySelectorAll("[data-paddle-plan]").forEach((link) => {
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        const plan = link.dataset.paddlePlan;
+        openPaddleCheckout(plan);
+      });
+    });
+  }
+
   function initDownloadButtons() {
     document.querySelectorAll("[data-download]").forEach((link) => {
       link.addEventListener("click", (event) => {
         event.preventDefault();
-        showToast("Monthly and yearly checkout needs a final payment or release link.");
         document.getElementById("download")?.scrollIntoView({ behavior: "smooth" });
       });
     });
@@ -439,6 +544,8 @@
     initFocus();
     initClipboard();
     initAwakeToggle();
+    initializePaddle();
+    initCheckoutButtons();
     initDownloadButtons();
     initContactForm();
     initPrivacyChoice();
