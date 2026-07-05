@@ -191,11 +191,13 @@ svg {
 
 .hero {
   min-height: 100svh;
-  padding: 128px clamp(18px, 4vw, 48px) 64px;
+  padding: 110px clamp(18px, 4vw, 48px) 64px;
   display: grid;
   grid-template-columns: minmax(0, 0.95fr) minmax(420px, 1.05fr);
+  grid-template-rows: auto 1fr;
   align-items: end;
   gap: clamp(36px, 6vw, 88px);
+  row-gap: clamp(24px, 4vw, 48px);
 }
 
 .hero-copy {
@@ -244,7 +246,7 @@ svg {
   position: relative;
   min-height: 600px;
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: center;
 }
 
@@ -262,11 +264,9 @@ svg {
 }
 
 .desktop-strip {
-  position: absolute;
-  top: 70px;
-  left: 3%;
-  right: 3%;
-  z-index: 2;
+  grid-column: 1 / -1;
+  align-self: start;
+  margin-top: clamp(48px, 8vw, 110px);
   display: flex;
   align-items: center;
   gap: 17px;
@@ -308,6 +308,7 @@ svg {
   z-index: 1;
   width: min(100%, 610px);
   height: 474px;
+  margin-top: -48px;
   display: grid;
   grid-template-rows: 30px minmax(0, 1fr) auto;
   padding: 12px;
@@ -338,13 +339,6 @@ svg {
   justify-self: center;
   color: rgba(255, 255, 255, 0.82);
   font-size: 12px;
-}
-
-.window-chrome em {
-  margin-left: auto;
-  color: rgba(255, 255, 255, 0.42);
-  font-size: 11px;
-  font-style: normal;
 }
 
 .tool-panel {
@@ -1651,6 +1645,7 @@ svg {
 
   .hero {
     align-items: start;
+    grid-template-rows: none;
   }
 
   .hero-product {
@@ -1719,13 +1714,9 @@ svg {
 
   .hero-product {
     min-height: auto;
-    padding-top: 72px;
   }
 
   .desktop-strip {
-    top: 20px;
-    left: 0;
-    right: 0;
     gap: 10px;
     overflow: hidden;
   }
