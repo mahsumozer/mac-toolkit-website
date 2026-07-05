@@ -382,7 +382,7 @@ svg {
 
 .mock-btn-accent {
   min-height: 32px;
-  color: #241503;
+  color: var(--white);
   background: var(--accent);
   border: 0;
   border-radius: 8px;
@@ -392,6 +392,21 @@ svg {
 
 .mock-card > .mock-btn-accent {
   width: 100%;
+}
+
+.mock-add-button {
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  margin-top: auto;
+  margin-left: auto;
+  color: var(--white);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 750;
+  line-height: 1;
 }
 
 .mock-clip-row {
