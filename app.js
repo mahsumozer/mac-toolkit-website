@@ -26,7 +26,7 @@
 
   let selectedTool = "capture";
   let focusTimer = null;
-  let focusRemaining = 24 * 60 + 59;
+  let focusRemaining = 25 * 60;
   const focusTotal = 25 * 60;
 
   function showToast(message) {
@@ -202,7 +202,7 @@
     if (focusTimer) {
       window.clearInterval(focusTimer);
       focusTimer = null;
-      if (button) button.textContent = "Start focus";
+      if (button) button.textContent = "Start";
       showToast("Focus timer paused.");
       return;
     }
@@ -212,7 +212,7 @@
         window.clearInterval(focusTimer);
         focusTimer = null;
         focusRemaining = focusTotal;
-        if (button) button.textContent = "Start focus";
+        if (button) button.textContent = "Start";
         updateFocus();
         showToast("Focus session complete.");
         return;
@@ -222,7 +222,7 @@
       updateFocus();
     }, 1000);
 
-    if (button) button.textContent = "Pause focus";
+    if (button) button.textContent = "Pause";
     showToast("Focus timer started.");
   }
 

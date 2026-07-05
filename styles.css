@@ -12,6 +12,7 @@
   --soft-white: rgba(255, 255, 255, 0.72);
   --soft-black: rgba(5, 5, 5, 0.66);
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --accent: #f5941d;
 }
 
 *,
@@ -307,10 +308,10 @@ svg {
   position: relative;
   z-index: 1;
   width: min(100%, 610px);
-  height: 474px;
-  margin-top: -48px;
+  height: 496px;
+  margin-top: -76px;
   display: grid;
-  grid-template-rows: 30px minmax(0, 1fr) auto;
+  grid-template-rows: 30px minmax(0, 1fr);
   padding: 12px;
   color: var(--white);
   background: var(--dark);
@@ -341,197 +342,250 @@ svg {
   font-size: 12px;
 }
 
-.tool-panel {
+.app-mock {
   min-height: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
   overflow: hidden;
-  padding: 14px 24px 20px;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 44%),
-    var(--dark-2);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
 }
 
-.tool-panel-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 20px;
-}
-
-.tool-panel-head p {
-  margin: 0 0 6px;
-  color: var(--soft-white);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.tool-panel-head h2 {
-  margin: 0;
-  font-size: clamp(46px, 7vw, 86px);
-  font-weight: 790;
-  line-height: 0.9;
-  letter-spacing: -0.07em;
-}
-
-.icon-action {
-  width: 46px;
-  height: 46px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--ink);
-  background: var(--white);
-  border: 0;
-  border-radius: 999px;
-}
-
-.tool-visual {
-  display: none;
+.mock-col {
   min-width: 0;
   min-height: 0;
-  margin-top: 14px;
-  overflow: hidden;
-}
-
-.tool-visual.active {
-  display: block;
-  align-self: stretch;
-}
-
-.capture-frame {
-  position: relative;
-  min-height: 136px;
-  overflow: hidden;
-  background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.24) 1px, transparent 1px),
-    linear-gradient(rgba(255, 255, 255, 0.18) 1px, transparent 1px),
-    #efefef;
-  background-size: 34px 34px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 8px;
-}
-
-.capture-frame span {
-  position: absolute;
-  background: var(--dark);
-  border-radius: 6px;
-}
-
-.capture-frame span:nth-child(1) {
-  width: 42%;
-  height: 60%;
-  left: 8%;
-  top: 12%;
-}
-
-.capture-frame span:nth-child(2) {
-  width: 20%;
-  height: 40%;
-  right: 12%;
-  top: 10%;
-}
-
-.capture-frame span:nth-child(3) {
-  width: 34%;
-  height: 16%;
-  right: 10%;
-  bottom: 11%;
-}
-
-.capture-frame strong {
-  position: absolute;
-  left: 18px;
-  bottom: 14px;
-  color: var(--ink);
-  font-size: 13px;
-}
-
-.capture-controls {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-top: 6px;
-}
-
-.capture-controls span,
-.clip-row,
-.tool-switcher button,
-.toggle {
-  border-radius: 8px;
-}
-
-.capture-controls span {
   display: flex;
-  min-height: 42px;
-  align-items: center;
-  justify-content: center;
-  color: rgba(255, 255, 255, 0.74);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  font-size: 12px;
-  font-weight: 750;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.clip-row {
+.mock-col-left {
+  justify-content: space-between;
+}
+
+.mock-card {
+  padding: 14px;
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.05), transparent 55%),
+    #201d1a;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 12px;
+}
+
+.mock-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: var(--white);
+}
+
+.mock-card-head svg {
+  width: 14px;
+  height: 14px;
+  color: var(--accent);
+}
+
+.mock-card-head strong {
+  font-size: 13px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+
+.mock-card-head em {
+  margin-left: auto;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 13px;
+  font-style: normal;
+}
+
+.mock-btn-accent {
+  min-height: 32px;
+  color: #241503;
+  background: var(--accent);
+  border: 0;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 800;
+}
+
+.mock-card > .mock-btn-accent {
   width: 100%;
-  min-height: 52px;
+}
+
+.mock-clip-row {
+  width: 100%;
+  min-height: 34px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
-  margin-bottom: 10px;
-  padding: 0 14px;
-  color: var(--white);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.11);
+  gap: 12px;
+  margin-bottom: 8px;
+  padding: 0 10px;
+  color: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
 }
 
-.clip-row span {
+.mock-clip-row:last-child {
+  margin-bottom: 0;
+}
+
+.mock-clip-row span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
+  font-size: 11px;
 }
 
-.clip-row small {
-  color: var(--soft-white);
+.mock-clip-row svg {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.mock-pomo-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.mock-pomo-state i {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #e5484d;
+}
+
+.mock-pomo-state span {
+  color: rgba(255, 255, 255, 0.55);
   font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
-.monitor-view.active {
+.mock-pomo-state strong {
+  margin-left: auto;
+  color: var(--accent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.mock-pomo-controls {
   display: grid;
-  gap: 9px;
+  grid-template-columns: 34px 1fr 34px;
+  gap: 8px;
 }
 
-.metric-card {
-  padding: 10px 12px 8px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.11);
-  border-radius: 9px;
+.mock-pomo-controls button:not(.mock-btn-accent) {
+  min-height: 32px;
+  color: var(--white);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 750;
 }
 
-.metric-card-head {
+.mock-shot-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.mock-shot-grid button {
+  min-height: 34px;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.mock-color-row {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 6px;
-  color: rgba(255, 255, 255, 0.62);
-  font-size: 11px;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.mock-swatch {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--paper);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.mock-color-row strong {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 16px;
+  letter-spacing: 0.02em;
+}
+
+.mock-color-pills {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.mock-color-pills span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 6px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.08em;
 }
 
-.metric-card-head strong {
-  color: var(--white);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+.mock-draw-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.mock-draw-row strong {
+  display: block;
   font-size: 13px;
-  letter-spacing: 0;
+  font-weight: 780;
+}
+
+.mock-draw-row small {
+  display: block;
+  margin-top: 3px;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 11px;
+}
+
+.mock-toggle {
+  flex: none;
+  width: 40px;
+  height: 24px;
+  padding: 3px;
+  display: inline-flex;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+}
+
+.mock-toggle i {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--white);
 }
 
 .metric-spark {
@@ -557,60 +611,6 @@ svg {
   stroke-linecap: round;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
-}
-
-.focus-view {
-  text-align: center;
-}
-
-.focus-view.active {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-}
-
-.focus-ring {
-  width: 142px;
-  height: 142px;
-  margin: 0;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  background:
-    radial-gradient(circle at center, var(--dark-2) 58%, transparent 59%),
-    conic-gradient(var(--white) var(--focus-progress, 0deg), rgba(255, 255, 255, 0.13) 0deg);
-}
-
-.focus-ring span {
-  color: var(--white);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 26px;
-  font-weight: 800;
-  letter-spacing: -0.05em;
-}
-
-.tool-switcher {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.tool-switcher button {
-  min-height: 42px;
-  color: rgba(255, 255, 255, 0.58);
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  font-size: 12px;
-  font-weight: 760;
-}
-
-.tool-switcher button.active {
-  color: var(--ink);
-  background: var(--white);
-  border-color: var(--white);
 }
 
 .statement-section {
@@ -1135,22 +1135,6 @@ svg {
   font-weight: 850;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-}
-
-.sc-sessions {
-  display: flex;
-  gap: 8px;
-}
-
-.sc-session-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
-}
-
-.sc-session-dot.active {
-  background: var(--white);
 }
 
 .tools-section {
@@ -1716,6 +1700,10 @@ svg {
     min-height: auto;
   }
 
+  .hero-window {
+    margin-top: 0;
+  }
+
   .desktop-strip {
     gap: 10px;
     overflow: hidden;
@@ -1774,28 +1762,16 @@ svg {
   }
 
   .hero-window {
-    height: 444px;
+    height: auto;
     padding: 8px;
   }
 
-  .tool-panel {
-    padding: 16px;
-  }
-
-  .tool-visual {
-    margin-top: 20px;
-  }
-
-  .tool-switcher {
-    grid-template-columns: repeat(2, 1fr);
+  .app-mock {
+    grid-template-columns: 1fr;
   }
 
   .contact-input-row {
     grid-template-columns: 1fr;
-  }
-
-  .tool-panel-head h2 {
-    font-size: 50px;
   }
 
   .showcase-surface {
