@@ -1,4 +1,0 @@
-exclude:
-  - .DS_Store
-  - dist/
-  - worker/
