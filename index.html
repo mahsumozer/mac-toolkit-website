@@ -457,14 +457,17 @@
           <h2>Keep up with us</h2>
           <p>Get news, photos, events, and business updates.</p>
         </div>
-        <form class="contact-form" id="contact-form">
+        <form class="contact-form" id="contact-form" method="POST" target="brevo-frame" action="https://fc065215.sibforms.com/serve/MUIFAOkmyEZz0u72HPcJ86EkciG4UdBqaWbKRZV9uehFGAImqwsp0rmQ6HtRXgp8nur_nbRL_v0LnxJBc-jkhtwE0Ti4NbIVLx20-SOBjcbVfsf6xsRE3CB-iZbbi4MYrbWYkl8bz6748xoZ2j39w2SGYtmUgyzCnik7w-ondfPyj5vDwSiHX5_lM7D5_v7nmvCuc3k6eMrpcFUBMg==">
           <label for="contact-email">Email Address*</label>
           <div class="contact-input-row">
-            <input id="contact-email" name="email" type="email" autocomplete="email" required />
+            <input id="contact-email" name="EMAIL" type="email" autocomplete="email" placeholder="you@example.com" required />
             <button class="button button-dark" type="submit">Sign Up</button>
           </div>
+          <input type="text" name="email_address_check" value="" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;" />
+          <input type="hidden" name="locale" value="en" />
           <a class="contact-link" href="mailto:hello@rojhot.com">Contact Us</a>
         </form>
+        <iframe name="brevo-frame" title="Newsletter" aria-hidden="true" style="display:none;" tabindex="-1"></iframe>
       </section>
     </main>
 

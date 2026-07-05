@@ -273,11 +273,24 @@
     const form = document.getElementById("contact-form");
     if (!form) return;
 
-    form.addEventListener("submit", (event) => {
-      event.preventDefault();
-      form.reset();
-      showToast("Thanks. Updates signup needs a final mailing list link.");
+    const button = form.querySelector("button[type='submit']");
+    const frame = document.querySelector('iframe[name="brevo-frame"]');
+    let pending = false;
+
+    form.addEventListener("submit", () => {
+      pending = true;
+      if (button) button.disabled = true;
     });
+
+    if (frame) {
+      frame.addEventListener("load", () => {
+        if (!pending) return;
+        pending = false;
+        if (button) button.disabled = false;
+        form.reset();
+        showToast("Thanks for subscribing. Check your inbox to confirm.");
+      });
+    }
   }
 
   function initShowcaseRail() {
