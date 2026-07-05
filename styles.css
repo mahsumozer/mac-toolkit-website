@@ -310,7 +310,7 @@ svg {
   position: relative;
   z-index: 1;
   width: min(100%, 610px);
-  height: 496px;
+  height: auto;
   margin-top: -76px;
   display: grid;
   grid-template-rows: minmax(0, 1fr);
@@ -343,6 +343,7 @@ svg {
 .mock-col-left {
   justify-content: space-between;
 }
+
 
 .mock-card {
   padding: 14px;
