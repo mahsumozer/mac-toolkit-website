@@ -198,7 +198,7 @@ svg {
   grid-template-rows: auto 1fr;
   align-items: end;
   gap: clamp(36px, 6vw, 88px);
-  row-gap: clamp(24px, 4vw, 48px);
+  row-gap: 10px;
 }
 
 .hero-copy {
@@ -245,10 +245,10 @@ svg {
 
 .hero-product {
   position: relative;
-  min-height: 600px;
+  align-self: stretch;
   display: flex;
   align-items: flex-start;
-  justify-content: center;
+  justify-content: flex-end;
 }
 
 .hero-product::before {
@@ -311,7 +311,6 @@ svg {
   z-index: 1;
   width: min(100%, 610px);
   height: auto;
-  margin-top: -76px;
   display: grid;
   grid-template-rows: minmax(0, 1fr);
   padding: 12px;
@@ -1671,11 +1670,12 @@ svg {
 
   .hero {
     align-items: start;
-    grid-template-rows: none;
+    grid-template-rows: auto auto 1fr;
   }
 
-  .hero-product {
-    min-height: 560px;
+  .hero-copy {
+    order: 1;
+    margin-top: clamp(32px, 6vw, 56px);
   }
 
   .tools-list {
@@ -1736,14 +1736,6 @@ svg {
 
   .hero h1 {
     font-size: clamp(40px, 11vw, 72px);
-  }
-
-  .hero-product {
-    min-height: auto;
-  }
-
-  .hero-window {
-    margin-top: 0;
   }
 
   .desktop-strip {
