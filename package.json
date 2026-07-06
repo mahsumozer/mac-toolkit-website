@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "build": "sh scripts/build-pages.sh"
+    "build": "sh scripts/build-pages.sh",
+    "video:launch": "node marketing-video/render.mjs"
   }
 }
