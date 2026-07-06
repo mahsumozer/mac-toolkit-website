@@ -767,13 +767,34 @@ async function maybeSendLicenseEmail(license, env, options = {}) {
 }
 
 function licenseEmailHtml(license, downloadUrl) {
+  const licenseKey = escapeHtml(license.license_key);
+  const safeDownloadUrl = escapeHtml(downloadUrl);
+  const plan = escapeHtml(formatPlanLabel(license.plan));
+  const activationLimit = Number(license.activation_limit || 3);
+
   return `
-    <div style="font-family:Inter,Arial,sans-serif;line-height:1.5;color:#111">
-      <h1>Your Mac Kit license</h1>
-      <p>Thanks for buying Mac Kit. Use this license key to activate the app:</p>
-      <p style="font-size:20px;font-weight:700;letter-spacing:0.04em">${escapeHtml(license.license_key)}</p>
-      <p>Download Mac Kit here: <a href="${escapeHtml(downloadUrl)}">${escapeHtml(downloadUrl)}</a></p>
-      <p>If you need help, reply to this email.</p>
+    <div style="margin:0;padding:0;background:#f6f6f3;color:#202027;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;line-height:1.5">
+      <div style="max-width:560px;margin:0 auto;padding:32px 20px">
+        <div style="background:#ffffff;border:1px solid #e4e0d8;border-radius:16px;padding:28px">
+          <div style="font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#ff9500;margin-bottom:12px">Mac Kit</div>
+          <h1 style="font-size:28px;line-height:1.15;margin:0 0 12px;color:#202027">Your license is ready.</h1>
+          <p style="margin:0 0 20px;color:#5f5d66">Thanks for buying Mac Kit. Download the app, then paste this license key when Mac Kit asks for activation.</p>
+
+          <div style="border:1px solid #ebe7df;background:#faf9f6;border-radius:12px;padding:16px;margin:0 0 18px">
+            <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#77737d;margin-bottom:8px">License key</div>
+            <div style="font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;font-size:20px;font-weight:800;letter-spacing:0.04em;color:#202027;word-break:break-all">${licenseKey}</div>
+          </div>
+
+          <a href="${safeDownloadUrl}" style="display:inline-block;background:#202027;color:#ffffff;text-decoration:none;font-weight:800;border-radius:999px;padding:12px 20px;margin:4px 0 18px">Download Mac Kit</a>
+
+          <div style="font-size:13px;color:#6b6871;margin-top:4px">
+            <p style="margin:0 0 6px">Plan: <strong style="color:#202027">${plan}</strong></p>
+            <p style="margin:0">This license can be activated on up to ${activationLimit} devices.</p>
+          </div>
+        </div>
+
+        <p style="font-size:12px;color:#77737d;margin:18px 4px 0">Need help? Reply to this email or contact hello@rojhot.com.</p>
+      </div>
     </div>
   `;
 }
@@ -782,11 +803,24 @@ function licenseEmailText(license, downloadUrl) {
   return [
     "Your Mac Kit license",
     "",
-    "Thanks for buying Mac Kit. Use this license key to activate the app:",
+    "Thanks for buying Mac Kit. Download the app, then paste this license key when Mac Kit asks for activation.",
+    "",
+    "License key:",
     license.license_key,
     "",
-    `Download Mac Kit here: ${downloadUrl}`,
+    `Plan: ${formatPlanLabel(license.plan)}`,
+    `Device limit: ${Number(license.activation_limit || 3)}`,
+    "",
+    "Download Mac Kit:",
+    downloadUrl,
+    "",
+    "Need help? Reply to this email or contact hello@rojhot.com.",
   ].join("\n");
+}
+
+function formatPlanLabel(plan) {
+  if (!plan || plan === "unknown") return "Mac Kit";
+  return `${String(plan).charAt(0).toUpperCase()}${String(plan).slice(1)} access`;
 }
 
 async function resolveCustomerEmail(entity, env) {
