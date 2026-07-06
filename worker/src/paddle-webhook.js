@@ -701,7 +701,9 @@ async function maybeSendLicenseEmail(license, env, options = {}) {
     return { ok: false, error: "missing_license_email_from", statusCode: 500 };
   }
 
-  const downloadUrl = env.MAC_KIT_DOWNLOAD_URL || "https://mackit.rojhot.com";
+  const downloadUrl =
+    env.MAC_KIT_DOWNLOAD_URL ||
+    "https://github.com/mahsumozer/mac-toolkit/releases/download/v1.9.0/Mac.Kit-1.9.0-arm64.dmg";
   const emailPayload = {
     from: env.LICENSE_EMAIL_FROM,
     to: [license.customer_email],
