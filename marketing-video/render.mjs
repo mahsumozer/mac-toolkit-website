@@ -707,9 +707,10 @@ function cta(t) {
           ${text("Get Mac Kit Now", 310, 53, 28, { anchor: "middle", fill: "#ffffff", weight: 800 })}
         </g>
       </g>
-      <g transform="translate(703 766)">
+      <g transform="translate(576 766)">
         ${pill(0, 0, 300, 52, "Intel + Apple Silicon", pillOpts)}
-        ${pill(324, 0, 190, 52, "$6.99/mo", pillOpts)}
+        ${pill(324, 0, 230, 52, "50+ languages", pillOpts)}
+        ${pill(578, 0, 190, 52, "$6.99/mo", pillOpts)}
       </g>
     </g>
   </g>`;
