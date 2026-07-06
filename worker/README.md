@@ -10,6 +10,7 @@ Cloudflare Worker for Paddle Billing webhooks and Mac Kit license activation.
 - License status: `POST /license/status`
 - License deactivation: `POST /license/deactivate`
 - Admin license lookup/create: `GET /admin/license`, `POST /admin/licenses`
+- Admin license email resend: `POST /admin/license/email`
 
 Use one of these Paddle notification destination URLs:
 
@@ -52,6 +53,7 @@ wrangler secret put LICENSE_DEVICE_SALT
 Optional variables:
 
 - `LICENSE_EMAIL_FROM`: verified Resend sender, for example `Mac Kit <license@mackit.rojhot.com>`
+- `LICENSE_EMAIL_REPLY_TO`: optional reply-to address for license emails
 - `MAC_KIT_DOWNLOAD_URL`: download URL to include in license emails
 - `LICENSE_ACTIVATION_LIMIT`: default device activation limit, defaults to `3`
 - `PADDLE_ENVIRONMENT`: `live` or `sandbox`; used when fetching customer email from Paddle
@@ -185,4 +187,27 @@ Lookup:
 ```bash
 curl "https://mac-kit-paddle-webhook.rojhot.workers.dev/admin/license?email=customer@example.com" \
   -H "authorization: Bearer $ADMIN_API_KEY"
+```
+
+Resend a license email:
+
+```bash
+curl -X POST "https://mac-kit-paddle-webhook.rojhot.workers.dev/admin/license/email" \
+  -H "authorization: Bearer $ADMIN_API_KEY" \
+  -H "content-type: application/json" \
+  -d '{
+    "email": "customer@example.com"
+  }'
+```
+
+If the license has no email address yet, target it by license/subscription/transaction and include the email:
+
+```bash
+curl -X POST "https://mac-kit-paddle-webhook.rojhot.workers.dev/admin/license/email" \
+  -H "authorization: Bearer $ADMIN_API_KEY" \
+  -H "content-type: application/json" \
+  -d '{
+    "subscription_id": "sub_...",
+    "email": "customer@example.com"
+  }'
 ```

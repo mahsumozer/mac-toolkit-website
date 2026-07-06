@@ -46,7 +46,11 @@ export default {
       return handleLicenseDeactivate(request, env);
     }
 
-    if (url.pathname === "/admin/license" || url.pathname === "/admin/licenses") {
+    if (
+      url.pathname === "/admin/license" ||
+      url.pathname === "/admin/licenses" ||
+      url.pathname === "/admin/license/email"
+    ) {
       return handleAdminLicense(request, env, url);
     }
 
@@ -514,6 +518,31 @@ async function handleAdminLicense(request, env, url) {
   const kvError = ensureKv(env);
   if (kvError) return kvError;
 
+  if (request.method === "POST" && url.pathname === "/admin/license/email") {
+    const body = await readJson(request);
+    if (!body) return json({ ok: false, error: "invalid_json" }, 400);
+
+    const license = await findLicenseFromAdminBody(body, env);
+    if (!license) return json({ ok: false, error: "license_not_found" }, 404);
+
+    const email = normalizeEmail(body.email || body.customer_email || body.customerEmail);
+    if (email && email !== license.customer_email) {
+      license.customer_email = email;
+      license.updated_at = new Date().toISOString();
+      await storeLicense(license, env);
+      await storeLicenseIndexes(license, env);
+    }
+
+    const emailResult = await maybeSendLicenseEmail(license, env, {
+      force: body.force !== false,
+    });
+
+    return json(
+      { ok: emailResult.ok, email: emailResult, license },
+      emailResult.ok ? 200 : emailResult.statusCode || 500
+    );
+  }
+
   if (request.method === "GET") {
     const license = await findLicenseFromAdminQuery(url.searchParams, env);
     if (!license) return json({ ok: false, error: "license_not_found" }, 404);
@@ -591,6 +620,18 @@ async function findLicenseFromAdminBody(body, env) {
     if (license) return license;
   }
 
+  const customerId = body.customer_id || body.customerId;
+  if (customerId) {
+    const license = await getLicenseByIndex(`license_by_customer:${customerId}`, env);
+    if (license) return license;
+  }
+
+  const email = normalizeEmail(body.email || body.customer_email || body.customerEmail);
+  if (email) {
+    const license = await getLicenseByIndex(`license_by_email:${email}`, env);
+    if (license) return license;
+  }
+
   return null;
 }
 
@@ -634,44 +675,52 @@ async function storeLicenseIndexes(license, env) {
   }
 }
 
-async function maybeSendLicenseEmail(license, env) {
-  if (license.email_sent_at) return;
+async function maybeSendLicenseEmail(license, env, options = {}) {
+  if (license.email_sent_at && !options.force) {
+    return { ok: true, skipped: true, status: "email_already_sent" };
+  }
 
   if (!license.customer_email) {
     license.fulfillment_status = "missing_customer_email";
     license.updated_at = new Date().toISOString();
     await storeLicense(license, env);
-    return;
+    return { ok: false, error: "missing_customer_email", statusCode: 400 };
   }
 
   if (!env.RESEND_API_KEY) {
     license.fulfillment_status = "email_not_configured";
     license.updated_at = new Date().toISOString();
     await storeLicense(license, env);
-    return;
+    return { ok: false, error: "email_not_configured", statusCode: 500 };
   }
 
   if (!env.LICENSE_EMAIL_FROM) {
     license.fulfillment_status = "missing_license_email_from";
     license.updated_at = new Date().toISOString();
     await storeLicense(license, env);
-    return;
+    return { ok: false, error: "missing_license_email_from", statusCode: 500 };
   }
 
   const downloadUrl = env.MAC_KIT_DOWNLOAD_URL || "https://mackit.rojhot.com";
+  const emailPayload = {
+    from: env.LICENSE_EMAIL_FROM,
+    to: [license.customer_email],
+    subject: "Your Mac Kit license",
+    html: licenseEmailHtml(license, downloadUrl),
+    text: licenseEmailText(license, downloadUrl),
+  };
+
+  if (env.LICENSE_EMAIL_REPLY_TO) {
+    emailPayload.reply_to = env.LICENSE_EMAIL_REPLY_TO;
+  }
+
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       authorization: `Bearer ${env.RESEND_API_KEY}`,
       "content-type": "application/json",
     },
-    body: JSON.stringify({
-      from: env.LICENSE_EMAIL_FROM,
-      to: [license.customer_email],
-      subject: "Your Mac Kit license",
-      html: licenseEmailHtml(license, downloadUrl),
-      text: licenseEmailText(license, downloadUrl),
-    }),
+    body: JSON.stringify(emailPayload),
   });
 
   const responseText = await response.text();
@@ -682,7 +731,13 @@ async function maybeSendLicenseEmail(license, env) {
     license.fulfillment_error = responseText.slice(0, 500);
     license.updated_at = now;
     await storeLicense(license, env);
-    return;
+    return {
+      ok: false,
+      error: "email_failed",
+      provider_status: response.status,
+      provider_response: license.fulfillment_error,
+      statusCode: 502,
+    };
   }
 
   let emailResponse = {};
@@ -694,9 +749,19 @@ async function maybeSendLicenseEmail(license, env) {
 
   license.fulfillment_status = "email_sent";
   license.email_sent_at = now;
+  license.email_last_sent_to = license.customer_email;
+  license.email_send_count = Number(license.email_send_count || 0) + 1;
   license.email_provider_id = emailResponse.id || null;
+  delete license.fulfillment_error;
   license.updated_at = now;
   await storeLicense(license, env);
+
+  return {
+    ok: true,
+    status: "email_sent",
+    provider_id: license.email_provider_id,
+    sent_to: license.email_last_sent_to,
+  };
 }
 
 function licenseEmailHtml(license, downloadUrl) {
