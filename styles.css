@@ -1788,7 +1788,7 @@ svg {
 .compare-merge {
   position: absolute;
   inset: 0;
-  z-index: 4;
+  z-index: 9;
   overflow: visible;
   pointer-events: none;
 }
