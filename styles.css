@@ -446,7 +446,7 @@ svg {
 }
 
 .mock-clip-row.copied svg {
-  color: var(--accent);
+  color: #34c759;
   animation: clip-copy-pop 0.45s var(--ease);
 }
 
