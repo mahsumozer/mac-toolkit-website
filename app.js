@@ -271,6 +271,108 @@
     });
   }
 
+  function initComparePopoverControls() {
+    const popover = document.querySelector(".compare-menu-popover");
+    if (!popover) return;
+
+    const focusTime = popover.querySelector("[data-compare-focus-time]");
+    const focusToggle = popover.querySelector("[data-compare-focus='toggle']");
+    const focusMinus = popover.querySelector("[data-compare-focus='minus']");
+    const focusPlus = popover.querySelector("[data-compare-focus='plus']");
+    let compareFocusTotal = 25 * 60;
+    let compareFocusRemaining = compareFocusTotal;
+    let compareFocusTimer = null;
+
+    function updateCompareFocus() {
+      if (!focusTime) return;
+      const mm = String(Math.floor(compareFocusRemaining / 60)).padStart(2, "0");
+      const ss = String(compareFocusRemaining % 60).padStart(2, "0");
+      focusTime.textContent = `${mm}:${ss}`;
+    }
+
+    function adjustCompareFocus(deltaMinutes) {
+      compareFocusTotal = Math.min(60 * 60, Math.max(5 * 60, compareFocusTotal + deltaMinutes * 60));
+      compareFocusRemaining = compareFocusTotal;
+      updateCompareFocus();
+      showToast(`Session length: ${compareFocusTotal / 60} min`);
+    }
+
+    if (focusToggle) {
+      focusToggle.addEventListener("click", () => {
+        if (compareFocusTimer) {
+          window.clearInterval(compareFocusTimer);
+          compareFocusTimer = null;
+          focusToggle.textContent = "Start";
+          showToast("Focus timer paused.");
+          return;
+        }
+
+        compareFocusTimer = window.setInterval(() => {
+          if (compareFocusRemaining <= 0) {
+            window.clearInterval(compareFocusTimer);
+            compareFocusTimer = null;
+            compareFocusRemaining = compareFocusTotal;
+            focusToggle.textContent = "Start";
+            updateCompareFocus();
+            showToast("Focus session complete.");
+            return;
+          }
+
+          compareFocusRemaining -= 1;
+          updateCompareFocus();
+        }, 1000);
+
+        focusToggle.textContent = "Pause";
+        showToast("Focus timer started.");
+      });
+    }
+
+    if (focusMinus) focusMinus.addEventListener("click", () => adjustCompareFocus(-1));
+    if (focusPlus) focusPlus.addEventListener("click", () => adjustCompareFocus(1));
+    updateCompareFocus();
+
+    const shotButtons = Array.from(popover.querySelectorAll("[data-compare-shot]"));
+    shotButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        shotButtons.forEach((item) => item.classList.remove("is-selected"));
+        button.classList.add("is-selected");
+        showToast(`${button.dataset.compareShot} capture selected.`);
+      });
+    });
+
+    const colors = ["#F4F2ED", "#FF9B1A", "#70D7C4", "#8EA7FF", "#F06A6A"];
+    const swatch = popover.querySelector("[data-compare-swatch]");
+    const colorCode = popover.querySelector("[data-compare-color-code]");
+    const colorButton = popover.querySelector("[data-compare-color]");
+    let colorIndex = 0;
+
+    function updateColorPreview() {
+      const color = colors[colorIndex];
+      if (swatch) swatch.style.background = color;
+      if (colorCode) colorCode.textContent = color;
+      if (colorButton) colorButton.textContent = "Pick Color";
+    }
+
+    if (colorButton) {
+      colorButton.addEventListener("click", () => {
+        colorIndex = (colorIndex + 1) % colors.length;
+        updateColorPreview();
+        showToast(`Picked color: ${colors[colorIndex]}`);
+      });
+    }
+
+    updateColorPreview();
+
+    const addButton = popover.querySelector("[data-compare-add]");
+    if (addButton) {
+      addButton.addEventListener("click", () => {
+        addButton.classList.add("is-active");
+        window.setTimeout(() => addButton.classList.remove("is-active"), 700);
+        showToast("Tool picker opened.");
+      });
+    }
+  }
+
   function initAwakeToggle() {
     const toggle = document.getElementById("awake-toggle");
     const label = document.getElementById("awake-label");
@@ -520,6 +622,7 @@
     const oldCol = section.querySelector(".compare-old");
     const vs = section.querySelector(".compare-vs");
     const vsDot = vs && vs.querySelector("span");
+    const kitMenu = section.querySelector(".compare-menubar-kit");
     const kitMenuIcon = section.querySelector(".compare-kit-menubar-icon");
     if (!oldCol || !vsDot || !kitMenuIcon) return;
 
@@ -658,33 +761,33 @@
     function emergeOne() {
       const start = centerOf(vsDot);
       const target = centerOf(kitMenuIcon);
-      const size = 34;
+      const size = 50;
       const icon = document.createElement("span");
       icon.className = "merge-app-icon";
       icon.innerHTML = lightning;
       icon.style.width = size + "px";
       icon.style.height = size + "px";
-      icon.style.transform = `translate(${start.x - size / 2}px, ${start.y - size / 2}px) scale(0.72)`;
+      icon.style.transform = `translate(${start.x - size / 2}px, ${start.y - size / 2}px) scale(1.16)`;
       layer.appendChild(icon);
 
       const midX = start.x + (target.x - start.x) * 0.6;
       const midY = Math.min(start.y, target.y) - Math.max(44, Math.abs(target.x - start.x) * 0.1);
       const frames = [
-        { transform: `translate(${start.x - size / 2}px, ${start.y - size / 2}px) scale(0.72)`, opacity: 1 },
-        { transform: `translate(${midX - size / 2}px, ${midY - size / 2}px) scale(1.04)`, opacity: 1, offset: 0.62 },
-        { transform: `translate(${target.x - size / 2}px, ${target.y - size / 2}px) scale(0.74)`, opacity: 0.96 }
+        { transform: `translate(${start.x - size / 2}px, ${start.y - size / 2}px) scale(1.16)`, opacity: 1 },
+        { transform: `translate(${midX - size / 2}px, ${midY - size / 2}px) scale(0.78)`, opacity: 1, offset: 0.58 },
+        { transform: `translate(${target.x - size / 2}px, ${target.y - size / 2}px) scale(0.48)`, opacity: 0.96 }
       ];
 
       if (icon.animate) {
         icon.animate(frames, {
-          duration: 820,
+          duration: 1120,
           easing: "cubic-bezier(0.2,0.7,0.25,1)",
           fill: "forwards"
         });
       } else {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
-            icon.style.transition = "transform 0.82s cubic-bezier(0.2,0.7,0.25,1)";
+            icon.style.transition = "transform 1.12s cubic-bezier(0.2,0.7,0.25,1)";
             icon.style.transform = frames[2].transform;
           });
         });
@@ -692,7 +795,9 @@
 
       later(() => {
         icon.remove();
-      }, 820);
+        kitMenuIcon.classList.add("is-active");
+        if (kitMenu && !kitMenu.classList.contains("is-open")) kitMenu.classList.add("is-open");
+      }, 1120);
     }
 
     const CYCLE = 4400;
@@ -797,6 +902,7 @@
     initPrivacyChoice();
     initShowcaseRail();
     initCompareMerge();
+    initComparePopoverControls();
     setTool("capture", false);
   });
 })();

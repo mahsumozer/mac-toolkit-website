@@ -1419,17 +1419,127 @@ svg {
 }
 
 .compare-menubar-kit {
+  z-index: 5;
   padding-bottom: 10px;
   border-color: rgba(5, 5, 5, 0.1);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.52));
   box-shadow:
     0 18px 42px -34px rgba(5, 5, 5, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.84);
+  overflow: visible;
 }
 
 .compare-menubar-kit::before,
 .compare-menubar-kit::after {
   display: none;
+}
+
+.compare-menu-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 8px;
+  z-index: 8;
+  width: min(500px, calc(100vw - 48px));
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-8px) scale(0.96);
+  transform-origin: top right;
+  transition:
+    opacity 0.24s var(--ease),
+    visibility 0.24s var(--ease),
+    transform 0.24s var(--ease);
+}
+
+.compare-menubar-kit.is-open .compare-menu-popover {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+.compare-menu-popover .hero-window {
+  width: 100%;
+  padding: 8px;
+  background: rgba(34, 34, 31, 0.66);
+  box-shadow:
+    0 32px 70px -36px rgba(5, 5, 5, 0.7),
+    0 12px 26px -20px rgba(5, 5, 5, 0.5);
+}
+
+.compare-menu-popover .app-mock {
+  gap: 7px;
+}
+
+.compare-menu-popover .mock-col {
+  gap: 7px;
+}
+
+.compare-menu-popover .mock-card {
+  padding: 10px;
+  border-radius: 10px;
+}
+
+.compare-menu-popover .mock-card-head {
+  margin-bottom: 8px;
+}
+
+.compare-menu-popover .mock-clip-row {
+  min-height: 26px;
+  margin-bottom: 5px;
+  padding: 0 8px;
+}
+
+.compare-menu-popover .mock-clip-row span {
+  font-size: 10px;
+}
+
+.compare-menu-popover .mock-pomo-state {
+  margin-bottom: 8px;
+}
+
+.compare-menu-popover .mock-pomo-state strong {
+  font-size: 21px;
+}
+
+.compare-menu-popover .mock-pomo-controls {
+  grid-template-columns: 30px 1fr 30px;
+  gap: 7px;
+}
+
+.compare-menu-popover .mock-pomo-controls button:not(.mock-btn-accent),
+.compare-menu-popover .mock-btn-accent {
+  min-height: 28px;
+}
+
+.compare-menu-popover .mock-shot-grid button {
+  min-height: 29px;
+}
+
+.compare-menu-popover .mock-shot-grid button.is-selected,
+.compare-menu-popover .mock-add-button.is-active {
+  color: var(--white);
+  border-color: rgba(245, 148, 29, 0.48);
+  background: rgba(245, 148, 29, 0.32);
+}
+
+.compare-menu-popover .mock-color-row {
+  margin-bottom: 8px;
+}
+
+.compare-menu-popover .mock-swatch {
+  width: 30px;
+  height: 30px;
+  transition: background 0.18s var(--ease);
+}
+
+.compare-menu-popover .mock-color-pills {
+  gap: 7px;
+  margin-bottom: 8px;
+}
+
+.compare-menu-popover .mock-color-pills span {
+  min-height: 22px;
 }
 
 .compare-kit-menubar-icon {
@@ -1448,6 +1558,11 @@ svg {
   transition:
     background 0.18s var(--ease),
     color 0.18s var(--ease);
+}
+
+.compare-kit-menubar-icon.is-active {
+  color: var(--white);
+  background: var(--accent);
 }
 
 .compare-kit-menubar-icon svg {
@@ -2382,6 +2497,24 @@ svg {
     min-height: 34px;
     gap: 7px;
     padding: 0 8px;
+  }
+
+  .compare-menu-popover {
+    right: -8px;
+    width: calc(100vw - 36px);
+    transform-origin: top center;
+  }
+
+  .compare-menu-popover .app-mock {
+    grid-template-columns: 1fr;
+  }
+
+  .compare-menu-popover .mock-col-left {
+    justify-content: flex-start;
+  }
+
+  .compare-menu-popover .mock-add-button {
+    display: none;
   }
 
   .compare-menubar-word:nth-child(n + 3),
