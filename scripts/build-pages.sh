@@ -12,4 +12,5 @@ cp privacy.html public/
 cp styles.css public/
 cp success.html public/
 cp terms.html public/
+cp mac-kit-launch-promo.mp4 public/
 cp -R assets/. public/assets/

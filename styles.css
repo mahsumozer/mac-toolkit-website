@@ -739,6 +739,15 @@ svg {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
 }
 
+.showcase-video {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 12px;
+  background: #131316;
+  box-shadow: 0 38px 100px rgba(0, 0, 0, 0.3), inset 0 0 0 0.5px rgba(255, 255, 255, 0.05);
+}
+
 .surface-titlebar {
   display: flex;
   align-items: center;
