@@ -1730,14 +1730,14 @@ svg {
   display: inline-flex;
   align-items: flex-end;
   justify-content: center;
-  gap: 6px;
-  min-height: 40px;
+  gap: 7px;
+  min-height: 48px;
 }
 
 .compare-app-icons img {
-  width: clamp(27px, 2.4vw, 32px);
-  height: clamp(27px, 2.4vw, 32px);
-  border-radius: 8px;
+  width: clamp(34px, 3vw, 40px);
+  height: clamp(34px, 3vw, 40px);
+  border-radius: 9px;
   object-fit: cover;
   background: var(--white);
   animation: compare-float 3.4s ease-in-out infinite;
@@ -2645,14 +2645,14 @@ svg {
   }
 
   .compare-app-icons {
-    min-height: 32px;
-    gap: 3px;
+    min-height: 38px;
+    gap: 4px;
   }
 
   .compare-app-icons img {
-    width: 22px;
-    height: 22px;
-    border-radius: 6px;
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
   }
 
   .hero-actions {
