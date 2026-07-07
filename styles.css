@@ -192,7 +192,7 @@ svg {
 
 .hero {
   min-height: 100svh;
-  padding: 110px clamp(18px, 4vw, 48px) 64px;
+  padding: 0 clamp(18px, 4vw, 48px) 64px;
   display: grid;
   grid-template-columns: minmax(0, 0.95fr) minmax(420px, 1.05fr);
   grid-template-rows: auto 1fr;
