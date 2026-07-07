@@ -162,8 +162,14 @@
                   <button class="mock-btn-accent" type="button">Pick Color</button>
                 </div>
 
-                <button class="mock-add-button" type="button" aria-label="Add tool">+</button>
+                <button class="mock-add-button" id="mock-add-toggle" type="button" aria-label="Add tool" aria-haspopup="true" aria-expanded="false" aria-controls="mock-add-menu">+</button>
               </div>
+            </div>
+            <div class="mock-add-menu" id="mock-add-menu" role="menu" aria-label="Add tool">
+              <button type="button" role="menuitem">System monitor</button>
+              <button type="button" role="menuitem">Keep awake</button>
+              <button type="button" role="menuitem">File converter</button>
+              <button type="button" role="menuitem">New file creator</button>
             </div>
           </div>
         </div>
@@ -628,8 +634,14 @@
                         <button class="mock-btn-accent" type="button" data-compare-color>Pick Color</button>
                       </div>
 
-                      <button class="mock-add-button" type="button" data-compare-add aria-label="Add tool">+</button>
+                      <button class="mock-add-button" type="button" data-compare-add aria-label="Add tool" aria-haspopup="true" aria-expanded="false">+</button>
                     </div>
+                  </div>
+                  <div class="mock-add-menu" data-compare-add-menu role="menu" aria-label="Add tool">
+                    <button type="button" role="menuitem">System monitor</button>
+                    <button type="button" role="menuitem">Keep awake</button>
+                    <button type="button" role="menuitem">File converter</button>
+                    <button type="button" role="menuitem">New file creator</button>
                   </div>
                 </div>
               </div>

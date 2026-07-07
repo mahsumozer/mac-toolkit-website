@@ -363,14 +363,52 @@
 
     updateColorPreview();
 
-    const addButton = popover.querySelector("[data-compare-add]");
-    if (addButton) {
-      addButton.addEventListener("click", () => {
-        addButton.classList.add("is-active");
-        window.setTimeout(() => addButton.classList.remove("is-active"), 700);
-        showToast("Tool picker opened.");
+    setupAddMenu(
+      popover.querySelector("[data-compare-add]"),
+      popover.querySelector("[data-compare-add-menu]")
+    );
+  }
+
+  function setupAddMenu(toggle, menu) {
+    if (!toggle || !menu) return;
+
+    const close = () => {
+      menu.classList.remove("is-open");
+      toggle.classList.remove("is-active");
+      toggle.setAttribute("aria-expanded", "false");
+    };
+    const open = () => {
+      menu.classList.add("is-open");
+      toggle.classList.add("is-active");
+      toggle.setAttribute("aria-expanded", "true");
+    };
+
+    toggle.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (menu.classList.contains("is-open")) close();
+      else open();
+    });
+
+    menu.querySelectorAll("[role='menuitem']").forEach((item) => {
+      item.addEventListener("click", () => {
+        showToast(`Added: ${item.textContent.trim()}`);
+        close();
       });
-    }
+    });
+
+    document.addEventListener("click", (event) => {
+      if (!menu.contains(event.target) && event.target !== toggle) close();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") close();
+    });
+  }
+
+  function initAddMenu() {
+    setupAddMenu(
+      document.getElementById("mock-add-toggle"),
+      document.getElementById("mock-add-menu")
+    );
   }
 
   function initAwakeToggle() {
@@ -894,6 +932,7 @@
     initMonitor();
     initFocus();
     initClipboard();
+    initAddMenu();
     initAwakeToggle();
     initializePaddle();
     initCheckoutButtons();

@@ -408,6 +408,66 @@ svg {
   font-size: 16px;
   font-weight: 750;
   line-height: 1;
+  transition: color 0.16s var(--ease), background 0.16s var(--ease), border-color 0.16s var(--ease);
+}
+
+.mock-add-button.is-active {
+  color: var(--white);
+  border-color: rgba(245, 148, 29, 0.48);
+  background: rgba(245, 148, 29, 0.32);
+}
+
+.mock-add-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 12px;
+  z-index: 6;
+  min-width: 184px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  color: var(--white);
+  background: rgba(0, 0, 0, 0.55);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  box-shadow: 0 24px 52px -22px rgba(0, 0, 0, 0.7);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px);
+  pointer-events: none;
+  transition: opacity 0.16s var(--ease), transform 0.16s var(--ease), visibility 0.16s var(--ease);
+}
+
+.mock-add-menu.is-open {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.mock-add-menu button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 30px;
+  padding: 0 10px;
+  color: rgba(255, 255, 255, 0.82);
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+  transition: color 0.14s var(--ease), background 0.14s var(--ease);
+}
+
+.mock-add-menu button:hover {
+  color: var(--white);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .mock-clip-row {
@@ -1521,6 +1581,20 @@ svg {
   color: var(--white);
   border-color: rgba(245, 148, 29, 0.48);
   background: rgba(245, 148, 29, 0.32);
+}
+
+.compare-menu-popover .mock-add-menu {
+  top: calc(100% + 5px);
+  right: 8px;
+  min-width: 152px;
+  padding: 5px;
+  border-radius: 9px;
+}
+
+.compare-menu-popover .mock-add-menu button {
+  min-height: 26px;
+  padding: 0 9px;
+  font-size: 11px;
 }
 
 .compare-menu-popover .mock-color-row {
