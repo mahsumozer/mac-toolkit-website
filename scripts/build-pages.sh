@@ -12,4 +12,4 @@ cp privacy.html public/
 cp styles.css public/
 cp success.html public/
 cp terms.html public/
-cp assets/* public/assets/
+cp -R assets/. public/assets/

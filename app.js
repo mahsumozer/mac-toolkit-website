@@ -513,6 +513,252 @@
     }, 1000);
   }
 
+  function initCompareMerge() {
+    const section = document.querySelector(".compare-section");
+    if (!section) return;
+
+    const oldCol = section.querySelector(".compare-old");
+    const vs = section.querySelector(".compare-vs");
+    const vsDot = vs && vs.querySelector("span");
+    const kitMenuIcon = section.querySelector(".compare-kit-menubar-icon");
+    if (!oldCol || !vsDot || !kitMenuIcon) return;
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const groups = Array.from(oldCol.querySelectorAll(".compare-app"));
+    if (!groups.length) return;
+
+    const appsWrap = oldCol.querySelector(".compare-apps");
+    if (appsWrap) appsWrap.classList.add("is-scattered");
+
+    const layer = document.createElement("div");
+    layer.className = "compare-merge";
+    layer.setAttribute("aria-hidden", "true");
+    section.appendChild(layer);
+
+    const lightning =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.55" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>';
+
+    function shuffle(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    // Give every app a fresh random spot inside the area (loose grid + jitter so
+    // they never sit in fixed slots and never heavily overlap).
+    function scatter() {
+      if (!appsWrap) return;
+      const w = appsWrap.clientWidth;
+      const h = appsWrap.clientHeight;
+      const cols = 3;
+      const rows = Math.ceil(groups.length / cols);
+      const cellW = w / cols;
+      const cellH = h / rows;
+      const cells = shuffle(Array.from({ length: cols * rows }, (_, k) => k));
+      groups.forEach((g, i) => {
+        const cell = cells[i];
+        const cx = cell % cols;
+        const cy = Math.floor(cell / cols);
+        const cw = g.offsetWidth || 112;
+        const ch = g.offsetHeight || 96;
+        const x = cx * cellW + Math.random() * Math.max(0, cellW - cw);
+        const y = cy * cellH + Math.random() * Math.max(0, cellH - ch);
+        g.style.left = Math.round(x) + "px";
+        g.style.top = Math.round(y) + "px";
+      });
+    }
+
+    function centerOf(el) {
+      const s = section.getBoundingClientRect();
+      const r = el.getBoundingClientRect();
+      return { x: r.left - s.left + r.width / 2, y: r.top - s.top + r.height / 2 };
+    }
+
+    // Phase 1: the real icon groups slide into the vs, shrinking and fading.
+    function flyToVs() {
+      const vsC = centerOf(vsDot);
+      groups.forEach((g, i) => {
+        const home = centerOf(g);
+        const dx = vsC.x - home.x;
+        const dy = vsC.y - home.y;
+        const delay = i * 150;
+        g.style.transition = `transform 0.7s cubic-bezier(0.55,0.06,0.3,1) ${delay}ms, opacity 0.7s ease-in ${delay}ms`;
+        g.style.transform = `translate(${dx}px, ${dy}px) scale(0.12)`;
+        g.style.opacity = "0";
+      });
+    }
+
+    // Phase 2: fresh icons are re-created sliding in from the left, into new random spots.
+    function regenerate() {
+      groups.forEach((g) => {
+        g.style.transition = "none";
+        g.style.transform = "translate(-110px, 0) scale(1)";
+        g.style.opacity = "0";
+      });
+      scatter();
+      // Force reflow so the reset takes effect before the slide-in transition.
+      void oldCol.offsetWidth;
+      groups.forEach((g) => {
+        const delay = Math.round(80 + Math.random() * 620);
+        const dur = (0.55 + Math.random() * 0.25).toFixed(2);
+        g.style.transition = `transform ${dur}s cubic-bezier(0.2,0.7,0.3,1) ${delay}ms, opacity ${dur}s ease ${delay}ms`;
+        g.style.transform = "translate(0px, 0px) scale(1)";
+        g.style.opacity = "1";
+      });
+    }
+
+    function resetHome() {
+      groups.forEach((g) => {
+        g.style.transition = "none";
+        g.style.transform = "";
+        g.style.opacity = "";
+        g.querySelectorAll(".compare-app-icons, .compare-app-name, b").forEach((el) => {
+          el.style.transition = "none";
+          el.style.transform = "";
+          el.style.opacity = "";
+        });
+      });
+    }
+
+    // First appearance: each app's icons fade in first, then its name + price.
+    function reveal() {
+      groups.forEach((app) => {
+        const icons = app.querySelector(".compare-app-icons");
+        const texts = [app.querySelector(".compare-app-name"), app.querySelector("b")].filter(Boolean);
+        [icons, ...texts].forEach((el) => {
+          if (!el) return;
+          el.style.transition = "none";
+          el.style.opacity = "0";
+          el.style.transform = "translateY(9px)";
+        });
+      });
+      void oldCol.offsetWidth;
+      groups.forEach((app, i) => {
+        const icons = app.querySelector(".compare-app-icons");
+        const texts = [app.querySelector(".compare-app-name"), app.querySelector("b")].filter(Boolean);
+        const base = i * 85;
+        if (icons) {
+          icons.style.transition = `opacity 0.45s ease ${base}ms, transform 0.45s cubic-bezier(0.2,0.7,0.3,1) ${base}ms`;
+          icons.style.opacity = "1";
+          icons.style.transform = "translateY(0)";
+        }
+        texts.forEach((el, j) => {
+          const d = base + 280 + j * 70;
+          el.style.transition = `opacity 0.4s ease ${d}ms, transform 0.4s cubic-bezier(0.2,0.7,0.3,1) ${d}ms`;
+          el.style.opacity = "1";
+          el.style.transform = "translateY(0)";
+        });
+      });
+    }
+
+    // The Mac Kit app icon exits the portal and resolves into the menu bar icon.
+    function emergeOne() {
+      const start = centerOf(vsDot);
+      const target = centerOf(kitMenuIcon);
+      const size = 34;
+      const icon = document.createElement("span");
+      icon.className = "merge-app-icon";
+      icon.innerHTML = lightning;
+      icon.style.width = size + "px";
+      icon.style.height = size + "px";
+      icon.style.transform = `translate(${start.x - size / 2}px, ${start.y - size / 2}px) scale(0.72)`;
+      layer.appendChild(icon);
+
+      const midX = start.x + (target.x - start.x) * 0.6;
+      const midY = Math.min(start.y, target.y) - Math.max(44, Math.abs(target.x - start.x) * 0.1);
+      const frames = [
+        { transform: `translate(${start.x - size / 2}px, ${start.y - size / 2}px) scale(0.72)`, opacity: 1 },
+        { transform: `translate(${midX - size / 2}px, ${midY - size / 2}px) scale(1.04)`, opacity: 1, offset: 0.62 },
+        { transform: `translate(${target.x - size / 2}px, ${target.y - size / 2}px) scale(0.74)`, opacity: 0.96 }
+      ];
+
+      if (icon.animate) {
+        icon.animate(frames, {
+          duration: 820,
+          easing: "cubic-bezier(0.2,0.7,0.25,1)",
+          fill: "forwards"
+        });
+      } else {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            icon.style.transition = "transform 0.82s cubic-bezier(0.2,0.7,0.25,1)";
+            icon.style.transform = frames[2].transform;
+          });
+        });
+      }
+
+      later(() => {
+        icon.remove();
+      }, 820);
+    }
+
+    const CYCLE = 4400;
+    const timeouts = [];
+    function later(fn, ms) {
+      timeouts.push(window.setTimeout(fn, ms));
+    }
+
+    function runCycle() {
+      flyToVs();
+      later(() => vs.classList.add("is-active"), 250);
+      later(emergeOne, 2000);
+      later(() => vs.classList.remove("is-active"), 2300);
+      later(regenerate, 2150);
+    }
+
+    let cycleTimer = null;
+    let startTimer = null;
+    function start() {
+      if (cycleTimer || startTimer) return;
+      reveal();
+      startTimer = window.setTimeout(() => {
+        startTimer = null;
+        runCycle();
+        cycleTimer = window.setInterval(runCycle, CYCLE);
+      }, 1700);
+    }
+    function stop() {
+      if (startTimer) window.clearTimeout(startTimer);
+      startTimer = null;
+      if (cycleTimer) window.clearInterval(cycleTimer);
+      cycleTimer = null;
+      timeouts.forEach(window.clearTimeout);
+      timeouts.length = 0;
+      vs.classList.remove("is-active");
+      layer.replaceChildren();
+      resetHome();
+    }
+
+    scatter();
+
+    let resizeRAF = 0;
+    window.addEventListener("resize", () => {
+      window.cancelAnimationFrame(resizeRAF);
+      resizeRAF = window.requestAnimationFrame(() => {
+        resetHome();
+        scatter();
+      });
+    });
+
+    if ("IntersectionObserver" in window) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) start();
+            else stop();
+          });
+        },
+        { threshold: 0.35 }
+      );
+      observer.observe(section);
+    } else {
+      start();
+    }
+  }
+
   function initPrivacyChoice() {
     const notice = document.getElementById("privacy-choice");
     const button = document.getElementById("privacy-choice-button");
@@ -550,6 +796,7 @@
     initContactForm();
     initPrivacyChoice();
     initShowcaseRail();
+    initCompareMerge();
     setTool("capture", false);
   });
 })();
