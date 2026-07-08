@@ -703,7 +703,7 @@ async function maybeSendLicenseEmail(license, env, options = {}) {
 
   const downloadUrl =
     env.MAC_KIT_DOWNLOAD_URL ||
-    "https://github.com/mahsumozer/mac-toolkit/releases/download/v1.9.0/Mac.Kit-1.9.0-arm64.dmg";
+    "https://github.com/mahsumozer/mac-kit-releases/releases/latest";
   const emailPayload = {
     from: env.LICENSE_EMAIL_FROM,
     to: [license.customer_email],
