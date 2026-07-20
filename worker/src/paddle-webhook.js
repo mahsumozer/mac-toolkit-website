@@ -374,6 +374,11 @@ async function handleLicenseActivate(request, env) {
   if (!licenseKey) return json({ ok: false, error: "missing_license_key" }, 400);
   if (!deviceId) return json({ ok: false, error: "missing_device_id" }, 400);
 
+  const gate = versionGate(body, env);
+  if (gate.update_required) {
+    return json({ ok: false, error: "update_required", ...gate }, 403);
+  }
+
   const license = await getLicenseByKey(licenseKey, env);
   if (!license) return json({ ok: false, error: "invalid_license" }, 404);
 
@@ -426,6 +431,7 @@ async function handleLicenseActivate(request, env) {
 
   return json({
     ok: true,
+    ...gate,
     license: publicLicenseResponse(license),
   });
 }
@@ -461,15 +467,21 @@ async function handleLicenseStatus(request, env) {
 
     if (activation) {
       activation.last_seen_at = new Date().toISOString();
+      activation.app_version = sanitizeString(body.app_version || body.appVersion, 80) || activation.app_version;
       license.updated_at = activation.last_seen_at;
       await storeLicense(license, env);
     }
   }
 
+  const gate = versionGate(body, env);
+
+  // update_required iken active:false dönmek, versiyon kapısından habersiz eski
+  // istemcileri de kilitler (lisans ekranında takılırlar).
   return json({
     ok: true,
-    active: isLicenseUsable(license) && deviceActive !== false,
+    active: isLicenseUsable(license) && deviceActive !== false && !gate.update_required,
     device_active: deviceActive,
+    ...gate,
     license: publicLicenseResponse(license),
   });
 }
@@ -675,6 +687,51 @@ async function storeLicenseIndexes(license, env) {
   }
 }
 
+const DEFAULT_RELEASES_PAGE_URL =
+  "https://github.com/mahsumozer/mac-kit-releases/releases/latest";
+
+// Turns a GitHub "releases/latest" page URL into the API endpoint for that
+// repo's latest release. Returns null for any other kind of URL.
+function githubLatestReleaseApi(pageUrl) {
+  try {
+    const url = new URL(pageUrl);
+    if (url.hostname !== "github.com") return null;
+    const match = url.pathname.match(/^\/([^/]+)\/([^/]+)\/releases(?:\/|$)/);
+    if (!match) return null;
+    const [, owner, repo] = match;
+    return `https://api.github.com/repos/${owner}/${repo}/releases/latest`;
+  } catch {
+    return null;
+  }
+}
+
+// Resolves the email's download link. If MAC_KIT_DOWNLOAD_URL points at a
+// GitHub releases page, upgrade it to the newest release's direct .dmg URL so
+// the link starts the download immediately. Any non-GitHub URL is used as-is,
+// and we fall back to the original URL if the API lookup fails.
+async function resolveDownloadUrl(env) {
+  const configured = env.MAC_KIT_DOWNLOAD_URL || DEFAULT_RELEASES_PAGE_URL;
+  const apiUrl = githubLatestReleaseApi(configured);
+  if (!apiUrl) return configured;
+  try {
+    const response = await fetch(apiUrl, {
+      headers: {
+        accept: "application/vnd.github+json",
+        "user-agent": "mac-kit-paddle-webhook",
+      },
+    });
+    if (!response.ok) return configured;
+    const release = await response.json();
+    const assets = Array.isArray(release.assets) ? release.assets : [];
+    const dmg = assets.find(
+      (asset) => typeof asset.name === "string" && asset.name.toLowerCase().endsWith(".dmg"),
+    );
+    return dmg?.browser_download_url || configured;
+  } catch {
+    return configured;
+  }
+}
+
 async function maybeSendLicenseEmail(license, env, options = {}) {
   if (license.email_sent_at && !options.force) {
     return { ok: true, skipped: true, status: "email_already_sent" };
@@ -701,9 +758,7 @@ async function maybeSendLicenseEmail(license, env, options = {}) {
     return { ok: false, error: "missing_license_email_from", statusCode: 500 };
   }
 
-  const downloadUrl =
-    env.MAC_KIT_DOWNLOAD_URL ||
-    "https://github.com/mahsumozer/mac-kit-releases/releases/latest";
+  const downloadUrl = await resolveDownloadUrl(env);
   const emailPayload = {
     from: env.LICENSE_EMAIL_FROM,
     to: [license.customer_email],
@@ -900,6 +955,30 @@ function getSubscriptionPeriodEnd(entity) {
 
 function isLicenseUsable(license) {
   return activeLicenseStatuses.has(license.status);
+}
+
+function compareVersions(a, b) {
+  const pa = String(a).split(".").map((part) => parseInt(part, 10) || 0);
+  const pb = String(b).split(".").map((part) => parseInt(part, 10) || 0);
+  const length = Math.max(pa.length, pb.length);
+  for (let i = 0; i < length; i += 1) {
+    const diff = (pa[i] || 0) - (pb[i] || 0);
+    if (diff !== 0) return diff < 0 ? -1 : 1;
+  }
+  return 0;
+}
+
+// MIN_SUPPORTED_VERSION dashboard env var'ı ile eski/güvenlik açıklı sürümler
+// uzaktan emekliye ayrılır. app_version göndermeyen istemciler de eski sayılır.
+function versionGate(body, env) {
+  const minVersion = sanitizeString(env.MIN_SUPPORTED_VERSION, 80);
+  if (!minVersion) {
+    return { min_supported_version: null, update_required: false };
+  }
+
+  const appVersion = sanitizeString(body.app_version || body.appVersion, 80);
+  const updateRequired = !appVersion || compareVersions(appVersion, minVersion) < 0;
+  return { min_supported_version: minVersion, update_required: updateRequired };
 }
 
 function publicLicenseResponse(license) {
