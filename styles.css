@@ -42,6 +42,17 @@ body.menu-open {
   overflow: hidden;
 }
 
+/* Short pages: stretch main so the footer sits at the bottom of the viewport. */
+body.page-fill {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+body.page-fill main {
+  flex: 1;
+}
+
 [hidden] {
   display: none !important;
 }
