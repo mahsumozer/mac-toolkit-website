@@ -1524,7 +1524,9 @@ svg {
   top: calc(100% + 10px);
   right: 8px;
   z-index: 8;
-  width: min(500px, calc(100vw - 48px));
+  /* Tracks the column instead of staying 500px wide, otherwise the panel
+     overhangs into the "old way" column as the window narrows. */
+  width: min(500px, 92%, calc(100vw - 48px));
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
@@ -1595,6 +1597,10 @@ svg {
 .compare-menu-popover .mock-pomo-controls button:not(.mock-btn-accent),
 .compare-menu-popover .mock-btn-accent {
   min-height: 28px;
+}
+
+.compare-menu-popover .mock-shot-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
 
 .compare-menu-popover .mock-shot-grid button {
@@ -2530,8 +2536,45 @@ svg {
     display: inline-flex;
   }
 
+  /* Pages without a menu button (legal pages) have no way to open the drawer,
+     so their nav stays inline on its own header row. */
+  .site-header:not(:has(.menu-button)) {
+    gap: 10px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+    border-bottom-color: var(--line);
+  }
+
+  .site-header:not(:has(.menu-button)) .main-nav {
+    position: static;
+    inset: auto;
+    order: 3;
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px 18px;
+    padding: 0;
+    color: inherit;
+    background: none;
+  }
+
+  .site-header:not(:has(.menu-button)) .main-nav a {
+    padding: 2px 0;
+    border-bottom: 0;
+  }
+
+  .site-header:not(:has(.menu-button)) .header-actions .button {
+    display: inline-flex;
+    width: auto;
+  }
+
   .hero {
     padding-top: 112px;
+  }
+
+  .hero-product::before {
+    display: none;
   }
 
   .hero h1 {
@@ -2580,6 +2623,33 @@ svg {
   .tools-list {
     grid-template-columns: 1fr;
   }
+
+  .tools-list article {
+    min-height: 0;
+    padding: 20px 18px 22px;
+  }
+
+  .tools-list h3 {
+    margin: 12px 0 8px;
+  }
+
+  /* The open/close cycle is disabled at this width, so the panel sits inline
+     under the strip instead of floating — absolutely positioned it either
+     never showed up or spilled over the buy row. */
+  .compare-menu-popover {
+    position: static;
+    width: 100%;
+    margin-top: 10px;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: none;
+    transition: none;
+  }
+
+  .compare-empty-space {
+    display: none;
+  }
 }
 
 @media (max-width: 560px) {
@@ -2608,22 +2678,11 @@ svg {
     padding: 0 8px;
   }
 
-  .compare-menu-popover {
-    right: -8px;
-    width: calc(100vw - 36px);
-    transform-origin: top center;
-  }
-
-  .compare-menu-popover .app-mock {
-    grid-template-columns: 1fr;
-  }
-
-  .compare-menu-popover .mock-col-left {
-    justify-content: flex-start;
-  }
-
-  .compare-menu-popover .mock-add-button {
-    display: none;
+  /* Beats the base `.compare-menu-popover .hero-window` padding so the panel
+     picks up the same compact scale as the hero one below. */
+  .compare-menu-popover .hero-window {
+    padding: 6px;
+    border-radius: 10px;
   }
 
   .compare-menubar-word:nth-child(n + 3),
@@ -2699,8 +2758,160 @@ svg {
     padding: 8px;
   }
 
-  .app-mock {
-    grid-template-columns: 1fr;
+  /* The panel keeps the real app's two-column shape on phones, scaled down —
+     stacking it into one column turned the hero into a wall of cards. */
+  .hero-window {
+    padding: 6px;
+    border-radius: 10px;
+  }
+
+  .hero-window .app-mock {
+    gap: 6px;
+  }
+
+  .hero-window .mock-col {
+    gap: 6px;
+  }
+
+  .hero-window .mock-card {
+    padding: 8px;
+    border-radius: 9px;
+  }
+
+  .hero-window .mock-card-head {
+    gap: 5px;
+    margin-bottom: 7px;
+  }
+
+  .hero-window .mock-card-head svg {
+    width: 11px;
+    height: 11px;
+  }
+
+  .hero-window .mock-card-head strong {
+    font-size: 10.5px;
+  }
+
+  .hero-window .mock-clip-row {
+    min-height: 27px;
+    gap: 6px;
+    margin-bottom: 5px;
+    padding: 0 6px;
+    border-radius: 6px;
+  }
+
+  .hero-window .mock-clip-row span {
+    font-size: 9px;
+  }
+
+  .hero-window .mock-clip-row svg {
+    width: 11px;
+    height: 11px;
+  }
+
+  .hero-window .mock-clip-row:nth-of-type(n + 5) {
+    display: none;
+  }
+
+  .hero-window .mock-pomo-state {
+    gap: 5px;
+    margin-bottom: 6px;
+  }
+
+  .hero-window .mock-pomo-state i {
+    width: 5px;
+    height: 5px;
+  }
+
+  .hero-window .mock-pomo-state span {
+    font-size: 8px;
+    letter-spacing: 0.08em;
+  }
+
+  .hero-window .mock-pomo-state strong {
+    font-size: 17px;
+  }
+
+  .hero-window .mock-pomo-controls {
+    grid-template-columns: 24px 1fr 24px;
+    gap: 5px;
+  }
+
+  .hero-window .mock-pomo-controls button:not(.mock-btn-accent) {
+    min-height: 25px;
+    font-size: 11px;
+  }
+
+  .hero-window .mock-btn-accent {
+    min-height: 25px;
+    border-radius: 6px;
+    font-size: 10px;
+  }
+
+  .hero-window .mock-shot-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 5px;
+  }
+
+  .hero-window .mock-shot-grid button {
+    min-height: 27px;
+    border-radius: 6px;
+    font-size: 9.5px;
+  }
+
+  .hero-window .mock-color-row {
+    gap: 7px;
+    margin-bottom: 6px;
+  }
+
+  .hero-window .mock-swatch {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+  }
+
+  .hero-window .mock-color-row strong {
+    font-size: 11px;
+  }
+
+  .hero-window .mock-color-pills {
+    gap: 5px;
+    margin-bottom: 6px;
+  }
+
+  .hero-window .mock-color-pills span {
+    min-height: 18px;
+    font-size: 8.5px;
+  }
+
+  .hero-window .mock-add-button {
+    width: 26px;
+    height: 26px;
+    min-height: 26px;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+
+  .footer-links {
+    justify-content: flex-start;
+    gap: 12px 18px;
+  }
+
+  .privacy-choice {
+    padding: 16px;
+  }
+
+  .privacy-choice h2 {
+    margin-bottom: 12px;
+    font-size: 18px;
+  }
+
+  .privacy-choice p {
+    font-size: 13px;
+  }
+
+  .privacy-choice-button {
+    margin-top: 16px;
   }
 
   .contact-input-row {
