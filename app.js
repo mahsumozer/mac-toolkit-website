@@ -32,6 +32,29 @@
     },
   };
 
+  const planPricing = {
+    monthly: { value: 6.99, currency: "USD", name: "Mac Kit Monthly" },
+    yearly: { value: 69.99, currency: "USD", name: "Mac Kit Yearly" },
+  };
+
+  function trackTikTokEvent(eventName, plan) {
+    if (typeof window.ttq === "undefined") return;
+    const pricing = planPricing[plan];
+    const priceId = paddleCheckout.prices[plan];
+    if (!pricing || !priceId) return;
+    window.ttq.track(eventName, {
+      contents: [
+        {
+          content_id: priceId,
+          content_type: "product",
+          content_name: pricing.name,
+        },
+      ],
+      value: pricing.value,
+      currency: pricing.currency,
+    });
+  }
+
   let selectedTool = "capture";
   let focusTimer = null;
   let focusRemaining = 25 * 60;
@@ -425,9 +448,9 @@
   }
 
   function getSourcePage() {
-    const path = window.location.pathname;
-    if (path.endsWith("pricing.html")) return "pricing";
-    if (path.endsWith("success.html")) return "success";
+    const path = window.location.pathname.replace(/\/+$/, "");
+    if (path.endsWith("/pricing") || path.endsWith("/pricing.html")) return "pricing";
+    if (path.endsWith("/success") || path.endsWith("/success.html")) return "success";
     return "home";
   }
 
@@ -452,8 +475,17 @@
     return customData;
   }
 
-  function getSuccessUrl() {
-    return new URL("success.html", window.location.href).toString();
+  function getSuccessUrl(plan) {
+    const url = new URL("/success", window.location.origin);
+    const pricing = planPricing[plan];
+    const priceId = paddleCheckout.prices[plan];
+    if (pricing && priceId) {
+      url.searchParams.set("plan", plan);
+      url.searchParams.set("value", String(pricing.value));
+      url.searchParams.set("currency", pricing.currency);
+      url.searchParams.set("content_id", priceId);
+    }
+    return url.toString();
   }
 
   function initializePaddle() {
@@ -495,7 +527,7 @@
           displayMode: "overlay",
           theme: "light",
           locale: "en",
-          successUrl: getSuccessUrl(),
+          successUrl: getSuccessUrl(plan),
         },
         items: [
           {
@@ -505,6 +537,7 @@
         ],
         customData: getCheckoutCustomData(plan),
       });
+      trackTikTokEvent("InitiateCheckout", plan);
     } catch (error) {
       console.error(error);
       showToast("Checkout could not be opened. Please try again.");
@@ -518,6 +551,24 @@
         const plan = link.dataset.paddlePlan;
         openPaddleCheckout(plan);
       });
+    });
+  }
+
+  function trackViewContent() {
+    if (typeof window.ttq === "undefined") return;
+    const plans = Array.from(document.querySelectorAll("[data-paddle-plan]"))
+      .map((link) => link.dataset.paddlePlan)
+      .filter((plan, index, arr) => plan && planPricing[plan] && arr.indexOf(plan) === index);
+    if (!plans.length) return;
+    const value = plans.reduce((sum, plan) => sum + planPricing[plan].value, 0);
+    window.ttq.track("ViewContent", {
+      contents: plans.map((plan) => ({
+        content_id: paddleCheckout.prices[plan],
+        content_type: "product",
+        content_name: planPricing[plan].name,
+      })),
+      value: Math.round(value * 100) / 100,
+      currency: "USD",
     });
   }
 
@@ -665,6 +716,10 @@
     if (!oldCol || !vsDot || !kitMenuIcon) return;
 
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    // Phones keep the static grid: scattered absolute icons collide at this
+    // width, and the fly-to-vs cycle leaves the column empty half the time.
+    if (window.matchMedia("(max-width: 820px)").matches) return;
 
     const groups = Array.from(oldCol.querySelectorAll(".compare-app"));
     if (!groups.length) return;
@@ -936,6 +991,7 @@
     initAwakeToggle();
     initializePaddle();
     initCheckoutButtons();
+    trackViewContent();
     initDownloadButtons();
     initContactForm();
     initPrivacyChoice();

@@ -13,3 +13,5 @@ marketing-video-screenshot/preview.mjs
 marketing-video/mac-kit-launch-promo.mp4
 mac-kit-launch-promo.mp4
 worker/.wrangler/
+.wrangler/*
+video-screenshots/*
