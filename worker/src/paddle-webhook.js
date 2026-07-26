@@ -848,7 +848,7 @@ function licenseEmailHtml(license, downloadUrl) {
           </div>
         </div>
 
-        <p style="font-size:12px;color:#77737d;margin:18px 4px 0">Need help? Reply to this email or contact hello@rojhot.com.</p>
+        <p style="font-size:12px;color:#77737d;margin:18px 4px 0">Need help? Reply to this email or contact hello@usemackit.com.</p>
       </div>
     </div>
   `;
@@ -869,7 +869,7 @@ function licenseEmailText(license, downloadUrl) {
     "Download Mac Kit:",
     downloadUrl,
     "",
-    "Need help? Reply to this email or contact hello@rojhot.com.",
+    "Need help? Reply to this email or contact hello@usemackit.com.",
   ].join("\n");
 }
 
