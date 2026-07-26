@@ -320,10 +320,10 @@ function lightPopover(t) {
   const originY = PY;
 
   const rows = [
-    "https://mackit.rojhot.com",
+    "https://usemackit.com",
     "~/Desktop/region.png",
     PICK_HEX,
-    "hello@rojhot.com",
+    "hello@usemackit.com",
     "Meeting notes",
   ];
   const clip = rows.map((item, i) => {
@@ -482,7 +482,7 @@ function browserWindow(t) {
     <circle cx="${BX + 48}" cy="${BY + 22}" r="7" fill="#febc2e"/>
     <circle cx="${BX + 70}" cy="${BY + 22}" r="7" fill="#28c840"/>
     <rect x="${BX + 150}" y="${BY + 12}" width="${BW - 300}" height="24" rx="12" fill="#ffffff" stroke="#d6d3dd"/>
-    ${text("mackit.rojhot.com", cx, BY + 29, 15, { anchor: "middle", weight: 600, fill: "#6b6675", family: mono })}
+    ${text("usemackit.com", cx, BY + 29, 15, { anchor: "middle", weight: 600, fill: "#6b6675", family: mono })}
     <path d="M${BX} ${cy} H${BX + BW} V${BY + BH - 20} A20 20 0 0 1 ${BX + BW - 20} ${BY + BH} H${BX + 20} A20 20 0 0 1 ${BX} ${BY + BH - 20} Z" fill="#ffffff"/>
     <rect x="${BX + 36}" y="${cy + 14}" width="26" height="26" rx="7" fill="#ffffff" stroke="#dcd8e2"/>
     ${bolt(BX + 41, cy + 17, 16, "#16131a")}
@@ -563,7 +563,7 @@ function cardSystemStats(x, y, w, h, t) {
     + text("4h 12m", cx + cw, y + 134, 11, { weight: 700, fill: W_T1, anchor: "end" });
 }
 function cardClipboard(x, y, w, h) {
-  const items = ["https://mackit.rojhot.com", "#3B82F6", "Meeting notes 2pm"];
+  const items = ["https://usemackit.com", "#3B82F6", "Meeting notes 2pm"];
   const rows = items.map((it, i) => {
     const ry = y + 48 + i * 34;
     return `<rect x="${x + 14}" y="${ry}" width="${w - 28}" height="28" rx="8" fill="rgba(0,0,0,0.2)" stroke="rgba(255,255,255,0.07)"/>`

@@ -338,7 +338,7 @@ function browserWindow(t) {
     <circle cx="${BX + 48}" cy="${BY + 22}" r="7" fill="#febc2e"/>
     <circle cx="${BX + 70}" cy="${BY + 22}" r="7" fill="#28c840"/>
     <rect x="${BX + 150}" y="${BY + 12}" width="${BW - 300}" height="24" rx="12" fill="#ffffff" stroke="#d6d3dd"/>
-    ${text("mackit.rojhot.com", cx, BY + 29, 15, { anchor: "middle", weight: 600, fill: "#6b6675", family: mono })}
+    ${text("usemackit.com", cx, BY + 29, 15, { anchor: "middle", weight: 600, fill: "#6b6675", family: mono })}
     <path d="M${BX} ${cy} H${BX + BW} V${BY + BH - 20} A20 20 0 0 1 ${BX + BW - 20} ${BY + BH} H${BX + 20} A20 20 0 0 1 ${BX} ${BY + BH - 20} Z" fill="#ffffff"/>
 
     <!-- Nav -->
@@ -401,10 +401,10 @@ function popover(t) {
 
   // --- Clipboard rows ---
   const rows = [
-    "https://mackit.rojhot.com",
+    "https://usemackit.com",
     "~/Desktop/region.png",
     PICK_HEX,
-    "hello@rojhot.com",
+    "hello@usemackit.com",
     "Meeting notes",
   ];
   const shotDone = t > 6.0;

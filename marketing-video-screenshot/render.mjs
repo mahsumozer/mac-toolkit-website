@@ -252,7 +252,7 @@ function browserWindow() {
   return `<g filter="url(#winShadow)">
     ${top}
     <rect x="${x + 150}" y="${y + 9}" width="${w - 300}" height="22" rx="11" fill="#ffffff" stroke="#d6d3dd"/>
-    ${text("mackit.rojhot.com", x + w / 2, y + 24, 12, { anchor: "middle", weight: 600, fill: "#8a8692", family: mono })}
+    ${text("usemackit.com", x + w / 2, y + 24, 12, { anchor: "middle", weight: 600, fill: "#8a8692", family: mono })}
     <rect x="${x + 30}" y="${cy + 14}" width="24" height="24" rx="6" fill="#ffffff" stroke="#dcd8e2"/>
     ${bolt(x + 34, cy + 17, 15, "#16131a")}
     ${text("Mac Kit", x + 62, cy + 33, 17, { weight: 900, fill: "#1a1a22" })}
@@ -361,7 +361,7 @@ function popover(t) {
   let shotHi = -1;
   if (t > 2.9 && t < 3.35) shotHi = 1; // Area
 
-  const rows = ["https://mackit.rojhot.com", "~/Desktop/region.png", PICK_HEX, "hello@rojhot.com", "Meeting notes"];
+  const rows = ["https://usemackit.com", "~/Desktop/region.png", PICK_HEX, "hello@usemackit.com", "Meeting notes"];
   const clip = rows.map((item, i) => {
     const y = 168 + i * 44;
     return `<rect x="664" y="${y}" width="296" height="34" rx="9" fill="rgba(0,0,0,0.24)" stroke="rgba(255,255,255,0.09)"/>
@@ -453,7 +453,7 @@ function slotAbs(index) {
   return ringToAbs(s.x, s.y);
 }
 const CLIP_PANEL = { w: 150, h: 126, left: 280, top: 243 };
-const CLIP_ROWS = ["mackit.rojhot.com", "#3B82F6", "Meeting notes — Q3"];
+const CLIP_ROWS = ["usemackit.com", "#3B82F6", "Meeting notes — Q3"];
 const RING_SLOTS = [
   { id: "screenshot", label: "Screenshot", icon: rCamera },
   { id: "area", label: "Area", icon: rCrop },

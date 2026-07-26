@@ -225,10 +225,10 @@ function lightPopover(t) {
   const originY = PY;
 
   const rows = [
-    "https://mackit.rojhot.com",
+    "https://usemackit.com",
     "~/Desktop/region.png",
     PICK_HEX,
-    "hello@rojhot.com",
+    "hello@usemackit.com",
     "Meeting notes",
   ];
   const clip = rows.map((item, i) => {
