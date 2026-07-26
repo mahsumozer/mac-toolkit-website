@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://mackit.rojhot.com/sitemap.xml
+Sitemap: https://usemackit.com/sitemap.xml

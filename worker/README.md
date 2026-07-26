@@ -12,10 +12,13 @@ Cloudflare Worker for Paddle Billing webhooks and Mac Kit license activation.
 - Admin license lookup/create: `GET /admin/license`, `POST /admin/licenses`
 - Admin license email resend: `POST /admin/license/email`
 
-Use one of these Paddle notification destination URLs:
+Paddle notification destination URL (live):
 
-- Workers.dev: `https://mac-kit-paddle-webhook.<your-account>.workers.dev/paddle/webhook`
-- Custom route: `https://api.mackit.rojhot.com/paddle/webhook`
+- `https://mac-kit-paddle-webhook.rojhot.workers.dev/paddle/webhook`
+
+This workers.dev hostname is hardcoded as `LICENSE_API_BASE` in the Mac Kit app and is
+baked into every shipped build, so it must never be retired or replaced with a custom
+domain — older installs would lose license validation.
 
 Do not attach this Worker to the same route as the public website unless you are intentionally routing API paths only.
 
@@ -52,7 +55,7 @@ wrangler secret put LICENSE_DEVICE_SALT
 
 Optional variables:
 
-- `LICENSE_EMAIL_FROM`: verified Resend sender, for example `Mac Kit <license@mackit.rojhot.com>`
+- `LICENSE_EMAIL_FROM`: verified Resend sender, for example `Mac Kit <license@usemackit.com>`
 - `LICENSE_EMAIL_REPLY_TO`: optional reply-to address for license emails
 - `MAC_KIT_DOWNLOAD_URL`: download URL to include in license emails
 - `LICENSE_ACTIVATION_LIMIT`: default device activation limit, defaults to `3`
