@@ -825,7 +825,6 @@ function licenseEmailHtml(license, downloadUrl) {
   const licenseKey = escapeHtml(license.license_key);
   const safeDownloadUrl = escapeHtml(downloadUrl);
   const plan = escapeHtml(formatPlanLabel(license.plan));
-  const activationLimit = Number(license.activation_limit || 3);
 
   return `
     <div style="margin:0;padding:0;background:#f6f6f3;color:#202027;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;line-height:1.5">
@@ -843,8 +842,7 @@ function licenseEmailHtml(license, downloadUrl) {
           <a href="${safeDownloadUrl}" style="display:inline-block;background:#202027;color:#ffffff;text-decoration:none;font-weight:800;border-radius:999px;padding:12px 20px;margin:4px 0 18px">Download Mac Kit</a>
 
           <div style="font-size:13px;color:#6b6871;margin-top:4px">
-            <p style="margin:0 0 6px">Plan: <strong style="color:#202027">${plan}</strong></p>
-            <p style="margin:0">This license can be activated on up to ${activationLimit} devices.</p>
+            <p style="margin:0">Plan: <strong style="color:#202027">${plan}</strong></p>
           </div>
         </div>
 
@@ -864,7 +862,6 @@ function licenseEmailText(license, downloadUrl) {
     license.license_key,
     "",
     `Plan: ${formatPlanLabel(license.plan)}`,
-    `Device limit: ${Number(license.activation_limit || 3)}`,
     "",
     "Download Mac Kit:",
     downloadUrl,
