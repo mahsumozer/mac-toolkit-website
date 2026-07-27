@@ -33,7 +33,8 @@
           var p = new URLSearchParams(window.location.search);
           var value = parseFloat(p.get('value'));
           var plan = p.get('plan') || '';
-          ttq.track('Purchase', {
+          var txn = p.get('_ptxn') || '';
+          var properties = {
             contents: [
               {
                 content_id: p.get('content_id') || '',
@@ -43,7 +44,13 @@
             ],
             value: isNaN(value) ? undefined : value,
             currency: p.get('currency') || 'USD',
-          });
+          };
+          // event_id lets TikTok drop repeats if this page is reloaded.
+          if (txn) {
+            ttq.track('Purchase', properties, { event_id: txn });
+          } else {
+            ttq.track('Purchase', properties);
+          }
         })();
       }(window, document, 'ttq');
     </script>
