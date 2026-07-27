@@ -4,6 +4,7 @@ compatibility_date = "2026-07-05"
 
 [vars]
 PADDLE_SIGNATURE_TOLERANCE_SECONDS = "300"
+LIFETIME_PRICE_ID = "pri_01kyj2qr6c0azepvamn2zc34sh"
 MONTHLY_PRICE_ID = "pri_01kws963debaa0y28k1m93syc9"
 YEARLY_PRICE_ID = "pri_01kwsv2vs7ek3s48fnyvena2yf"
 PADDLE_ENVIRONMENT = "live"

@@ -27,14 +27,12 @@
   const paddleCheckout = {
     token: "live_fae4413c36b1d1ea863f37f9ab2",
     prices: {
-      monthly: "pri_01kws963debaa0y28k1m93syc9",
-      yearly: "pri_01kwsv2vs7ek3s48fnyvena2yf",
+      lifetime: "pri_01kyj2qr6c0azepvamn2zc34sh",
     },
   };
 
   const planPricing = {
-    monthly: { value: 6.99, currency: "USD", name: "Mac Kit Monthly" },
-    yearly: { value: 69.99, currency: "USD", name: "Mac Kit Yearly" },
+    lifetime: { value: 14.90, currency: "USD", name: "Mac Kit Lifetime" },
   };
 
   function trackTikTokEvent(eventName, plan) {

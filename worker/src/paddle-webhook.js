@@ -922,6 +922,7 @@ function extractPriceIds(entity) {
 }
 
 function inferPlan(priceIds, env) {
+  if (priceIds.includes(env.LIFETIME_PRICE_ID)) return "lifetime";
   if (priceIds.includes(env.MONTHLY_PRICE_ID)) return "monthly";
   if (priceIds.includes(env.YEARLY_PRICE_ID)) return "yearly";
   return "unknown";
