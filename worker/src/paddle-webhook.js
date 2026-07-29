@@ -690,16 +690,16 @@ async function storeLicenseIndexes(license, env) {
 const DEFAULT_RELEASES_PAGE_URL =
   "https://github.com/mahsumozer/mac-kit-releases/releases/latest";
 
-// Turns a GitHub "releases/latest" page URL into the API endpoint for that
-// repo's latest release. Returns null for any other kind of URL.
-function githubLatestReleaseApi(pageUrl) {
+// Turns a GitHub "releases/latest" page URL into that repo's asset download
+// base. Returns null for any other kind of URL.
+function githubLatestDownloadBase(pageUrl) {
   try {
     const url = new URL(pageUrl);
     if (url.hostname !== "github.com") return null;
     const match = url.pathname.match(/^\/([^/]+)\/([^/]+)\/releases(?:\/|$)/);
     if (!match) return null;
     const [, owner, repo] = match;
-    return `https://api.github.com/repos/${owner}/${repo}/releases/latest`;
+    return `https://github.com/${owner}/${repo}/releases/latest/download`;
   } catch {
     return null;
   }
@@ -707,26 +707,22 @@ function githubLatestReleaseApi(pageUrl) {
 
 // Resolves the email's download link. If MAC_KIT_DOWNLOAD_URL points at a
 // GitHub releases page, upgrade it to the newest release's direct .dmg URL so
-// the link starts the download immediately. Any non-GitHub URL is used as-is,
-// and we fall back to the original URL if the API lookup fails.
+// the link starts the download immediately. The current file name comes from
+// electron-builder's latest-mac.yml rather than api.github.com, whose
+// unauthenticated rate limit is shared per egress IP and rejects Workers
+// traffic often enough to silently downgrade the link to the releases page.
 async function resolveDownloadUrl(env) {
   const configured = env.MAC_KIT_DOWNLOAD_URL || DEFAULT_RELEASES_PAGE_URL;
-  const apiUrl = githubLatestReleaseApi(configured);
-  if (!apiUrl) return configured;
+  const downloadBase = githubLatestDownloadBase(configured);
+  if (!downloadBase) return configured;
   try {
-    const response = await fetch(apiUrl, {
-      headers: {
-        accept: "application/vnd.github+json",
-        "user-agent": "mac-kit-paddle-webhook",
-      },
+    const response = await fetch(`${downloadBase}/latest-mac.yml`, {
+      headers: { "user-agent": "mac-kit-paddle-webhook" },
     });
     if (!response.ok) return configured;
-    const release = await response.json();
-    const assets = Array.isArray(release.assets) ? release.assets : [];
-    const dmg = assets.find(
-      (asset) => typeof asset.name === "string" && asset.name.toLowerCase().endsWith(".dmg"),
-    );
-    return dmg?.browser_download_url || configured;
+    const manifest = await response.text();
+    const dmg = manifest.match(/[\w.-]+\.dmg(?![\w.-])/);
+    return dmg ? `${downloadBase}/${dmg[0]}` : configured;
   } catch {
     return configured;
   }
