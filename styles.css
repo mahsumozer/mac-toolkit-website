@@ -420,11 +420,11 @@ body.show-mac-handoff .mac-handoff:focus-within {
 .hero-window {
   position: relative;
   z-index: 1;
-  width: min(100%, 610px);
+  width: min(100%, 490px);
   height: auto;
   display: grid;
   grid-template-rows: minmax(0, 1fr);
-  padding: 12px;
+  padding: 9px;
   color: var(--white);
   background: rgba(0, 0, 0, 0.55);
   -webkit-backdrop-filter: blur(18px);
@@ -432,6 +432,64 @@ body.show-mac-handoff .mac-handoff:focus-within {
   border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 8px;
   box-shadow: 0 50px 120px rgba(0, 0, 0, 0.32);
+}
+
+/* Tightens the boxes inside the hero panel without touching any type size, so
+   the mock reads smaller while staying legible. Scoped to the hero because the
+   compare popover reuses these mock classes at its own dimensions. */
+.hero-product .app-mock,
+.hero-product .mock-col {
+  gap: 8px;
+}
+
+.hero-product .mock-card {
+  padding: 10px;
+}
+
+.hero-product .mock-card-head {
+  margin-bottom: 8px;
+}
+
+.hero-product .mock-clip-row {
+  min-height: 28px;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.hero-product .mock-pomo-state,
+.hero-product .mock-color-row,
+.hero-product .mock-color-pills {
+  margin-bottom: 7px;
+}
+
+.hero-product .mock-pomo-controls {
+  grid-template-columns: 30px 1fr 30px;
+  gap: 6px;
+}
+
+.hero-product .mock-btn-accent,
+.hero-product .mock-pomo-controls button:not(.mock-btn-accent),
+.hero-product .mock-shot-grid button {
+  min-height: 28px;
+}
+
+.hero-product .mock-shot-grid {
+  gap: 6px;
+}
+
+.hero-product .mock-swatch {
+  width: 28px;
+  height: 28px;
+}
+
+.hero-product .mock-color-pills span {
+  min-height: 21px;
+}
+
+.hero-product .mock-add-button {
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
 }
 
 .app-mock {
