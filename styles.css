@@ -442,12 +442,6 @@ body.show-mac-handoff .mac-handoff:focus-within {
   gap: 8px;
 }
 
-/* The left column's monospace paths set the panel's minimum width, while the
-   right column's short button labels leave slack, so the split is uneven. */
-.hero-product .app-mock {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 0.84fr);
-}
-
 .hero-product .mock-card {
   padding: 10px;
 }
@@ -2958,7 +2952,6 @@ body.show-mac-handoff .mac-handoff:focus-within {
 
   .hero-window .app-mock {
     gap: 6px;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 
   .hero-window .mock-col {
