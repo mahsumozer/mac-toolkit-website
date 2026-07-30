@@ -579,12 +579,10 @@
     });
   }
 
-  function initContactForm() {
-    const form = document.getElementById("contact-form");
+  function bindBrevoForm(form, frame, successMessage) {
     if (!form) return;
 
     const button = form.querySelector("button[type='submit']");
-    const frame = document.querySelector('iframe[name="brevo-frame"]');
     let pending = false;
 
     form.addEventListener("submit", () => {
@@ -598,9 +596,32 @@
         pending = false;
         if (button) button.disabled = false;
         form.reset();
-        showToast("Thanks for subscribing. Check your inbox to confirm.");
+        showToast(successMessage);
       });
     }
+  }
+
+  function initContactForm() {
+    bindBrevoForm(
+      document.getElementById("contact-form"),
+      document.querySelector('iframe[name="brevo-frame"]'),
+      "Thanks for subscribing. Check your inbox to confirm."
+    );
+    bindBrevoForm(
+      document.getElementById("handoff-form"),
+      document.querySelector('iframe[name="brevo-handoff-frame"]'),
+      "Link sent. Open it on your Mac to install Mac Kit."
+    );
+  }
+
+  function initMacHandoff() {
+    const ua = navigator.userAgent;
+    // iOS user agents say "like Mac OS X", and iPadOS claims "Macintosh"
+    // outright, so match on "Macintosh" and let touch points rule out iPads.
+    const isIos = /iPhone|iPad|iPod/.test(ua);
+    const isMac = !isIos && /Macintosh/.test(ua) && navigator.maxTouchPoints <= 1;
+    if (isMac) return;
+    document.body.classList.add("show-mac-handoff");
   }
 
   function initShowcaseRail() {
@@ -992,6 +1013,7 @@
     trackViewContent();
     initDownloadButtons();
     initContactForm();
+    // initMacHandoff();
     initPrivacyChoice();
     initShowcaseRail();
     initCompareMerge();

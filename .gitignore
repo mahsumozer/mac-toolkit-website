@@ -17,3 +17,9 @@ worker/.wrangler/
 video-screenshots/*
 video-with-music/mac-kit-launch-promo-music.mp4
 video-with-music/mac-kit-screendraw-promo-music.mp4
+new-videos/*/out/
+new-videos/*/preview.mjs
+node_modules/
+*.mp4
+*.mov
+new-videos/*

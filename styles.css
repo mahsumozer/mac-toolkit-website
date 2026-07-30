@@ -260,6 +260,88 @@ svg {
   margin-top: 24px;
 }
 
+.mac-handoff {
+  display: none;
+  max-width: 560px;
+  margin-top: 28px;
+  padding: 18px;
+  background: rgba(245, 148, 29, 0.09);
+  border: 1px solid rgba(245, 148, 29, 0.4);
+  border-radius: 18px;
+}
+
+body.show-mac-handoff .mac-handoff {
+  display: block;
+  animation: mac-handoff-pulse 2.4s var(--ease) infinite;
+}
+
+/* Settle once the visitor is actually typing an address. */
+body.show-mac-handoff .mac-handoff:focus-within {
+  animation: none;
+  border-color: rgba(245, 148, 29, 0.9);
+}
+
+@keyframes mac-handoff-pulse {
+  0%,
+  100% {
+    border-color: rgba(245, 148, 29, 0.35);
+    box-shadow: 0 0 0 0 rgba(245, 148, 29, 0);
+  }
+  50% {
+    border-color: rgba(245, 148, 29, 0.95);
+    box-shadow: 0 0 0 7px rgba(245, 148, 29, 0.14);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.show-mac-handoff .mac-handoff {
+    animation: none;
+    border-color: rgba(245, 148, 29, 0.9);
+  }
+}
+
+.mac-handoff-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.mac-handoff-copy {
+  margin: 6px 0 0;
+  color: var(--soft-black);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.mac-handoff-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.mac-handoff-form input[type="email"] {
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 14px;
+  color: var(--ink);
+  background: var(--paper-2);
+  border: 1px solid rgba(245, 148, 29, 0.3);
+  border-radius: 999px;
+  outline: none;
+}
+
+.mac-handoff-form input[type="email"]:focus {
+  border-color: rgba(5, 5, 5, 0.38);
+}
+
+@media (max-width: 560px) {
+  .mac-handoff-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .hero-product {
   position: relative;
   align-self: stretch;
@@ -299,6 +381,18 @@ svg {
   box-shadow: 0 32px 90px rgba(0, 0, 0, 0.22);
   font-size: 12px;
   font-weight: 650;
+}
+
+.strip-apple {
+  display: inline-flex;
+  align-items: center;
+  margin-right: -6px;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.strip-app {
+  color: var(--white);
+  font-weight: 850;
 }
 
 .strip-spacer {
@@ -2618,8 +2712,8 @@ svg {
     overflow: hidden;
   }
 
-  .desktop-strip span:nth-child(2),
-  .desktop-strip span:nth-child(3),
+  .desktop-strip span:nth-child(4),
+  .desktop-strip span:nth-child(5),
   .desktop-strip .strip-battery {
     display: none;
   }

@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "build": "sh scripts/build-pages.sh",
-    "video:launch": "node marketing-video/render.mjs"
+    "video:launch": "node marketing-video/render.mjs",
+    "video:new": "node new-videos/render-all.mjs",
+    "video:new:stills": "node new-videos/render-all.mjs --stills",
+    "video:new:verify": "node new-videos/verify.mjs"
   }
 }
