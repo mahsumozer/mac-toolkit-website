@@ -420,7 +420,7 @@ body.show-mac-handoff .mac-handoff:focus-within {
 .hero-window {
   position: relative;
   z-index: 1;
-  width: min(100%, 490px);
+  width: min(100%, 445px);
   height: auto;
   display: grid;
   grid-template-rows: minmax(0, 1fr);
@@ -442,6 +442,12 @@ body.show-mac-handoff .mac-handoff:focus-within {
   gap: 8px;
 }
 
+/* The left column's monospace paths set the panel's minimum width, while the
+   right column's short button labels leave slack, so the split is uneven. */
+.hero-product .app-mock {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.84fr);
+}
+
 .hero-product .mock-card {
   padding: 10px;
 }
@@ -452,8 +458,9 @@ body.show-mac-handoff .mac-handoff:focus-within {
 
 .hero-product .mock-clip-row {
   min-height: 28px;
-  gap: 8px;
+  gap: 6px;
   margin-bottom: 5px;
+  padding: 0 8px;
 }
 
 .hero-product .mock-pomo-state,
@@ -2951,6 +2958,7 @@ body.show-mac-handoff .mac-handoff:focus-within {
 
   .hero-window .app-mock {
     gap: 6px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 
   .hero-window .mock-col {
