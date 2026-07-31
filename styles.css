@@ -2185,28 +2185,29 @@ body.show-mac-handoff .mac-handoff:focus-within {
   text-decoration: none;
 }
 
-/* Gradients rather than rotated bars: the "to top right" transition lands
-   exactly on the corners whatever the text width turns out to be. */
+/* Rotated bars, not diagonal gradients: hard colour stops in a gradient are
+   not antialiased, so at this shallow an angle the arms came out as a dashed
+   staircase. 44% puts them on the optical centre of the digits rather than
+   the line box, which carries descender space the numerals never use. */
+.compare-old .compare-total strong s::before,
 .compare-old .compare-total strong s::after {
   content: "";
   position: absolute;
-  inset: 8% -3%;
+  left: 0;
+  right: 0;
+  top: 44%;
+  height: 3px;
+  border-radius: 2px;
+  background: #d92d20;
   opacity: 0.62;
-  background-image:
-    linear-gradient(
-      to top right,
-      transparent calc(50% - 1.5px),
-      #d92d20 calc(50% - 1.5px),
-      #d92d20 calc(50% + 1.5px),
-      transparent calc(50% + 1.5px)
-    ),
-    linear-gradient(
-      to bottom right,
-      transparent calc(50% - 1.5px),
-      #d92d20 calc(50% - 1.5px),
-      #d92d20 calc(50% + 1.5px),
-      transparent calc(50% + 1.5px)
-    );
+}
+
+.compare-old .compare-total strong s::before {
+  transform: translateY(-50%) rotate(12deg);
+}
+
+.compare-old .compare-total strong s::after {
+  transform: translateY(-50%) rotate(-12deg);
 }
 
 .compare-old .compare-total strong span {
