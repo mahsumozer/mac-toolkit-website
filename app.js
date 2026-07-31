@@ -24,6 +24,8 @@
     },
   };
 
+  const formsApi = "https://mac-kit-forms.rojhot.workers.dev";
+
   const paddleCheckout = {
     token: "live_fae4413c36b1d1ea863f37f9ab2",
     prices: {
@@ -529,37 +531,59 @@
     });
   }
 
-  function bindBrevoForm(form, frame, successMessage) {
+  function formErrorMessage(code) {
+    if (code === "invalid_email") return "Enter a valid email address.";
+    if (code === "rate_limited") return "Too many requests. Try again in a few minutes.";
+    return "Something went wrong. Please try again.";
+  }
+
+  function bindEmailForm(form, endpoint, successMessage) {
     if (!form) return;
 
     const button = form.querySelector("button[type='submit']");
     let pending = false;
 
-    form.addEventListener("submit", () => {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (pending) return;
       pending = true;
       if (button) button.disabled = true;
-    });
 
-    if (frame) {
-      frame.addEventListener("load", () => {
-        if (!pending) return;
+      const data = new FormData(form);
+      try {
+        const response = await fetch(`${formsApi}${endpoint}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            email: String(data.get("EMAIL") || ""),
+            email_address_check: String(data.get("email_address_check") || ""),
+          }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (response.ok && result.ok) {
+          form.reset();
+          showToast(successMessage);
+        } else {
+          showToast(formErrorMessage(result.error));
+        }
+      } catch {
+        showToast("Network error. Please try again.");
+      } finally {
         pending = false;
         if (button) button.disabled = false;
-        form.reset();
-        showToast(successMessage);
-      });
-    }
+      }
+    });
   }
 
-  function initContactForm() {
-    bindBrevoForm(
+  function initEmailForms() {
+    bindEmailForm(
       document.getElementById("contact-form"),
-      document.querySelector('iframe[name="brevo-frame"]'),
-      "Thanks for subscribing. Check your inbox to confirm."
+      "/newsletter/subscribe",
+      "You're on the list."
     );
-    bindBrevoForm(
+    bindEmailForm(
       document.getElementById("handoff-form"),
-      document.querySelector('iframe[name="brevo-handoff-frame"]'),
+      "/handoff/email",
       "Link sent. Open it on your Mac to install Mac Kit."
     );
   }
@@ -961,8 +985,8 @@
     initializePaddle();
     initCheckoutButtons();
     initDownloadButtons();
-    initContactForm();
-    // initMacHandoff();
+    initEmailForms();
+    initMacHandoff();
     initPrivacyChoice();
     initShowcaseRail();
     initCompareMerge();

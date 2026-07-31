@@ -1,0 +1,13 @@
+Open this on your Mac.
+
+You asked us to send the link. Mac Kit is a macOS menu bar app, so open this
+email on your Mac and you are two clicks from having it.
+
+See what Mac Kit does:
+{{{SITE_URL}}}
+
+Already decided? Download the app directly:
+{{{DOWNLOAD_URL}}}
+
+You received this because you asked us to email you the link. Reply to this
+email or contact hello@usemackit.com if you need help.
