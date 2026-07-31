@@ -342,6 +342,78 @@ body.show-mac-handoff .mac-handoff:focus-within {
   }
 }
 
+.handoff-fab {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 110;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 0 18px;
+  color: var(--white);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  background: var(--ink);
+  border: 0;
+  border-radius: 999px;
+  box-shadow: 0 12px 30px rgba(5, 5, 5, 0.3);
+  cursor: pointer;
+}
+
+/* The base rule sets a display value, so hidden needs to win it back. */
+.handoff-fab[hidden] {
+  display: none;
+}
+
+.handoff-fab svg {
+  width: 18px;
+  height: 18px;
+  color: var(--accent);
+}
+
+.handoff-dialog {
+  width: min(420px, calc(100vw - 32px));
+  padding: 24px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid rgba(245, 148, 29, 0.45);
+  border-radius: 20px;
+  box-shadow: 0 24px 60px rgba(5, 5, 5, 0.24);
+}
+
+.handoff-dialog::backdrop {
+  background: rgba(5, 5, 5, 0.5);
+}
+
+.handoff-dialog .mac-handoff-title {
+  padding-right: 28px;
+  font-size: 18px;
+}
+
+.handoff-dialog-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  color: var(--soft-black);
+  font-size: 22px;
+  line-height: 1;
+  background: none;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.handoff-dialog-close:hover {
+  color: var(--ink);
+  background: rgba(5, 5, 5, 0.06);
+}
+
 .hero-product {
   position: relative;
   align-self: stretch;

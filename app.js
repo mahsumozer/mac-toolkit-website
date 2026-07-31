@@ -537,7 +537,7 @@
     return "Something went wrong. Please try again.";
   }
 
-  function bindEmailForm(form, endpoint, successMessage) {
+  function bindEmailForm(form, endpoint, successMessage, onSuccess) {
     if (!form) return;
 
     const button = form.querySelector("button[type='submit']");
@@ -563,6 +563,7 @@
         if (response.ok && result.ok) {
           form.reset();
           showToast(successMessage);
+          onSuccess?.();
         } else {
           showToast(formErrorMessage(result.error));
         }
@@ -575,16 +576,54 @@
     });
   }
 
+  const handoffSentKey = "toolkit-handoff-link-sent";
+  const handoffPromptKey = "toolkit-handoff-prompt-seen";
+
+  function readFlag(key) {
+    try {
+      return localStorage.getItem(key) === "true";
+    } catch {
+      // Privacy-restricted browsers can block localStorage.
+      return false;
+    }
+  }
+
+  function writeFlag(key) {
+    try {
+      localStorage.setItem(key, "true");
+    } catch {
+      // Ignore storage failures; these flags only tune how often we ask.
+    }
+  }
+
   function initEmailForms() {
+    const handoffSent = "Link sent. Open it on your Mac to install Mac Kit.";
+
     bindEmailForm(
       document.getElementById("contact-form"),
       "/newsletter/subscribe",
       "You're on the list."
     );
+    // The visitor has the link now, so stop offering it in every surface.
+    const handoffDone = () => {
+      writeFlag(handoffSentKey);
+      const fab = document.getElementById("handoff-fab");
+      if (fab) fab.hidden = true;
+      const dialog = document.getElementById("handoff-dialog");
+      if (dialog?.open) dialog.close();
+    };
+
     bindEmailForm(
       document.getElementById("handoff-form"),
       "/handoff/email",
-      "Link sent. Open it on your Mac to install Mac Kit."
+      handoffSent,
+      handoffDone
+    );
+    bindEmailForm(
+      document.getElementById("handoff-dialog-form"),
+      "/handoff/email",
+      handoffSent,
+      handoffDone
     );
   }
 
@@ -596,6 +635,37 @@
     const isMac = !isIos && /Macintosh/.test(ua) && navigator.maxTouchPoints <= 1;
     if (isMac) return;
     document.body.classList.add("show-mac-handoff");
+  }
+
+  // Mac Kit cannot be installed from the device this visitor is holding, so
+  // offer the link early. Dismissing the dialog shrinks it to a corner button
+  // rather than taking the offer away; sending the link removes both.
+  function initHandoffPrompt() {
+    const dialog = document.getElementById("handoff-dialog");
+    const fab = document.getElementById("handoff-fab");
+    if (!dialog || !fab || typeof dialog.showModal !== "function") return;
+    if (!document.body.classList.contains("show-mac-handoff")) return;
+    if (readFlag(handoffSentKey)) return;
+
+    const closeButton = document.getElementById("handoff-dialog-close");
+    if (closeButton) closeButton.addEventListener("click", () => dialog.close());
+    fab.addEventListener("click", () => dialog.showModal());
+    // Catches the close button, Esc, and the successful send alike.
+    dialog.addEventListener("close", () => {
+      fab.hidden = readFlag(handoffSentKey);
+    });
+
+    // Once the dialog has interrupted this browser, later visits only get the
+    // button.
+    if (readFlag(handoffPromptKey)) {
+      fab.hidden = false;
+      return;
+    }
+
+    window.setTimeout(() => {
+      writeFlag(handoffPromptKey);
+      dialog.showModal();
+    }, 5000);
   }
 
   function initShowcaseRail() {
@@ -709,10 +779,6 @@
     if (!oldCol || !vsDot || !kitMenuIcon) return;
 
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
-    // Phones keep the static grid: scattered absolute icons collide at this
-    // width, and the fly-to-vs cycle leaves the column empty half the time.
-    if (window.matchMedia("(max-width: 820px)").matches) return;
 
     const groups = Array.from(oldCol.querySelectorAll(".compare-app"));
     if (!groups.length) return;
@@ -987,6 +1053,7 @@
     initDownloadButtons();
     initEmailForms();
     initMacHandoff();
+    initHandoffPrompt();
     initPrivacyChoice();
     initShowcaseRail();
     initCompareMerge();
