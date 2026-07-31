@@ -2177,15 +2177,39 @@ body.show-mac-handoff .mac-handoff:focus-within {
 
 .compare-old .compare-total strong {
   color: var(--soft-black);
-  text-decoration: line-through;
-  text-decoration-color: #d92d20;
-  text-decoration-thickness: 2px;
 }
 
-/* A propagated line-through always keeps its originating element's color, so
-   the span has to become atomic to opt out of the red and draw its own. */
-.compare-old .compare-total strong span {
+.compare-old .compare-total strong s {
+  position: relative;
   display: inline-block;
+  text-decoration: none;
+}
+
+/* Gradients rather than rotated bars: the "to top right" transition lands
+   exactly on the corners whatever the text width turns out to be. */
+.compare-old .compare-total strong s::after {
+  content: "";
+  position: absolute;
+  inset: 8% -3%;
+  opacity: 0.62;
+  background-image:
+    linear-gradient(
+      to top right,
+      transparent calc(50% - 1.5px),
+      #d92d20 calc(50% - 1.5px),
+      #d92d20 calc(50% + 1.5px),
+      transparent calc(50% + 1.5px)
+    ),
+    linear-gradient(
+      to bottom right,
+      transparent calc(50% - 1.5px),
+      #d92d20 calc(50% - 1.5px),
+      #d92d20 calc(50% + 1.5px),
+      transparent calc(50% + 1.5px)
+    );
+}
+
+.compare-old .compare-total strong span {
   text-decoration: line-through;
   text-decoration-color: rgba(5, 5, 5, 0.28);
   text-decoration-thickness: 2px;
