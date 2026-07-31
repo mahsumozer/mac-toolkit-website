@@ -2182,6 +2182,15 @@ body.show-mac-handoff .mac-handoff:focus-within {
   text-decoration-thickness: 2px;
 }
 
+/* A propagated line-through always keeps its originating element's color, so
+   the span has to become atomic to opt out of the red and draw its own. */
+.compare-old .compare-total strong span {
+  display: inline-block;
+  text-decoration: line-through;
+  text-decoration-color: rgba(5, 5, 5, 0.28);
+  text-decoration-thickness: 2px;
+}
+
 .compare-total-accent strong {
   color: var(--ink);
 }
