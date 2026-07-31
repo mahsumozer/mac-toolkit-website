@@ -31,28 +31,6 @@
     },
   };
 
-  const planPricing = {
-    lifetime: { value: 14.90, currency: "USD", name: "Mac Kit Lifetime" },
-  };
-
-  function trackTikTokEvent(eventName, plan) {
-    if (typeof window.ttq === "undefined") return;
-    const pricing = planPricing[plan];
-    const priceId = paddleCheckout.prices[plan];
-    if (!pricing || !priceId) return;
-    window.ttq.track(eventName, {
-      contents: [
-        {
-          content_id: priceId,
-          content_type: "product",
-          content_name: pricing.name,
-        },
-      ],
-      value: pricing.value,
-      currency: pricing.currency,
-    });
-  }
-
   let selectedTool = "capture";
   let focusTimer = null;
   let focusRemaining = 25 * 60;
@@ -473,17 +451,8 @@
     return customData;
   }
 
-  function getSuccessUrl(plan) {
-    const url = new URL("/success", window.location.origin);
-    const pricing = planPricing[plan];
-    const priceId = paddleCheckout.prices[plan];
-    if (pricing && priceId) {
-      url.searchParams.set("plan", plan);
-      url.searchParams.set("value", String(pricing.value));
-      url.searchParams.set("currency", pricing.currency);
-      url.searchParams.set("content_id", priceId);
-    }
-    return url.toString();
+  function getSuccessUrl() {
+    return new URL("/success", window.location.origin).toString();
   }
 
   function initializePaddle() {
@@ -525,7 +494,7 @@
           displayMode: "overlay",
           theme: "light",
           locale: "en",
-          successUrl: getSuccessUrl(plan),
+          successUrl: getSuccessUrl(),
         },
         items: [
           {
@@ -535,7 +504,6 @@
         ],
         customData: getCheckoutCustomData(plan),
       });
-      trackTikTokEvent("InitiateCheckout", plan);
     } catch (error) {
       console.error(error);
       showToast("Checkout could not be opened. Please try again.");
@@ -549,24 +517,6 @@
         const plan = link.dataset.paddlePlan;
         openPaddleCheckout(plan);
       });
-    });
-  }
-
-  function trackViewContent() {
-    if (typeof window.ttq === "undefined") return;
-    const plans = Array.from(document.querySelectorAll("[data-paddle-plan]"))
-      .map((link) => link.dataset.paddlePlan)
-      .filter((plan, index, arr) => plan && planPricing[plan] && arr.indexOf(plan) === index);
-    if (!plans.length) return;
-    const value = plans.reduce((sum, plan) => sum + planPricing[plan].value, 0);
-    window.ttq.track("ViewContent", {
-      contents: plans.map((plan) => ({
-        content_id: paddleCheckout.prices[plan],
-        content_type: "product",
-        content_name: planPricing[plan].name,
-      })),
-      value: Math.round(value * 100) / 100,
-      currency: "USD",
     });
   }
 
@@ -1010,7 +960,6 @@
     initAwakeToggle();
     initializePaddle();
     initCheckoutButtons();
-    trackViewContent();
     initDownloadButtons();
     initContactForm();
     // initMacHandoff();

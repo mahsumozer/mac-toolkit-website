@@ -1,60 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18328671975"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-
-      gtag('config', 'AW-18328671975');
-
-      // Report purchase conversion on this post-payment page.
-      // Paddle appends ?_ptxn=txn_... on redirect; use it to dedupe.
-      (function () {
-        var txn = new URLSearchParams(window.location.search).get('_ptxn') || '';
-        gtag('event', 'conversion', {
-          send_to: 'AW-18328671975/ixI3CMG449UcEOet5aNE',
-          transaction_id: txn,
-        });
-      })();
-    </script>
-    <!-- TikTok Pixel Code Start -->
-    <script>
-      !function (w, d, t) {
-        w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie","holdConsent","revokeConsent","grantConsent"],ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e},ttq.load=function(e,n){var r="https://analytics.tiktok.com/i18n/pixel/events.js",o=n&&n.partner;ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=r,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};n=document.createElement("script");n.type="text/javascript",n.async=!0,n.src=r+"?sdkid="+e+"&lib="+t;e=document.getElementsByTagName("script")[0];e.parentNode.insertBefore(n,e)};
-        ttq.load('D9HSLABC77U820ARJJJ0');
-        ttq.page();
-
-        // Report the purchase. Checkout passes plan/value/currency on the
-        // success URL; Paddle also appends _ptxn as the transaction id.
-        (function () {
-          var p = new URLSearchParams(window.location.search);
-          var value = parseFloat(p.get('value'));
-          var plan = p.get('plan') || '';
-          var txn = p.get('_ptxn') || '';
-          var properties = {
-            contents: [
-              {
-                content_id: p.get('content_id') || '',
-                content_type: 'product',
-                content_name: plan ? 'Mac Kit ' + plan : 'Mac Kit',
-              },
-            ],
-            value: isNaN(value) ? undefined : value,
-            currency: p.get('currency') || 'USD',
-          };
-          // event_id lets TikTok drop repeats if this page is reloaded.
-          if (txn) {
-            ttq.track('Purchase', properties, { event_id: txn });
-          } else {
-            ttq.track('Purchase', properties);
-          }
-        })();
-      }(window, document, 'ttq');
-    </script>
-    <!-- TikTok Pixel Code End -->
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex, nofollow, noarchive" />
