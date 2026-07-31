@@ -649,7 +649,12 @@
 
     const closeButton = document.getElementById("handoff-dialog-close");
     if (closeButton) closeButton.addEventListener("click", () => dialog.close());
-    fab.addEventListener("click", () => dialog.showModal());
+    fab.addEventListener("click", () => {
+      // The backdrop is translucent, so the button would sit dimmed behind the
+      // dialog it just opened. The close handler brings it back.
+      fab.hidden = true;
+      dialog.showModal();
+    });
     // Catches the close button, Esc, and the successful send alike.
     dialog.addEventListener("close", () => {
       fab.hidden = readFlag(handoffSentKey);

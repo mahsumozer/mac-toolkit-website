@@ -342,6 +342,14 @@ body.show-mac-handoff .mac-handoff:focus-within {
   }
 }
 
+/* Animating a conic gradient needs the angle registered as a real angle type;
+   browsers without @property just render the arc parked at its start. */
+@property --handoff-trace {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
 .handoff-fab {
   position: fixed;
   right: 14px;
@@ -367,6 +375,47 @@ body.show-mac-handoff .mac-handoff:focus-within {
 /* The base rule sets a display value, so hidden needs to win it back. */
 .handoff-fab[hidden] {
   display: none;
+}
+
+/* An orange arc running the outline. The mask keeps only the 2px ring, which
+   is why the sweep has to come from the gradient angle: rotating the element
+   itself would drag the pill-shaped mask around with it. */
+.handoff-fab::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  padding: 2px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--handoff-trace),
+    transparent 0deg 210deg,
+    rgba(245, 148, 29, 0.55) 290deg,
+    var(--accent) 340deg,
+    transparent 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: handoff-fab-trace 2.6s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes handoff-fab-trace {
+  to {
+    --handoff-trace: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .handoff-fab::before {
+    animation: none;
+    background: rgba(245, 148, 29, 0.6);
+  }
 }
 
 .handoff-fab svg {
