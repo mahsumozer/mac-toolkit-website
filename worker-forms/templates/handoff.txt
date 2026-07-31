@@ -1,13 +1,16 @@
-Open this on your Mac.
+Mac Kit turns the menu bar into a control room.
 
-You asked us to send the link. Mac Kit is a macOS menu bar app, so open this
-email on your Mac and you are two clicks from having it.
+Here is the link you asked for. Screenshots, clipboard history, pomodoro,
+color picking, conversion, system controls - one click away, and all of it
+works offline.
 
 See what Mac Kit does:
 {{{SITE_URL}}}
 
 Already decided? Download the app directly:
 {{{DOWNLOAD_URL}}}
+
+Mac Kit is a macOS app, so these links want a Mac at the other end.
 
 You received this because you asked us to email you the link. Reply to this
 email or contact hello@usemackit.com if you need help.

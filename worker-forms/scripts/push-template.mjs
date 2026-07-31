@@ -23,7 +23,7 @@ const templates = join(dirname(fileURLToPath(import.meta.url)), "..", "templates
 const body = {
   name: "Mac Kit handoff",
   alias,
-  subject: "Install Mac Kit on your Mac",
+  subject: "Your Mac Kit link",
   html: await readFile(join(templates, "handoff.html"), "utf8"),
   text: await readFile(join(templates, "handoff.txt"), "utf8"),
   variables: [
