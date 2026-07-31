@@ -2178,7 +2178,7 @@ body.show-mac-handoff .mac-handoff:focus-within {
 .compare-old .compare-total strong {
   color: var(--soft-black);
   text-decoration: line-through;
-  text-decoration-color: rgba(5, 5, 5, 0.28);
+  text-decoration-color: #d92d20;
   text-decoration-thickness: 2px;
 }
 
