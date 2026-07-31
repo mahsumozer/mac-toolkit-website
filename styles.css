@@ -213,8 +213,11 @@ svg {
   row-gap: 10px;
 }
 
+/* Caps the text column at the width where the h1 stops growing, so the
+   headline keeps the same line breaks on any display wider than ~1490px
+   instead of shrinking against an ever-widening column. */
 .hero-copy {
-  max-width: 850px;
+  max-width: 620px;
 }
 
 .eyebrow {
@@ -238,7 +241,7 @@ svg {
 .hero h1 {
   margin: 0;
   max-width: 900px;
-  font-size: clamp(46px, 7vw, 104px);
+  font-size: clamp(46px, 6.3vw, 94px);
   font-weight: 760;
   line-height: 0.88;
   letter-spacing: -0.075em;
@@ -523,7 +526,7 @@ body.show-mac-handoff .mac-handoff:focus-within {
 .bolt {
   display: inline-flex;
   height: 24px;
-  min-width: 30px;
+  min-width: 36px;
   align-items: center;
   justify-content: center;
   color: var(--white);
@@ -2774,6 +2777,7 @@ body.show-mac-handoff .mac-handoff:focus-within {
   .hero-copy {
     order: 1;
     margin-top: clamp(32px, 6vw, 56px);
+    max-width: 850px;
   }
 
   .tools-list {
