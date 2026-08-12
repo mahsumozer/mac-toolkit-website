@@ -27,9 +27,9 @@ function storyTime(outT) {
   return outT - acc;
 }
 const ROOT = process.cwd();
-const OUT_DIR = join(ROOT, "marketing-video", "out");
-const VIDEO_OUT = join(OUT_DIR, "mac-kit-launch-promo.mp4");
-const POSTER_OUT = join(OUT_DIR, "mac-kit-launch-poster.png");
+const OUT_DIR = join(ROOT, "marketing-video-zoom", "out");
+const VIDEO_OUT = join(OUT_DIR, "mac-kit-launch-promo-zoom.mp4");
+const POSTER_OUT = join(OUT_DIR, "mac-kit-launch-poster-zoom.png");
 
 const orange = "#ff9f1c";
 const ink = "#f7f3ea";
@@ -311,6 +311,39 @@ function popoverState(t) {
     }
   }
   return { op, active };
+}
+
+// ---- Camera: pushes in whenever the panel is open, pulls back once it closes ----
+const ZOOM_MAX = 1.5;
+const ZOOM_RAMP = 0.55;
+// Panels that reopen almost immediately share one push-in, so the camera holds
+// instead of bouncing out and back in for a half-second gap.
+const ZOOM_SPANS = POP_INTERVALS.reduce((spans, [openT, closeT]) => {
+  const last = spans[spans.length - 1];
+  if (last && openT - last[1] < 1) last[1] = closeT;
+  else spans.push([openT, closeT]);
+  return spans;
+}, []);
+function zoomAmount(t) {
+  let p = 0;
+  for (const [openT, closeT] of ZOOM_SPANS) {
+    const inP = easeInOutCubic(between(t, openT - 0.2, openT - 0.2 + ZOOM_RAMP));
+    const outP = 1 - easeInOutCubic(between(t, closeT, closeT + ZOOM_RAMP));
+    p = Math.max(p, Math.min(inP, outP));
+  }
+  return p;
+}
+function camera(t) {
+  const p = zoomAmount(t);
+  if (p <= 0.002) return ["<g>", "</g>"];
+  const z = lerp(1, ZOOM_MAX, p);
+  // Clamp the focus so the desktop keeps covering the frame; otherwise the menu
+  // bar drifts down from the top edge and the whole scene stops reading as a screen.
+  const hx = WIDTH / 2 / z;
+  const hy = HEIGHT / 2 / z;
+  const fx = Math.min(Math.max(lerp(WIDTH / 2, PX + PW / 2, p), hx), WIDTH - hx);
+  const fy = Math.min(Math.max(lerp(HEIGHT / 2, PY + PH / 2, p), hy), HEIGHT - hy);
+  return [`<g transform="translate(${WIDTH / 2} ${HEIGHT / 2}) scale(${z}) translate(${-fx} ${-fy})">`, "</g>"];
 }
 
 // ---- Menu bar ----
@@ -795,8 +828,10 @@ function cta(t) {
 function frameSvg(index) {
   const t = storyTime(index / FPS);
   const [cx, cy] = cursorPos(t);
+  const [camOpen, camClose] = camera(t);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}">
     ${defs()}
+    ${camOpen}
     ${wallpaper(t)}
     ${deskWindows(t)}
     ${browserWindow(t)}
@@ -805,8 +840,9 @@ function frameSvg(index) {
     ${shotThumb(t)}
     ${colorLoupe(t, cx, cy)}
     ${popover(t)}
-    ${captions(t)}
     ${cursorLayer(t)}
+    ${camClose}
+    ${captions(t)}
     ${cta(t)}
   </svg>`;
 }

@@ -43,16 +43,54 @@ const ACC_SUB = "rgba(59,130,246,0.18)";
 const MB_H = 40;
 const ICON_CX = 1700;
 const ICON_CY = 20;
-// Original popover was authored for an icon at x=1300; shift to track our icon.
-const POP_DX = ICON_CX - 1300;
-const CDX = 16;
-const CDY = 48 - 95;
-const PX = 640;
+// ---- Menu-bar panel ----
+// The panel is drawn in the app's own point grid (360pt wide, same paddings/radii
+// as src/pages/Home.tsx light mode) and scaled up once, so it keeps real proportions.
+const PANEL_W = 360;
+const POP_S = 4 / 3; // the panel should read as a quarter of the 1920px frame
+const PX = 1320;
 const PY = 48;
-const PW = 760;
-const PH = 478;
-// Shrink the whole popover toward the menu-bar icon (top-right anchor).
-const POP_SCALE = 0.78;
+const PW = PANEL_W * POP_S;
+const pp = (x, y) => [PX + x * POP_S, PY + y * POP_S];
+
+// Panel-space layout (points). Two stacked cells plus a full-width card at the
+// bottom, which is how the real panel closes off a ragged column.
+const PAD_X = 12;
+const PAD_Y = 10;
+const GAP = 5; // the app uses 8; tightened so the cards read as one dense block
+const ROW_W = PANEL_W - 2 * PAD_X; // 336
+const CELL_W = (ROW_W - GAP) / 2;
+const COL_L = PAD_X;
+const COL_R = PAD_X + CELL_W + GAP;
+const CARD_IN = 11; // 1px border + 10px padding
+const CARD_CW = CELL_W - 2 * CARD_IN;
+const HEAD_H = 32; // border + padding + 16px header + 7px margin
+const H_CLIP = 141;
+const H_POMO = 108;
+const H_SHOT = 104;
+const H_PICK = 104;
+const H_WAKE = 68;
+const Y_CLIP = PAD_Y;
+const Y_POMO = Y_CLIP + H_CLIP + GAP;
+const Y_SHOT = PAD_Y;
+const Y_PICK = Y_SHOT + H_SHOT + GAP;
+const Y_WAKE = Y_POMO + H_POMO + GAP;
+const PANEL_H = Y_WAKE + H_WAKE + PAD_Y;
+const PH = PANEL_H * POP_S;
+
+const UI = {
+  panel: "rgba(60,60,63,0.72)",
+  card: "rgba(28,28,32,0.42)",
+  border: "rgba(255,255,255,0.09)",
+  sunken: "rgba(18,18,20,0.55)",
+  hover: "rgba(50,50,58,0.5)",
+  t1: "rgba(255,255,255,0.92)",
+  t2: "rgba(255,255,255,0.55)",
+  t3: "rgba(255,255,255,0.35)",
+  track: "rgba(255,255,255,0.1)",
+  swatch: "rgba(255,255,255,0.18)",
+  green: "#22c55e",
+};
 
 // ---- Capture preview stack (faithful to CapturePreview.tsx + main.ts layout) ----
 const CARD_W = 230;
@@ -130,11 +168,33 @@ function mbTimer(x, y, size = 18, color = orange) {
 function mbCopy(x, y, size = 15, color = "#98949e") {
   return icon(x, y, size, color, `<rect x="7" y="7" width="9" height="9" rx="2"/><path d="M4.5 12.5 H4 A1.5 1.5 0 0 1 2.5 11 V4 A1.5 1.5 0 0 1 4 2.5 H11 A1.5 1.5 0 0 1 12.5 4 V4.5"/>`);
 }
-function mbPlus(x, y, size = 18, color = ink) {
-  return icon(x, y, size, color, `<line x1="10" y1="5" x2="10" y2="15"/><line x1="5" y1="10" x2="15" y2="10"/>`);
+function mbMonitor(x, y, size, color) {
+  return icon(x, y, size, color, `<rect x="2.5" y="4" width="15" height="11" rx="2"/><line x1="7" y1="18" x2="13" y2="18"/><line x1="10" y1="15" x2="10" y2="18"/>`);
 }
-function mbMinus(x, y, size = 18, color = ink) {
-  return icon(x, y, size, color, `<line x1="5" y1="10" x2="15" y2="10"/>`);
+function mbCrop(x, y, size, color) {
+  return icon(x, y, size, color, `<path d="M5.5 1.5 V14.5 H18.5"/><path d="M1.5 5.5 H14.5 V18.5"/>`);
+}
+function mbAppWindow(x, y, size, color) {
+  return icon(x, y, size, color, `<rect x="2" y="4" width="16" height="12" rx="2.5"/><line x1="2" y1="8.5" x2="18" y2="8.5"/>`);
+}
+function mbVideo(x, y, size, color) {
+  return icon(x, y, size, color, `<rect x="2" y="5.5" width="11" height="9" rx="2.5"/><path d="M13 9 L18 6 V14 L13 11 Z"/>`);
+}
+function mbPipette(x, y, size, color) {
+  return icon(x, y, size, color, `<path d="M2.5 17.5 V14.5 L11.5 5.5"/><path d="M9.5 3.5 L16.5 10.5"/><path d="M13.5 1.5 A2.7 2.7 0 0 1 18.5 6.5 L16 9 L11 4 Z"/>`);
+}
+function mbSkip(x, y, size, color) {
+  return icon(x, y, size, color, `<path d="M5 4 L13 10 L5 16 Z" fill="${color}"/><line x1="15.2" y1="4" x2="15.2" y2="16"/>`);
+}
+function mbCoffee(x, y, size, color) {
+  return icon(x, y, size, color, `<path d="M3 7 H14 V13 A3 3 0 0 1 11 16 H6 A3 3 0 0 1 3 13 Z"/><path d="M14 8.5 H16.5 A2 2 0 0 1 16.5 12.5 H14"/><line x1="3" y1="18.5" x2="14" y2="18.5"/><path d="M6.5 4.5 V2.5"/><path d="M10.5 4.5 V2.5"/>`);
+}
+// SVG has no text-overflow, so long strings are clipped the way the app clips them.
+function fitText(value, maxWidth, size, family = sans) {
+  const perChar = (family === mono ? 0.6 : 0.52) * size;
+  const max = Math.floor(maxWidth / perChar);
+  if (value.length <= max) return value;
+  return `${value.slice(0, Math.max(1, max - 1))}…`;
 }
 
 // -- Quick Access ring icons (lucide-style, blue) --
@@ -339,88 +399,153 @@ const POP_CLOSE = 3.35;
 function popoverState(t) {
   return easeOutCubic(between(t, POP_OPEN, POP_OPEN + 0.26)) * (1 - easeOutCubic(between(t, POP_CLOSE, POP_CLOSE + 0.26)));
 }
-// Screenshot buttons are laid out at these local (x,y); the card group is shifted
-// by -16. Return the screen-space center of a button so the cursor can click it.
-const SHOT_BTNS = { Full: [1040, 160], Area: [1206, 160], Window: [1040, 204], Record: [1206, 204] };
-function shotBtnCenter(name) {
-  const [bx, by] = SHOT_BTNS[name];
-  const baseX = bx + 75 - 16 + CDX + POP_DX;
-  const baseY = by + 17 + CDY;
-  return [ICON_CX + POP_SCALE * (baseX - ICON_CX), PY + POP_SCALE * (baseY - PY)];
+
+// ---- Camera: pushes in while the panel is open, pulls back once it closes ----
+const ZOOM_MAX = 1.5;
+const ZOOM_RAMP = 0.45;
+// The pull-back starts on the Area click, not on POP_CLOSE: the drag that follows
+// needs the whole screen, so the camera has to be all the way out by then.
+const ZOOM_SPANS = [[POP_OPEN, 3.1]];
+function zoomAmount(t) {
+  let p = 0;
+  for (const [openT, closeT] of ZOOM_SPANS) {
+    const inP = easeInOutCubic(between(t, openT - 0.2, openT - 0.2 + ZOOM_RAMP));
+    const outP = 1 - easeInOutCubic(between(t, closeT, closeT + ZOOM_RAMP));
+    p = Math.max(p, Math.min(inP, outP));
+  }
+  return p;
 }
-// shotHi: index of highlighted screenshot button — 0 Full, 1 Area, 2 Window, 3 Record.
+function camera(t) {
+  const p = zoomAmount(t);
+  if (p <= 0.002) return ["<g>", "</g>"];
+  const z = lerp(1, ZOOM_MAX, p);
+  // Clamp the focus so the desktop keeps covering the frame; otherwise the menu
+  // bar drifts down from the top edge and the whole scene stops reading as a screen.
+  const hx = WIDTH / 2 / z;
+  const hy = HEIGHT / 2 / z;
+  const fx = Math.min(Math.max(lerp(WIDTH / 2, PX + PW / 2, p), hx), WIDTH - hx);
+  const fy = Math.min(Math.max(lerp(HEIGHT / 2, PY + PH / 2, p), hy), HEIGHT - hy);
+  return [`<g transform="translate(${WIDTH / 2} ${HEIGHT / 2}) scale(${z}) translate(${-fx} ${-fy})">`, "</g>"];
+}
+
+// Screenshot buttons live in panel space; hand back the screen-space center of one
+// so the cursor can land on it.
+const SHOT_LABELS = ["Full", "Area", "Window", "Record"];
+const SHOT_BTN_W = (CARD_CW - 5) / 2;
+function shotBtnCenter(name) {
+  const i = SHOT_LABELS.indexOf(name);
+  const bx = COL_R + CARD_IN + (i % 2) * (SHOT_BTN_W + 5);
+  const by = Y_SHOT + HEAD_H + Math.floor(i / 2) * 34;
+  return pp(bx + SHOT_BTN_W / 2, by + 14.5);
+}
+
+function panelCard(x, y, w, h, opts = {}) {
+  const fill = opts.fill ?? UI.card;
+  const stroke = opts.stroke ?? UI.border;
+  return `<rect x="${x + 0.5}" y="${y + 0.5}" width="${w - 1}" height="${h - 1}" rx="8.5" fill="${fill}" stroke="${stroke}"/>`;
+}
+function cardHeader(x, y, w, label, drawIcon, extra = "") {
+  return `${drawIcon(x + CARD_IN, y + 7, 14, orange)}
+    ${text(label, x + CARD_IN + 19, y + 18, 11, { weight: 700, fill: UI.t1, spacing: 0.2 })}
+    ${extra}
+    ${text("→", x + w - CARD_IN, y + 18, 9, { anchor: "end", weight: 700, fill: orange })}
+    <line x1="${x + CARD_IN}" y1="${y + 24.5}" x2="${x + w - CARD_IN}" y2="${y + 24.5}" stroke="${UI.border}"/>`;
+}
+function ghostButton(x, y, glyph) {
+  return `<rect x="${x + 0.5}" y="${y + 0.5}" width="23" height="23" rx="5.5" fill="none" stroke="${UI.border}"/>
+    ${text(glyph, x + 12, y + 17, 14, { anchor: "middle", weight: 400, fill: UI.t2 })}`;
+}
+
 function popover(t) {
   const op = popoverState(t);
   if (op <= 0) return "";
   const grow = easeOutBack(op);
-  const scale = lerp(0.94, 1, grow) * POP_SCALE;
+  const scale = lerp(0.94, 1, grow);
   const dy = lerp(-16, 0, easeOutCubic(op));
-  const originX = ICON_CX;
-  const originY = PY;
 
-  let shotHi = -1;
-  if (t > 2.9 && t < 3.35) shotHi = 1; // Area
-
-  const rows = ["https://usemackit.com", "~/Desktop/region.png", PICK_HEX, "hello@usemackit.com", "Meeting notes"];
-  const clip = rows.map((item, i) => {
-    const y = 168 + i * 44;
-    return `<rect x="664" y="${y}" width="296" height="34" rx="9" fill="rgba(0,0,0,0.24)" stroke="rgba(255,255,255,0.09)"/>
-      ${text(item, 680, y + 22, 15, { weight: 600, fill: "#c8c3cd", family: mono })}
-      ${mbCopy(936, y + 10, 15, "#8f8b96")}`;
+  // --- Clipboard: the app keeps 3 rows and prepends each new entry ---
+  const history = ["https://usemackit.com", "hello@usemackit.com", "Meeting notes"];
+  const rowX = COL_L + CARD_IN;
+  const rowTextW = CARD_CW - 20 - 6 - 10;
+  const clip = history.map((item, i) => {
+    const y = Y_CLIP + HEAD_H + i * 35;
+    return `<rect x="${rowX + 0.5}" y="${y + 0.5}" width="${CARD_CW - 1}" height="29" rx="6.5" fill="${UI.sunken}" stroke="${UI.border}"/>
+      ${text(fitText(item, rowTextW, 11), rowX + 10, y + 19, 11, { weight: 400, fill: UI.t2 })}
+      ${mbCopy(rowX + CARD_CW - 20, y + 10, 10, UI.t3)}`;
   }).join("");
 
-  const shotBtns = [["Full", 1040, 160], ["Area", 1206, 160], ["Window", 1040, 204], ["Record", 1206, 204]]
-    .map(([l, x, y], i) => {
-      const on = i === shotHi;
-      return `<rect x="${x}" y="${y}" width="150" height="34" rx="10" fill="${on ? "rgba(255,159,28,0.22)" : "rgba(255,255,255,0.07)"}" stroke="${on ? orange : "rgba(255,255,255,0.12)"}"/>
-        ${text(l, x + 75, y + 22, 16, { anchor: "middle", weight: 800, fill: on ? ink : "#d9d5dc" })}`;
+  // --- Screenshot: Area lights up as the cursor clicks it ---
+  const areaOn = t > 3.1;
+  const shotBtns = [[SHOT_LABELS[0], mbMonitor], [SHOT_LABELS[1], mbCrop], [SHOT_LABELS[2], mbAppWindow], [SHOT_LABELS[3], mbVideo]]
+    .map(([label, drawIcon], i) => {
+      const bx = COL_R + CARD_IN + (i % 2) * (SHOT_BTN_W + 5);
+      const by = Y_SHOT + HEAD_H + Math.floor(i / 2) * 34;
+      const on = i === 1 && areaOn;
+      const fg = on ? UI.t1 : UI.t2;
+      const fz = label === "Window" ? 10 : 11; // widest label, crowds the button at 11
+      const gx = bx + (SHOT_BTN_W - (15 + label.length * 0.52 * fz)) / 2;
+      return `<rect x="${bx + 0.5}" y="${by + 0.5}" width="${SHOT_BTN_W - 1}" height="28" rx="6.5" fill="${on ? "rgba(255,159,28,0.16)" : UI.sunken}" stroke="${on ? orange : UI.border}"/>
+        ${drawIcon(gx, by + 9, 11, fg)}
+        ${text(label, gx + 15, by + 18.5, fz, { weight: 500, fill: fg })}`;
     }).join("");
 
-  const popBg = "rgba(60,60,63,0.72)";
-  const cardBg = "rgba(255,255,255,0.05)";
-  const cardBorder = "rgba(255,255,255,0.1)";
-  return `<g opacity="${op}" filter="url(#popShadow)" transform="translate(${originX} ${originY}) scale(${scale}) translate(${-originX} ${-originY + dy})">
-    <g transform="translate(${POP_DX} 0)">
-    <rect x="${PX}" y="${PY}" width="${PW}" height="${PH}" rx="22" fill="${popBg}" stroke="rgba(255,255,255,0.14)"/>
-    <g transform="translate(${CDX} ${CDY})">
+  // --- Color Picker ---
+  const pickCX = COL_R + CARD_IN;
+  const pickCY = Y_PICK + HEAD_H;
+  const pickGX = pickCX + (CARD_CW - (16 + "Pick Color".length * 0.52 * 11)) / 2;
 
-    <rect x="648" y="112" width="328" height="300" rx="16" fill="${cardBg}" stroke="${cardBorder}"/>
-    ${mbClipboard(666, 126, 19)}
-    ${text("Clipboard", 694, 144, 20, { weight: 800 })}
+  // --- Pomodoro ---
+  const pomCX = COL_L + CARD_IN;
+  const pomCY = Y_POMO + HEAD_H;
+  const ctlY = pomCY + 43;
+
+  // --- Keep Awake: the full-width card that closes off the ragged column ---
+  const wakeCX = COL_L + CARD_IN;
+  const wakeCY = Y_WAKE + HEAD_H;
+  const togX = COL_L + ROW_W - CARD_IN - 38;
+
+  return `<g opacity="${op}" filter="url(#popShadow)" transform="translate(${ICON_CX} ${PY}) scale(${scale}) translate(${-ICON_CX} ${-PY + dy})">
+    <rect x="${PX}" y="${PY}" width="${PW}" height="${PH}" rx="${12 * POP_S}" fill="${UI.panel}" stroke="rgba(255,255,255,0.14)"/>
+    <g transform="translate(${PX} ${PY}) scale(${POP_S})">
+
+    <!-- Clipboard -->
+    ${panelCard(COL_L, Y_CLIP, CELL_W, H_CLIP)}
+    ${cardHeader(COL_L, Y_CLIP, CELL_W, "Clipboard", mbClipboard)}
     ${clip}
 
-    <rect x="648" y="428" width="328" height="128" rx="16" fill="${cardBg}" stroke="${cardBorder}"/>
-    ${mbTimer(666, 442, 19)}
-    ${text("Pomodoro", 694, 460, 20, { weight: 800 })}
-    <circle cx="672" cy="494" r="5" fill="#ff4d4d"/>
-    ${text("WORK", 690, 500, 15, { weight: 800, fill: muted, spacing: 3 })}
-    ${text("25:00", 952, 502, 30, { anchor: "end", weight: 900, fill: orange, family: mono })}
-    <rect x="664" y="516" width="32" height="34" rx="10" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.12)"/>
-    ${mbMinus(671, 523, 18, "#d9d5dc")}
-    <rect x="702" y="516" width="220" height="34" rx="10" fill="${orange}"/>
-    ${text("Start", 812, 539, 17, { anchor: "middle", weight: 900, fill: "#16131a" })}
-    <rect x="928" y="516" width="32" height="34" rx="10" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.12)"/>
-    ${mbPlus(935, 523, 18, "#d9d5dc")}
+    <!-- Pomodoro -->
+    ${panelCard(COL_L, Y_POMO, CELL_W, H_POMO)}
+    ${cardHeader(COL_L, Y_POMO, CELL_W, "Pomodoro", mbTimer, mbSkip(COL_L + CELL_W - CARD_IN - 26, Y_POMO + 9, 10, orange))}
+    ${text("WORK", pomCX, pomCY + 15.5, 10, { weight: 600, fill: UI.t3, spacing: 0.5 })}
+    ${text("25:00", pomCX + CARD_CW, pomCY + 19, 20, { anchor: "end", weight: 700, fill: orange, spacing: -0.5 })}
+    <rect x="${pomCX}" y="${pomCY + 32}" width="${CARD_CW}" height="3" rx="1.5" fill="${UI.track}"/>
+    <rect x="${pomCX}" y="${pomCY + 32}" width="${CARD_CW}" height="3" rx="1.5" fill="${orange}"/>
+    ${ghostButton(pomCX, ctlY, "−")}
+    <rect x="${pomCX + 29}" y="${ctlY}" width="${CARD_CW - 58}" height="24" rx="6" fill="${orange}"/>
+    ${text("Start", pomCX + 29 + (CARD_CW - 58) / 2, ctlY + 16, 11, { anchor: "middle", weight: 600, fill: "#ffffff" })}
+    ${ghostButton(pomCX + CARD_CW - 24, ctlY, "+")}
 
-    <g transform="translate(-16 0)">
-    <rect x="1016" y="112" width="360" height="154" rx="16" fill="${cardBg}" stroke="${cardBorder}"/>
-    ${mbCamera(1034, 126, 19)}
-    ${text("Screenshot", 1062, 144, 20, { weight: 800 })}
+    <!-- Screenshot -->
+    ${panelCard(COL_R, Y_SHOT, CELL_W, H_SHOT)}
+    ${cardHeader(COL_R, Y_SHOT, CELL_W, "Screenshot", mbCamera)}
     ${shotBtns}
 
-    <rect x="1016" y="282" width="360" height="224" rx="16" fill="${cardBg}" stroke="${cardBorder}"/>
-    ${mbDroplet(1034, 296, 19)}
-    ${text("Color Picker", 1062, 314, 20, { weight: 800 })}
-    <rect x="1040" y="330" width="48" height="48" rx="11" fill="#f0eef4" stroke="rgba(255,255,255,0.18)"/>
-    ${text("#F4F2ED", 1104, 364, 26, { weight: 900, family: mono })}
-    ${["HEX", "RGB", "HSL"].map((l, i) => `<rect x="${1040 + i * 108}" y="394" width="96" height="34" rx="9" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.1)"/>${text(l, 1088 + i * 108, 416, 14, { anchor: "middle", weight: 900, fill: "#d9d5dc", spacing: 2 })}`).join("")}
-    <rect x="1040" y="440" width="312" height="44" rx="12" fill="${orange}"/>
-    ${text("Pick Color", 1196, 468, 17, { anchor: "middle", weight: 900, fill: "#16131a" })}
+    <!-- Color Picker -->
+    ${panelCard(COL_R, Y_PICK, CELL_W, H_PICK)}
+    ${cardHeader(COL_R, Y_PICK, CELL_W, "Color Picker", mbDroplet)}
+    <rect x="${pickCX}" y="${pickCY}" width="32" height="32" rx="8" fill="#f0eef4" stroke="${UI.swatch}"/>
+    ${text("#F4F2ED", pickCX + 40, pickCY + 20, 12, { weight: 400, fill: UI.t1, family: mono, spacing: 0.5 })}
+    <rect x="${pickCX}" y="${pickCY + 40}" width="${CARD_CW}" height="23" rx="6" fill="${orange}"/>
+    ${mbPipette(pickGX, pickCY + 46, 11, "#ffffff")}
+    ${text("Pick Color", pickGX + 16, pickCY + 55.5, 11, { weight: 600, fill: "#ffffff" })}
 
-    <rect x="1340" y="520" width="36" height="36" rx="10" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.12)"/>
-    ${mbPlus(1349, 529, 18, "#d9d5dc")}
-    </g>
-    </g>
+    <!-- Keep Awake -->
+    ${panelCard(COL_L, Y_WAKE, ROW_W, H_WAKE)}
+    ${cardHeader(COL_L, Y_WAKE, ROW_W, "Keep Awake", mbCoffee)}
+    ${text("Display can sleep", wakeCX, wakeCY + 11, 12, { weight: 600, fill: UI.t1 })}
+    ${text("Click to keep awake", wakeCX, wakeCY + 25, 10, { weight: 400, fill: UI.t3 })}
+    <rect x="${togX}" y="${wakeCY + 3}" width="38" height="22" rx="11" fill="${UI.track}"/>
+    <circle cx="${togX + 11}" cy="${wakeCY + 14}" r="8" fill="#ffffff"/>
     </g>
   </g>`;
 }
@@ -788,7 +913,7 @@ function cta(t) {
       <g transform="translate(576 766)">
         ${pill(0, 0, 300, 52, "Intel + Apple Silicon", pillOpts)}
         ${pill(324, 0, 230, 52, "50+ languages", pillOpts)}
-        ${pill(578, 0, 190, 52, "$6.99/mo", pillOpts)}
+        ${pill(578, 0, 190, 52, "$14.90 once", pillOpts)}
       </g>
     </g>
   </g>`;
@@ -799,8 +924,10 @@ function frameSvg(index, storyTOverride = null) {
   const sceneFade = fade(t, 0.2, 0.9);
   const scene = sceneFade > 0 ? `<g opacity="${sceneFade.toFixed(3)}">${desktopWindows()}</g>` : "";
   const iconHot = popoverState(t) > 0.05;
+  const [camOpen, camClose] = camera(t);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}">
     ${defs()}
+    ${camOpen}
     ${wallpaper(t)}
     ${scene}
     ${scrim(t)}
@@ -811,8 +938,9 @@ function frameSvg(index, storyTOverride = null) {
     ${quickRing(t)}
     ${captureFlash(t)}
     ${previewStack(t)}
-    ${captions(t)}
     ${cursorLayer(t)}
+    ${camClose}
+    ${captions(t)}
     ${cta(t)}
   </svg>`;
 }
