@@ -6,7 +6,7 @@
     <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta
       name="description"
-      content="Mac Kit combines screenshots, clipboard history, Pomodoro, color picking, file conversion, system monitoring, and more in one fast macOS menu bar app."
+      content="Mac Kit combines screenshots, clipboard history, Pomodoro, color picking, PDF and Markdown conversion, Mirror, macros, and system tools in one fast macOS menu bar app."
     />
     <title>Mac Kit — All-in-One macOS Menu Bar Utilities</title>
     <link rel="canonical" href="https://usemackit.com/" />
@@ -16,7 +16,7 @@
     <meta property="og:title" content="Mac Kit — All-in-One macOS Menu Bar Utilities" />
     <meta
       property="og:description"
-      content="Screenshots, clipboard history, Pomodoro, color picking, file conversion, system monitoring, and more in one fast macOS menu bar app."
+      content="Screenshots, clipboard history, Pomodoro, color picking, PDF and Markdown conversion, Mirror, macros, and system tools in one fast macOS menu bar app."
     />
     <meta property="og:url" content="https://usemackit.com/" />
     <meta property="og:image" content="https://usemackit.com/assets/app-icon-512.png" />
@@ -53,7 +53,7 @@
             "name": "Mac Kit",
             "url": "https://usemackit.com/",
             "image": "https://usemackit.com/assets/app-icon-512.png",
-            "description": "An all-in-one macOS menu bar app for screenshots, clipboard history, Pomodoro, color picking, file conversion, system monitoring, keep awake, quick file creation, and more.",
+            "description": "An all-in-one macOS menu bar app for screenshots, clipboard history, Pomodoro, color picking, PDF and Markdown conversion, Mirror, macros, Screen Draw, Clean Mode, and system tools.",
             "applicationCategory": "UtilitiesApplication",
             "operatingSystem": "macOS",
             "offers": [
@@ -133,7 +133,7 @@
           <p class="eyebrow">One-time $14.90 / Intel and Apple Silicon / <span class="eyebrow-lang">50+ languages</span></p>
           <h1>Mac Kit turns the menu bar into a control room.</h1>
           <p class="hero-lede">
-            Practical desktop tools in one fast, offline app. Screenshots, clipboard history, pomodoro, color picking, conversion, system controls, and much more live one click away.
+            Practical desktop tools in one fast, offline app. Capture, convert, annotate, mirror, automate, and manage your Mac without leaving the menu bar.
           </p>
           <div class="hero-actions">
             <a class="button button-dark" href="#download" data-download>Buy for macOS</a>
@@ -244,6 +244,11 @@
               <button type="button" role="menuitem">File converter</button>
               <button type="button" role="menuitem">New file creator</button>
               <button type="button" role="menuitem">Screen draw</button>
+              <button type="button" role="menuitem">Mirror &amp; studio light</button>
+              <button type="button" role="menuitem">Macros</button>
+              <button type="button" role="menuitem">Clean mode</button>
+              <button type="button" role="menuitem">PDF ↔ Markdown</button>
+              <button type="button" role="menuitem">Quick Action</button>
             </div>
           </div>
         </div>
@@ -264,13 +269,13 @@
           <p class="eyebrow">Product rhythm</p>
           <h2>One compact panel that still feels capable.</h2>
           <p>
-            A calmer layout keeps the tools easy to scan: system stats, clipboard, focus, and capture stay close without turning the panel into a dashboard.
+            A calmer layout keeps the tools easy to scan: capture, conversion, clipboard, focus, and system controls stay close without turning the panel into a dashboard.
           </p>
         </div>
 
         <video
           class="showcase-video"
-          src="mac-kit-launch-promo.mp4"
+          src="mac-kit-launch-promo-zoom.mp4"
           autoplay
           muted
           loop
@@ -454,12 +459,12 @@
           <article>
             <span>02</span>
             <h3>Clipboard history</h3>
-            <p>Bring recent text snippets back without opening another productivity app.</p>
+            <p>Search, filter, pin, and reuse recent text snippets without opening another productivity app.</p>
           </article>
           <article>
             <span>03</span>
             <h3>Pomodoro timer</h3>
-            <p>Run focus sessions and keep the timer visible in the menu bar.</p>
+            <p>Run focus sessions with custom presets and themed widgets, while keeping the timer visible in the menu bar.</p>
           </article>
           <article>
             <span>04</span>
@@ -474,7 +479,7 @@
           <article>
             <span>06</span>
             <h3>File converter</h3>
-            <p>Convert common image, video, and document formats with fewer steps.</p>
+            <p>Batch convert and merge common files, with dedicated PDF and Markdown workflows.</p>
           </article>
           <article>
             <span>07</span>
@@ -489,7 +494,32 @@
           <article>
             <span>09</span>
             <h3>Screen draw</h3>
-            <p>Draw and highlight on top of any screen during demos, calls, or lessons.</p>
+            <p>Draw, highlight, blur, crop, and annotate captures or any screen during demos, calls, or lessons.</p>
+          </article>
+          <article>
+            <span>10</span>
+            <h3>Mirror and studio light</h3>
+            <p>Show your camera in a floating, resizable overlay with shape, flip, and adjustable studio-light controls.</p>
+          </article>
+          <article>
+            <span>11</span>
+            <h3>Clean mode</h3>
+            <p>Lock the keyboard or trackpad while you clean your Mac without triggering accidental input.</p>
+          </article>
+          <article>
+            <span>12</span>
+            <h3>Macros</h3>
+            <p>Map a key combination to keystrokes in another app and automate repetitive input from the menu bar.</p>
+          </article>
+          <article>
+            <span>13</span>
+            <h3>PDF and Markdown</h3>
+            <p>Turn structured PDFs into Markdown with extracted images, or render Markdown into a polished PDF.</p>
+          </article>
+          <article>
+            <span>14</span>
+            <h3>Quick Action</h3>
+            <p>Keep your most-used capture, clipboard, mirror, and system actions one shortcut away.</p>
           </article>
         </div>
       </section>
@@ -735,6 +765,11 @@
                     <button type="button" role="menuitem">File converter</button>
                     <button type="button" role="menuitem">New file creator</button>
                     <button type="button" role="menuitem">Screen draw</button>
+                    <button type="button" role="menuitem">Mirror &amp; studio light</button>
+                    <button type="button" role="menuitem">Macros</button>
+                    <button type="button" role="menuitem">Clean mode</button>
+                    <button type="button" role="menuitem">PDF ↔ Markdown</button>
+                    <button type="button" role="menuitem">Quick Action</button>
                   </div>
                 </div>
               </div>
