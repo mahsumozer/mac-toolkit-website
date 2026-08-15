@@ -2537,6 +2537,130 @@ body.show-mac-handoff .mac-handoff:focus-within {
   letter-spacing: 0.01em;
 }
 
+.get-app {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 400px);
+  align-items: end;
+  gap: clamp(32px, 7vw, 110px);
+  padding: clamp(64px, 8vw, 104px) clamp(18px, 4vw, 48px);
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+}
+
+.get-app-copy {
+  max-width: 760px;
+}
+
+.get-app-copy h2 {
+  margin: 0;
+  font-size: clamp(44px, 7vw, 104px);
+  font-weight: 790;
+  line-height: 0.92;
+  letter-spacing: -0.075em;
+}
+
+.get-app-copy p:last-child {
+  max-width: 420px;
+  margin: 24px 0 0;
+  color: var(--soft-black);
+  font-size: clamp(18px, 2vw, 23px);
+  line-height: 1.38;
+  letter-spacing: -0.035em;
+}
+
+.get-app-panel {
+  display: grid;
+  min-width: 0;
+  gap: 16px;
+}
+
+.get-app-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.get-app-cta {
+  flex: 1;
+  gap: 10px;
+}
+
+.get-app-cta svg {
+  width: 17px;
+  height: 17px;
+}
+
+.get-app-info {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+
+.info-button {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  font-style: italic;
+  transition: color 180ms var(--ease), border-color 180ms var(--ease);
+}
+
+.get-app-info:hover .info-button,
+.get-app-info:focus-within .info-button {
+  color: var(--ink);
+  border-color: currentColor;
+}
+
+.info-popover {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  z-index: 5;
+  display: grid;
+  gap: 5px;
+  width: max-content;
+  max-width: 240px;
+  padding: 12px 14px;
+  color: var(--soft-white);
+  background: var(--ink);
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(4px);
+  transition: opacity 180ms var(--ease), transform 180ms var(--ease), visibility 180ms;
+}
+
+.get-app-info:hover .info-popover,
+.get-app-info:focus-within .info-popover {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+}
+
+.get-app-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.get-app-note a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .contact-section {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 440px);
@@ -2906,6 +3030,10 @@ body.show-mac-handoff .mac-handoff:focus-within {
     display: none;
   }
 
+  .header-actions .button.header-cta {
+    display: inline-flex;
+  }
+
   .menu-button {
     display: inline-flex;
   }
@@ -2968,6 +3096,7 @@ body.show-mac-handoff .mac-handoff:focus-within {
 
   .statement-grid,
   .contact-section,
+  .get-app,
   .download-section,
   .site-footer {
     display: grid;
