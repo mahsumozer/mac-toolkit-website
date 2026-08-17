@@ -16,5 +16,5 @@ cp sitemap.xml public/
 cp styles.css public/
 cp success.html public/
 cp terms.html public/
-cp mac-kit-launch-promo-zoom.mp4 public/
+cp mac-kit-launch-promo-3.mp4 public/
 cp -R assets/. public/assets/
