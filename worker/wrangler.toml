@@ -13,7 +13,16 @@ MAC_KIT_DOWNLOAD_URL = "https://github.com/mahsumozer/mac-kit-releases/releases/
 LICENSE_EMAIL_FROM = "Mac Kit <license@usemackit.com>"
 LICENSE_EMAIL_REPLY_TO = "hello@usemackit.com"
 MIN_SUPPORTED_VERSION = "1.17.12"
+TRIAL_DURATION_DAYS = "7"
 
 [[kv_namespaces]]
 binding = "PADDLE_EVENTS"
 id = "3a415125c7894a349ea433875f2c20e7"
+
+[[ratelimits]]
+name = "TRIAL_START_LIMITER"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 5
+  period = 60

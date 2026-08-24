@@ -19,6 +19,7 @@ const subscriptionEvents = new Set([
 ]);
 
 const activeLicenseStatuses = new Set(["active", "trialing"]);
+const DEFAULT_TRIAL_DURATION_DAYS = 7;
 const licensePrefix = "MACKIT";
 const licenseAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -44,6 +45,14 @@ export default {
 
     if (url.pathname === "/license/deactivate") {
       return handleLicenseDeactivate(request, env);
+    }
+
+    if (url.pathname === "/trial/start") {
+      return handleTrialStart(request, env);
+    }
+
+    if (url.pathname === "/trial/status") {
+      return handleTrialStatus(request, env);
     }
 
     if (
@@ -521,6 +530,110 @@ async function handleLicenseDeactivate(request, env) {
   }
 
   return json({ ok: true, license: publicLicenseResponse(license) });
+}
+
+// Trial kaydı donanımdan türetilen parmak izine bağlanır: uygulama silinip
+// yeniden kurulsa da aynı anahtara düşer, yani cihaz başına tek deneme.
+async function hashTrialDevice(fingerprint, env) {
+  const salt = env.LICENSE_DEVICE_SALT || "mac-kit-license-device";
+  return sha256Hex(`${salt}:trial:${fingerprint}`);
+}
+
+// İstemci her zaman SHA-256 hex digest gönderir. Şekli doğrulamak KV'ye
+// yazmadan önce çöp girdileri eler; belirlenmiş bir saldırganı durdurmaz,
+// sözleşmeyi netleştirir.
+function readTrialFingerprint(body) {
+  const fingerprint = sanitizeString(body.device_fingerprint || body.deviceFingerprint, 64);
+  return /^[0-9a-f]{64}$/.test(fingerprint || "") ? fingerprint : "";
+}
+
+function trialDurationMs(env) {
+  const days = Number(env.TRIAL_DURATION_DAYS || DEFAULT_TRIAL_DURATION_DAYS);
+  const safeDays = Number.isFinite(days) && days > 0 ? days : DEFAULT_TRIAL_DURATION_DAYS;
+  return safeDays * 24 * 60 * 60 * 1000;
+}
+
+function publicTrialResponse(record) {
+  return {
+    started_at: record.started_at,
+    ends_at: record.ends_at,
+    active: Date.now() < new Date(record.ends_at).getTime(),
+  };
+}
+
+// Kayıt bir kere yazılır, sonra salt okunur. Böylece hem "yeniden başlatılamaz"
+// garantisi kod düzeyinde net olur hem de her durum sorgusu KV yazmaz.
+async function handleTrialStart(request, env) {
+  if (request.method !== "POST") {
+    return json({ ok: false, error: "method_not_allowed" }, 405, { allow: "POST" });
+  }
+
+  const kvError = ensureKv(env);
+  if (kvError) return kvError;
+
+  // Yalnızca /trial/start KV'ye yazar. Aynı namespace lisans kayıtlarını da
+  // tuttuğu ve Free plan günlük yazma bütçesi hesap genelinde olduğu için,
+  // buradaki bir spam gerçek bir satın almanın kaydedilememesine yol açabilir.
+  if (env.TRIAL_START_LIMITER) {
+    const clientIp = request.headers.get("cf-connecting-ip") || "unknown";
+    const { success } = await env.TRIAL_START_LIMITER.limit({ key: clientIp });
+    if (!success) return json({ ok: false, error: "rate_limited" }, 429);
+  }
+
+  const body = await readJson(request);
+  if (!body) return json({ ok: false, error: "invalid_json" }, 400);
+
+  const fingerprint = readTrialFingerprint(body);
+  if (!fingerprint) return json({ ok: false, error: "missing_device_fingerprint" }, 400);
+
+  const gate = versionGate(body, env);
+  if (gate.update_required) {
+    return json({ ok: false, error: "update_required", ...gate }, 403);
+  }
+
+  const trialKey = `trial:${await hashTrialDevice(fingerprint, env)}`;
+  const existing = await env.PADDLE_EVENTS.get(trialKey, "json");
+
+  if (existing?.started_at && existing.ends_at) {
+    return json({ ok: true, ...gate, resumed: true, trial: publicTrialResponse(existing) });
+  }
+
+  const now = new Date();
+  const record = {
+    started_at: now.toISOString(),
+    ends_at: new Date(now.getTime() + trialDurationMs(env)).toISOString(),
+    device_name: sanitizeString(body.device_name || body.deviceName, 120),
+    app_version: sanitizeString(body.app_version || body.appVersion, 80),
+  };
+
+  await env.PADDLE_EVENTS.put(trialKey, JSON.stringify(record));
+
+  return json({ ok: true, ...gate, resumed: false, trial: publicTrialResponse(record) });
+}
+
+async function handleTrialStatus(request, env) {
+  if (request.method !== "POST") {
+    return json({ ok: false, error: "method_not_allowed" }, 405, { allow: "POST" });
+  }
+
+  const kvError = ensureKv(env);
+  if (kvError) return kvError;
+
+  const body = await readJson(request);
+  if (!body) return json({ ok: false, error: "invalid_json" }, 400);
+
+  const fingerprint = readTrialFingerprint(body);
+  if (!fingerprint) return json({ ok: false, error: "missing_device_fingerprint" }, 400);
+
+  const gate = versionGate(body, env);
+  const trialKey = `trial:${await hashTrialDevice(fingerprint, env)}`;
+  const record = await env.PADDLE_EVENTS.get(trialKey, "json");
+
+  if (!record?.started_at || !record.ends_at) {
+    return json({ ok: true, ...gate, trial: null, trial_available: true });
+  }
+
+  return json({ ok: true, ...gate, trial: publicTrialResponse(record), trial_available: false });
 }
 
 async function handleAdminLicense(request, env, url) {
