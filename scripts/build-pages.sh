@@ -18,3 +18,6 @@ cp success.html public/
 cp terms.html public/
 cp mac-kit-launch-promo-3.mp4 public/
 cp -R assets/. public/assets/
+
+# social/ and social-media/ are deliberately not copied: the social hub is a
+# local-only tool (npm run hub), never part of the deployed site.

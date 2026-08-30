@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "sh scripts/build-pages.sh",
+    "hub": "python3 -m http.server 8787 --bind 127.0.0.1",
+    "hub:queue": "node social/generate-posts.mjs --days 14",
     "video:launch": "node marketing-video/render.mjs",
     "video:new": "node new-videos/render-all.mjs",
     "video:new:stills": "node new-videos/render-all.mjs --stills",
