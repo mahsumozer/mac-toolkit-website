@@ -25,3 +25,10 @@ node_modules/
 *.mp4
 *.mov
 new-videos/*
+
+/social-media/*
+/social/*
+/marketing-video-15-agustos/*
+/marketing-video-2/*
+/marketing-video-3/*
+/scripts/*
