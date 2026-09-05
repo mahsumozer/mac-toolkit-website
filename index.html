@@ -132,7 +132,7 @@
         </div>
 
         <div class="hero-copy">
-          <p class="eyebrow"><span class="eyebrow-trial">Free 7-day trial</span> / One-time $14.90 / Intel and Apple Silicon / <span class="eyebrow-lang">50+ languages</span></p>
+          <p class="eyebrow">One-time $14.90 / Intel and Apple Silicon / <span class="eyebrow-lang">50+ languages</span></p>
           <h1>Mac Kit turns the menu bar into a control room.</h1>
           <p class="hero-lede">
             Practical desktop tools in one fast, offline app. Capture, convert, annotate, mirror, automate, and manage your Mac without leaving the menu bar.
@@ -155,9 +155,9 @@
 
         <div class="hero-product" aria-label="Mac Kit product preview">
           <div class="hero-window">
-            <div class="app-mock">
+            <div class="app-mock" data-rotate>
               <div class="mock-col mock-col-left">
-                <div class="mock-card">
+                <div class="mock-card" data-widget="clipboard" data-initial>
                   <div class="mock-card-head">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1"></rect></svg>
                     <strong>Clipboard</strong>
@@ -188,7 +188,7 @@
                   </button>
                 </div>
 
-                <div class="mock-card">
+                <div class="mock-card" data-widget="pomodoro" data-initial>
                   <div class="mock-card-head">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"></circle><path d="M12 9v4l2 2"></path><path d="M9 2h6"></path></svg>
                     <strong>Pomodoro</strong>
@@ -204,10 +204,66 @@
                     <button type="button" id="focus-plus" aria-label="Longer session">+</button>
                   </div>
                 </div>
+
+                <div class="mock-card" data-widget="system-stats" hidden>
+                  <div class="mock-card-head">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20v2"></path><path d="M12 2v2"></path><path d="M17 20v2"></path><path d="M17 2v2"></path><path d="M2 12h2"></path><path d="M2 17h2"></path><path d="M2 7h2"></path><path d="M20 12h2"></path><path d="M20 17h2"></path><path d="M20 7h2"></path><path d="M7 20v2"></path><path d="M7 2v2"></path><rect x="4" y="4" width="16" height="16" rx="2"></rect><rect x="8" y="8" width="8" height="8" rx="1"></rect></svg>
+                    <strong>System Stats</strong>
+                  </div>
+                  <div class="mock-stats">
+                    <div class="mock-stat">
+                      <div class="mock-stat-row"><span>CPU</span><strong data-stat="cpu">24%</strong></div>
+                      <div class="mock-stat-bar"><i data-stat-bar="cpu" style="width: 24%"></i></div>
+                    </div>
+                    <div class="mock-stat">
+                      <div class="mock-stat-row"><span>RAM</span><strong class="is-green">42%</strong></div>
+                      <div class="mock-stat-bar"><i class="is-green" style="width: 42%"></i></div>
+                      <em>6.7 / 16.0 GB</em>
+                    </div>
+                    <div class="mock-stat-row is-divided"><span>Uptime</span><strong class="is-green">81h 0m</strong></div>
+                  </div>
+                </div>
+
+                <div class="mock-card" data-widget="caffeine" hidden>
+                  <div class="mock-card-head">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v2"></path><path d="M14 2v2"></path><path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"></path><path d="M6 2v2"></path></svg>
+                    <strong>Keep Awake</strong>
+                  </div>
+                  <div class="mock-toggle">
+                    <div class="mock-toggle-text">
+                      <strong><span class="is-off-text">Display can sleep</span><span class="is-on-text">Display stays on</span></strong>
+                      <span><span class="is-off-text">Click to keep awake</span><span class="is-on-text">Caffeine is active</span></span>
+                    </div>
+                    <button class="mock-switch" type="button" aria-pressed="false" aria-label="Keep the display awake"></button>
+                  </div>
+                </div>
+
+                <div class="mock-card" data-widget="convert" hidden>
+                  <div class="mock-card-head">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 7l4 4"></path><path d="M4 7h16"></path><path d="m16 21 4-4-4-4"></path><path d="M20 17H4"></path></svg>
+                    <strong>Convert</strong>
+                  </div>
+                  <div class="mock-field mock-drop"><span>banner.png</span><i aria-hidden="true">&times;</i></div>
+                  <div class="mock-chips">
+                    <span class="is-blocked">.png</span><span class="is-selected">.jpg</span><span>.gif</span><span>.tiff</span><span>.heic</span><span>.bmp</span><span>.ico</span><span>.pdf</span>
+                  </div>
+                  <button class="mock-btn-accent" type="button">&rarr; .jpg</button>
+                </div>
+
+                <div class="mock-card" data-widget="clean-mode" hidden>
+                  <div class="mock-card-head">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 22-1-4"></path><path d="M19 14a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2h-3a1 1 0 0 1-1-1V4a2 2 0 0 0-4 0v5a1 1 0 0 1-1 1H6a2 2 0 0 0-2 2v1a1 1 0 0 0 1 1"></path><path d="M19 14H5l-1.973 6.767A1 1 0 0 0 4 22h16a1 1 0 0 0 .973-1.233z"></path><path d="m8 22 1-4"></path></svg>
+                    <strong>Clean Mode</strong>
+                  </div>
+                  <div class="mock-shot-grid">
+                    <button type="button">Keyboard</button>
+                    <button type="button">Trackpad</button>
+                  </div>
+                </div>
               </div>
 
               <div class="mock-col">
-                <div class="mock-card">
+                <div class="mock-card" data-widget="screenshot" data-initial>
                   <div class="mock-card-head">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
                     <strong>Screenshot</strong>
@@ -220,7 +276,7 @@
                   </div>
                 </div>
 
-                <div class="mock-card">
+                <div class="mock-card" data-widget="color-picker" data-initial>
                   <div class="mock-card-head">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.7s6 6.3 6 10.3a6 6 0 0 1-12 0c0-4 6-10.3 6-10.3z"></path></svg>
                     <strong>Color Picker</strong>
@@ -235,6 +291,57 @@
                     <span>HSL</span>
                   </div>
                   <button class="mock-btn-accent" type="button">Pick Color</button>
+                </div>
+
+                <div class="mock-card" data-widget="mirror" hidden>
+                  <div class="mock-card-head">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 6 8 9"></path><path d="m16 7-8 8"></path><rect x="4" y="2" width="16" height="20" rx="2"></rect></svg>
+                    <strong>Mirror</strong>
+                  </div>
+                  <div class="mock-toggle">
+                    <div class="mock-toggle-text">
+                      <strong><span class="is-off-text">Mirror is off</span><span class="is-on-text">Mirror is showing</span></strong>
+                      <span><span class="is-off-text">Click to show</span><span class="is-on-text">Under the notch</span></span>
+                    </div>
+                    <button class="mock-switch" type="button" aria-pressed="false" aria-label="Show the mirror"></button>
+                  </div>
+                </div>
+
+                <div class="mock-card" data-widget="new-file" hidden>
+                  <div class="mock-card-head">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"></path><path d="M14 2v5a1 1 0 0 0 1 1h5"></path><path d="M9 15h6"></path><path d="M12 18v-6"></path></svg>
+                    <strong>New File</strong>
+                  </div>
+                  <div class="mock-field"><span>meeting-notes</span></div>
+                  <div class="mock-field-row">
+                    <span class="mock-field mock-select"><span>.md</span></span>
+                    <button class="mock-btn-accent" type="button">Create</button>
+                  </div>
+                </div>
+
+                <div class="mock-card" data-widget="screen-draw" hidden>
+                  <div class="mock-card-head">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m11 10 3 3"></path><path d="M6.5 21A3.5 3.5 0 1 0 3 17.5a2.62 2.62 0 0 1-.708 1.792A1 1 0 0 0 3 21z"></path><path d="M9.969 17.031 21.378 5.624a1 1 0 0 0-3.002-3.002L6.967 14.031"></path></svg>
+                    <strong>Screen Draw</strong>
+                  </div>
+                  <div class="mock-toggle">
+                    <div class="mock-toggle-text">
+                      <strong><span class="is-off-text">Drawing inactive</span><span class="is-on-text">Drawing active</span></strong>
+                      <span><span class="is-off-text">Toggle to draw on screen</span><span class="is-on-text">Toolbar is on screen</span></span>
+                    </div>
+                    <button class="mock-switch" type="button" aria-pressed="false" aria-label="Draw on the screen"></button>
+                  </div>
+                </div>
+
+                <div class="mock-card" data-widget="sticky-notes" hidden>
+                  <div class="mock-card-head">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 9a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z"></path><path d="M15 3v5a1 1 0 0 0 1 1h5"></path></svg>
+                    <strong>Sticky Notes</strong>
+                  </div>
+                  <div class="mock-shot-grid">
+                    <button type="button">New</button>
+                    <button type="button">List</button>
+                  </div>
                 </div>
 
                 <button class="mock-add-button" id="mock-add-toggle" type="button" aria-label="Add tool" aria-haspopup="true" aria-expanded="false" aria-controls="mock-add-menu">+</button>
@@ -255,11 +362,7 @@
           </div>
 
           <aside class="hero-trial" aria-label="Free trial">
-            <div class="hero-trial-text">
-              <p class="hero-trial-kicker"><span class="hero-trial-dot" aria-hidden="true"></span>Free 7-day trial</p>
-              <h2>Try Mac Kit free for 7 days.</h2>
-              <p>No credit card, no account. Keep it afterwards for one payment of $14.90.</p>
-            </div>
+            <p class="hero-trial-text"><span class="hero-trial-dot" aria-hidden="true"></span>Try it free for 7 days.</p>
             <a class="button button-dark hero-trial-cta" href="#get-app">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12"/><path d="m6 12 6 6 6-6"/><path d="M4 20h16"/></svg>
               Start free trial

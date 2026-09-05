@@ -397,6 +397,233 @@
     });
   }
 
+  // The hero panel cycles through every card the app's Panel Design page
+  // offers. Every few seconds the card shown longest leaves its column and the
+  // widget waiting longest takes its place; when the newcomer is taller, the
+  // column's next-oldest cards leave with it, and any room left over is filled
+  // with the next waiting cards that fit. Neighbours glide with a FLIP move.
+  function initWidgetRotation() {
+    const mock = document.querySelector(".hero-product .app-mock[data-rotate]");
+    if (!mock) return;
+    const cols = Array.from(mock.querySelectorAll(":scope > .mock-col"));
+    const cards = Array.from(mock.querySelectorAll(".mock-card[data-widget]"));
+    if (cols.length < 2 || cards.length < 3) return;
+
+    const INTERVAL = 3000;
+    const LEAVE_MS = 260;
+    const ENTER_MS = 500;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const shownAt = (card) => Number(card.dataset.shown || 0);
+    const byOldest = (a, b) => shownAt(a) - shownAt(b);
+    const gapOf = (col) => parseFloat(getComputedStyle(col).gap) || 0;
+    const visibleIn = (col) => Array.from(col.children).filter((c) => c.matches(".mock-card") && !c.hidden);
+    // Anything else in a column (the "+" add-tool button) keeps its row.
+    const extrasHeight = (col, gap) => Array.from(col.children)
+      .filter((c) => !c.matches(".mock-card") && !c.hidden)
+      .reduce((sum, c) => sum + c.offsetHeight + gap, 0);
+    const stackHeight = (list, gap) => list.reduce((sum, c) => sum + c.offsetHeight, 0) + gap * Math.max(0, list.length - 1);
+    const wait = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
+    let clock = 0;
+    let paused = false;
+    let busy = false;
+
+    // Leave order starts at the bottom of the columns and alternates between
+    // them, so the first swaps happen away from the panel's top corners.
+    const initial = [];
+    const perCol = cols.map((col) => visibleIn(col).reverse());
+    for (let i = 0; i < Math.max(...perCol.map((l) => l.length)); i += 1) {
+      perCol.forEach((list) => { if (list[i]) initial.push(list[i]); });
+    }
+    initial.forEach((card) => { card.dataset.shown = String(++clock); });
+
+    // A hidden card's height, measured in the column it would join.
+    function measure(card, col) {
+      if (!card.hidden) return card.offsetHeight;
+      const style = card.getAttribute("style");
+      card.hidden = false;
+      card.style.cssText = `${style || ""};position:absolute;visibility:hidden;width:${col.clientWidth}px;transition:none;animation:none`;
+      const height = card.offsetHeight;
+      if (style) card.setAttribute("style", style);
+      else card.removeAttribute("style");
+      card.hidden = true;
+      return height;
+    }
+
+    // The panel keeps the height of its opening layout, so swaps never move
+    // the rest of the hero; the columns fill that budget and no more.
+    function lockHeight() {
+      mock.style.height = "";
+      let tallest = 0;
+      cols.forEach((col) => {
+        const gap = gapOf(col);
+        const set = Array.from(col.querySelectorAll(".mock-card[data-initial]"));
+        tallest = Math.max(tallest, set.reduce((sum, c) => sum + measure(c, col), 0) + gap * Math.max(0, set.length - 1) + extrasHeight(col, gap));
+      });
+      if (tallest) mock.style.height = `${Math.ceil(tallest)}px`;
+    }
+
+    function fadeOut(list) {
+      if (reduceMotion.matches) return Promise.resolve();
+      list.forEach((card) => card.classList.add("is-leaving"));
+      return wait(LEAVE_MS);
+    }
+
+    function flip(before) {
+      if (reduceMotion.matches) return;
+      const moves = [];
+      before.forEach(([card, top]) => {
+        const dy = top - card.getBoundingClientRect().top;
+        if (Math.abs(dy) > 0.5) moves.push([card, dy]);
+      });
+      moves.forEach(([card, dy]) => {
+        card.style.transition = "none";
+        card.style.transform = `translateY(${dy}px)`;
+      });
+      void mock.offsetHeight;
+      moves.forEach(([card]) => {
+        card.style.transition = "";
+        card.style.transform = "";
+      });
+    }
+
+    // Which of `options` fill `free` pixels best. The pool is small, so every
+    // subset is tried; the tallest total wins and older cards break ties.
+    function bestFill(options, free, gap, heightOf) {
+      let best = { cards: [], height: 0, age: Infinity };
+      const n = Math.min(options.length, 6);
+      for (let mask = 1; mask < (1 << n); mask += 1) {
+        const cards = [];
+        let height = 0;
+        let age = 0;
+        for (let i = 0; i < n; i += 1) {
+          if (mask & (1 << i)) {
+            cards.push(options[i]);
+            height += gap + heightOf(options[i]);
+            age += shownAt(options[i]);
+          }
+        }
+        if (height > free) continue;
+        if (height > best.height || (height === best.height && age < best.age)) best = { cards, height, age };
+      }
+      return best;
+    }
+
+    // The card shown longest always leaves. Among the few widgets waiting
+    // longest, pick the one that leaves the least empty space once the
+    // column's next-oldest cards go with it (a tall newcomer may need two) and
+    // any room left is filled from the pool. Passing over a widget costs a
+    // little, taking an extra card out of the column costs a little more, and a
+    // widget passed over four times goes in next no matter what.
+    function plan(pool, oldest, col) {
+      const gap = gapOf(col);
+      const budget = col.clientHeight - extrasHeight(col, gap);
+      const colCards = visibleIn(col);
+      const colByAge = colCards.slice().sort(byOldest);
+      const heights = new Map();
+      const heightOf = (card) => {
+        if (!heights.has(card)) heights.set(card, measure(card, col));
+        return heights.get(card);
+      };
+      const starved = pool.find((c) => Number(c.dataset.skips || 0) >= 4);
+      const candidates = starved ? [starved] : pool.slice(0, 3);
+      let best = null;
+      candidates.forEach((cand, ci) => {
+        const height = heightOf(cand);
+        let minimal = 0;
+        for (let k = 1; k <= colByAge.length; k += 1) {
+          const chain = colByAge.slice(0, k);
+          const staying = colCards.filter((c) => !chain.includes(c));
+          const free = budget - stackHeight(staying, gap) - (staying.length ? gap : 0) - height;
+          if (free < 0) continue;
+          if (!minimal) minimal = k;
+          const fill = bestFill(pool.filter((c) => c !== cand), free, gap, heightOf);
+          const score = free - fill.height + 14 * ci + 24 * (k - minimal);
+          if (!best || score < best.score) best = { score, leaving: chain, entering: [cand, ...fill.cards] };
+        }
+      });
+      if (!best && starved) return plan(pool.filter((c) => c !== starved), oldest, col);
+      return best;
+    }
+
+    async function tick() {
+      if (busy || paused || document.hidden) return;
+      const pool = cards.filter((c) => c.hidden).sort(byOldest);
+      const visible = cards.filter((c) => !c.hidden).sort(byOldest);
+      if (!pool.length || !visible.length) return;
+
+      const oldest = visible[0];
+      const col = oldest.parentElement;
+      const next = plan(pool, oldest, col);
+      if (!next) return;
+      const { leaving, entering } = next;
+      pool.forEach((c) => {
+        c.dataset.skips = entering.includes(c) ? "0" : String(Number(c.dataset.skips || 0) + 1);
+      });
+      const staying = visibleIn(col).filter((c) => !leaving.includes(c));
+
+      busy = true;
+      await fadeOut(leaving);
+      const before = staying.map((card) => [card, card.getBoundingClientRect().top]);
+      const anchor = leaving[0];
+      leaving.forEach((card) => {
+        card.classList.remove("is-leaving");
+        card.hidden = true;
+      });
+      entering.forEach((card) => {
+        col.insertBefore(card, anchor);
+        card.hidden = false;
+        card.dataset.shown = String(++clock);
+        card.classList.add("is-entering");
+      });
+      flip(before);
+      await wait(ENTER_MS);
+      entering.forEach((card) => card.classList.remove("is-entering"));
+      busy = false;
+    }
+
+    // Keep Awake, Mirror and Screen Draw flip their switch like the app does.
+    mock.querySelectorAll(".mock-toggle .mock-switch").forEach((toggle) => {
+      toggle.addEventListener("click", () => {
+        const box = toggle.closest(".mock-toggle");
+        const on = box.classList.toggle("is-on");
+        toggle.setAttribute("aria-pressed", String(on));
+        const title = box.querySelector(on ? ".mock-toggle-title .is-on-text" : ".mock-toggle-title .is-off-text");
+        if (title) showToast(`${title.textContent.trim()}.`);
+      });
+    });
+
+    // A live CPU figure so the stats card reads as running, not printed.
+    const cpuValue = mock.querySelector("[data-stat='cpu']");
+    const cpuBar = mock.querySelector("[data-stat-bar='cpu']");
+    if (cpuValue && cpuBar) {
+      window.setInterval(() => {
+        const pct = 16 + Math.round(Math.random() * 18);
+        cpuValue.textContent = `${pct}%`;
+        cpuBar.style.width = `${pct}%`;
+      }, 2200);
+    }
+
+    // Hovering or focusing the panel holds the rotation so a visitor can play
+    // with the card they're on.
+    const surface = mock.closest(".hero-window") || mock;
+    surface.addEventListener("mouseenter", () => { paused = true; });
+    surface.addEventListener("mouseleave", () => { paused = false; });
+    surface.addEventListener("focusin", () => { paused = true; });
+    surface.addEventListener("focusout", (event) => {
+      if (!surface.contains(event.relatedTarget)) paused = false;
+    });
+
+    let resizeTimer = null;
+    window.addEventListener("resize", () => {
+      window.clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(lockHeight, 150);
+    });
+
+    lockHeight();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(lockHeight);
+    window.setInterval(tick, INTERVAL);
+  }
+
   function initAddMenu() {
     setupAddMenu(
       document.getElementById("mock-add-toggle"),
@@ -979,6 +1206,7 @@
     initFocus();
     initClipboard();
     initAddMenu();
+    initWidgetRotation();
     initAwakeToggle();
     decorateCheckoutLinks();
     initDownloadButtons();
