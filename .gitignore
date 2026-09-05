@@ -32,3 +32,5 @@ new-videos/*
 /marketing-video-2/*
 /marketing-video-3/*
 /scripts/*
+# wrangler local cache/state in any worker directory
+.wrangler/

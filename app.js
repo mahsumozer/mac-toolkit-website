@@ -26,18 +26,10 @@
 
   const formsApi = "https://mac-kit-forms.rojhot.workers.dev";
 
-  const paddleCheckout = {
-    token: "live_fae4413c36b1d1ea863f37f9ab2",
-    prices: {
-      lifetime: "pri_01kyj2qr6c0azepvamn2zc34sh",
-    },
-  };
-
   let selectedTool = "capture";
   let focusTimer = null;
   let focusRemaining = 25 * 60;
   let focusTotal = 25 * 60;
-  let paddleInitialized = false;
 
   function showToast(message) {
     const region = document.getElementById("toast-region");
@@ -432,93 +424,28 @@
     return "home";
   }
 
-  function getCheckoutCustomData(plan) {
+  // The buttons go straight to Polar's hosted checkout page. Attribution is
+  // appended here after the page loads: Polar records reference_id and utm_*
+  // on the order; the checkout link itself carries the product and metadata.
+  function decorateCheckoutLinks() {
     const params = new URLSearchParams(window.location.search);
-    const customData = {
-      app: "mac-kit",
-      plan,
-      source_page: getSourcePage(),
-    };
     const campaignKeys = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"];
 
-    campaignKeys.forEach((key) => {
-      const value = params.get(key);
-      if (value) customData[key] = value.slice(0, 250);
-    });
+    document.querySelectorAll("a[data-checkout-link]").forEach((link) => {
+      let url;
+      try {
+        url = new URL(link.getAttribute("href"));
+      } catch (error) {
+        return;
+      }
 
-    if (document.referrer) {
-      customData.referrer = document.referrer.slice(0, 500);
-    }
-
-    return customData;
-  }
-
-  function getSuccessUrl() {
-    return new URL("/success", window.location.origin).toString();
-  }
-
-  function initializePaddle() {
-    if (paddleInitialized) return true;
-    if (!window.Paddle || typeof window.Paddle.Initialize !== "function") return false;
-
-    try {
-      window.Paddle.Initialize({
-        token: paddleCheckout.token,
-        eventCallback: function (data) {
-          if (data && data.name === "checkout.completed") {
-            showToast("Payment complete. Check your inbox for the Paddle receipt.");
-          }
-        },
+      url.searchParams.set("reference_id", getSourcePage());
+      campaignKeys.forEach((key) => {
+        const value = params.get(key);
+        if (value) url.searchParams.set(key, value.slice(0, 250));
       });
-      paddleInitialized = true;
-      return true;
-    } catch (error) {
-      console.error(error);
-      return false;
-    }
-  }
 
-  function openPaddleCheckout(plan) {
-    const priceId = paddleCheckout.prices[plan];
-    if (!priceId) {
-      showToast("Checkout plan is not configured.");
-      return;
-    }
-
-    if (!initializePaddle()) {
-      showToast("Checkout is still loading. Please try again.");
-      return;
-    }
-
-    try {
-      window.Paddle.Checkout.open({
-        settings: {
-          displayMode: "overlay",
-          theme: "light",
-          locale: "en",
-          successUrl: getSuccessUrl(),
-        },
-        items: [
-          {
-            priceId,
-            quantity: 1,
-          },
-        ],
-        customData: getCheckoutCustomData(plan),
-      });
-    } catch (error) {
-      console.error(error);
-      showToast("Checkout could not be opened. Please try again.");
-    }
-  }
-
-  function initCheckoutButtons() {
-    document.querySelectorAll("[data-paddle-plan]").forEach((link) => {
-      link.addEventListener("click", (event) => {
-        event.preventDefault();
-        const plan = link.dataset.paddlePlan;
-        openPaddleCheckout(plan);
-      });
+      link.setAttribute("href", url.toString());
     });
   }
 
@@ -1053,8 +980,7 @@
     initClipboard();
     initAddMenu();
     initAwakeToggle();
-    initializePaddle();
-    initCheckoutButtons();
+    decorateCheckoutLinks();
     initDownloadButtons();
     initEmailForms();
     initMacHandoff();
