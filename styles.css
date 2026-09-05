@@ -119,9 +119,13 @@ svg {
   height: 32px;
   align-items: center;
   justify-content: center;
-  color: var(--white);
-  background: var(--ink);
-  border-radius: 7px;
+  color: var(--ink);
+}
+
+.brand-mark svg {
+  width: 27px;
+  height: 27px;
+  fill: currentColor;
 }
 
 .main-nav {
@@ -2733,14 +2737,14 @@ body.show-mac-handoff .mac-handoff:focus-within {
 
 .download-section .pricing-plans {
   justify-self: end;
-  margin-right: clamp(0px, 4vw, 72px);
+  margin-right: clamp(0px, 13vw, 260px);
 }
 
 .download-section .pricing-plans-single {
-  width: min(100%, 600px);
+  width: min(100%, 330px);
 }
 
-.download-copy p:last-child {
+.download-copy p {
   max-width: 620px;
   color: var(--soft-white);
   font-size: clamp(18px, 2vw, 24px);
@@ -2760,6 +2764,19 @@ body.show-mac-handoff .mac-handoff:focus-within {
 .pricing-plans-single {
   grid-template-columns: minmax(0, 1fr);
   width: min(100%, 420px);
+}
+
+/* Sized independently of the card: it may run wider than the card it sits under. */
+.pricing-note {
+  justify-self: center;
+  width: min(540px, 90vw);
+  margin: 0;
+  color: var(--white);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: -0.005em;
+  text-align: center;
 }
 
 .pricing-card {
@@ -2785,6 +2802,11 @@ body.show-mac-handoff .mac-handoff:focus-within {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 24px;
+}
+
+/* A header left with only the badge (no plan label) keeps it on the right. */
+.pricing-card-header > :only-child {
+  margin-left: auto;
 }
 
 .pricing-label {
@@ -2868,6 +2890,22 @@ body.show-mac-handoff .mac-handoff:focus-within {
 .pricing-features li.lang-feature::before {
   background: var(--accent);
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 18 18' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='9' cy='9' r='6' stroke='white' stroke-width='1.4'/%3E%3Cpath d='M3 9h12' stroke='white' stroke-width='1.4'/%3E%3Cpath d='M9 3c2.2 2.4 2.2 9.6 0 12' stroke='white' stroke-width='1.4'/%3E%3Cpath d='M9 3c-2.2 2.4-2.2 9.6 0 12' stroke='white' stroke-width='1.4'/%3E%3C/svg%3E");
+}
+
+/* Home card only: the price row is centred inside the card. */
+.pricing-card-centered .pricing-price {
+  justify-content: center;
+}
+
+.pricing-card-centered .pricing-price strong {
+  font-size: clamp(38px, 3.4vw, 50px);
+}
+
+/* Home card only: plain dots instead of check badges (the globe row keeps its icon). */
+.pricing-card-centered .pricing-features li:not(.lang-feature)::before {
+  width: 6px;
+  height: 6px;
+  background-image: none;
 }
 
 .pricing-cta {
