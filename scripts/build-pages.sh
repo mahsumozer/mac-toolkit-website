@@ -4,6 +4,7 @@ set -eu
 mkdir -p public/assets
 
 cp CNAME public/
+cp favicon.ico public/
 cp _headers public/
 cp _redirects public/
 cp accessibility.html public/
