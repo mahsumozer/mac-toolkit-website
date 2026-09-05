@@ -2779,6 +2779,12 @@ body.show-mac-handoff .mac-handoff:focus-within {
   text-align: center;
 }
 
+/* White text on the black section: the site-wide ink selection would hide it. */
+.pricing-note::selection {
+  color: var(--ink);
+  background: var(--white);
+}
+
 .pricing-card {
   width: 100%;
   padding: 28px;
