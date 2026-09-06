@@ -802,6 +802,341 @@
     window.setInterval(tick, INTERVAL);
   }
 
+  // Screen Draw. The app draws over your whole screen; the mock draws over the
+  // page's own screen — the hero — with the same toolbar underneath: a tool,
+  // a colour, a weight, and undo, redo, clear and close.
+  function initScreenDraw() {
+    const hero = document.querySelector(".hero");
+    const card = document.querySelector('.hero-product .mock-card[data-widget="screen-draw"]');
+    if (!hero || !card) return;
+    const box = card.querySelector(".mock-toggle");
+    const toggle = card.querySelector(".mock-switch");
+    if (!box || !toggle) return;
+
+    const TOOLS = [
+      ["pen", "Pen", '<path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle>'],
+      ["marker", "Highlighter", '<path d="m9 11-6 6v3h9l3-3"></path><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"></path>'],
+      ["eraser", "Eraser", '<path d="m7 21-4.3-4.3a1 1 0 0 1 0-1.4l10-10a1 1 0 0 1 1.4 0l5.6 5.6a1 1 0 0 1 0 1.4L13 21"></path><path d="M22 21H7"></path><path d="m5 11 9 9"></path>'],
+      ["line", "Line", '<path d="M5 12h14"></path>'],
+      ["arrow", "Arrow", '<path d="M7 17 17 7"></path><path d="M9 7h8v8"></path>'],
+      ["rect", "Rectangle", '<rect x="4" y="6" width="16" height="12" rx="2"></rect>'],
+      ["ellipse", "Ellipse", '<circle cx="12" cy="12" r="8"></circle>'],
+    ];
+    const COLORS = ["#1d1d1b", "#ff453a", "#f5941d", "#4c6ef5", "#34c759", "#ff2d55"];
+    const SIZES = [3, 6, 12];
+
+    const canvas = document.createElement("canvas");
+    canvas.className = "draw-canvas";
+    canvas.hidden = true;
+    const paint = canvas.getContext("2d");
+
+    const bar = document.createElement("div");
+    bar.className = "draw-bar";
+    bar.hidden = true;
+    hero.append(canvas, bar);
+
+    let tool = "pen";
+    let color = COLORS[1];
+    let size = SIZES[1];
+    let shapes = [];
+    let past = [];
+    let future = [];
+    let drawing = null;
+    let hovered = null;
+
+    // Every change is a whole state, so undo puts back an erased mark as
+    // readily as it takes away a drawn one.
+    function commit(next) {
+      past.push(shapes);
+      shapes = next;
+      future = [];
+      render();
+    }
+
+    function button(className, label, svg) {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = className;
+      item.title = label;
+      item.setAttribute("aria-label", label);
+      if (svg) item.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${svg}</svg>`;
+      return item;
+    }
+
+    const toolButtons = TOOLS.map(([id, label, svg]) => {
+      const item = button("draw-button", label, svg);
+      item.classList.toggle("is-on", id === tool);
+      item.addEventListener("click", () => {
+        tool = id;
+        hovered = null;
+        toolButtons.forEach((other, index) => other.classList.toggle("is-on", TOOLS[index][0] === tool));
+        canvas.classList.toggle("is-erasing", tool === "eraser");
+        render();
+      });
+      bar.appendChild(item);
+      return item;
+    });
+
+    const swatchRow = document.createElement("span");
+    swatchRow.className = "draw-group";
+    const swatches = COLORS.map((value) => {
+      const item = button("draw-swatch", `Colour ${value}`, "");
+      item.style.setProperty("--ink", value);
+      item.classList.toggle("is-on", value === color);
+      item.addEventListener("click", () => {
+        color = value;
+        swatches.forEach((other, index) => other.classList.toggle("is-on", COLORS[index] === color));
+      });
+      swatchRow.appendChild(item);
+      return item;
+    });
+    bar.appendChild(swatchRow);
+
+    const sizeRow = document.createElement("span");
+    sizeRow.className = "draw-group";
+    const sizeButtons = SIZES.map((value) => {
+      const item = button("draw-size", `${value}px`, "");
+      item.style.setProperty("--dot", `${Math.round(value / 1.6) + 4}px`);
+      item.classList.toggle("is-on", value === size);
+      item.addEventListener("click", () => {
+        size = value;
+        sizeButtons.forEach((other, index) => other.classList.toggle("is-on", SIZES[index] === size));
+      });
+      sizeRow.appendChild(item);
+      return item;
+    });
+    bar.appendChild(sizeRow);
+
+    const undo = button("draw-button", "Undo", '<path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path>');
+    const redo = button("draw-button", "Redo", '<path d="M21 7v6h-6"></path><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"></path>');
+    const wipe = button("draw-button", "Clear", '<path d="M3 6h18"></path><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>');
+    const close = button("draw-button is-close", "Close", '<path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>');
+    const tailRow = document.createElement("span");
+    tailRow.className = "draw-group";
+    tailRow.append(undo, redo, wipe, close);
+    bar.appendChild(tailRow);
+
+    function fit() {
+      const at = hero.getBoundingClientRect();
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = Math.round(at.width * ratio);
+      canvas.height = Math.round(at.height * ratio);
+      canvas.style.width = `${Math.round(at.width)}px`;
+      canvas.style.height = `${Math.round(at.height)}px`;
+      paint.setTransform(ratio, 0, 0, ratio, 0, 0);
+      render();
+    }
+
+    function stroke(shape) {
+      paint.save();
+      paint.lineCap = "round";
+      paint.lineJoin = "round";
+      paint.lineWidth = shape.size;
+      paint.strokeStyle = shape.color;
+      if (shape.tool === "marker") {
+        paint.globalAlpha = 0.35;
+        paint.lineWidth = shape.size * 2.4;
+      }
+      if (shape === hovered) paint.globalAlpha = 0.3;
+      const [from, to] = [shape.points[0], shape.points[shape.points.length - 1]];
+      paint.beginPath();
+      if (shape.tool === "rect") {
+        paint.rect(from.x, from.y, to.x - from.x, to.y - from.y);
+      } else if (shape.tool === "ellipse") {
+        paint.ellipse((from.x + to.x) / 2, (from.y + to.y) / 2, Math.abs(to.x - from.x) / 2, Math.abs(to.y - from.y) / 2, 0, 0, Math.PI * 2);
+      } else if (shape.tool === "line" || shape.tool === "arrow") {
+        paint.moveTo(from.x, from.y);
+        paint.lineTo(to.x, to.y);
+      } else {
+        paint.moveTo(shape.points[0].x, shape.points[0].y);
+        shape.points.forEach((point) => paint.lineTo(point.x, point.y));
+      }
+      paint.stroke();
+      if (shape.tool === "arrow") {
+        const angle = Math.atan2(to.y - from.y, to.x - from.x);
+        const head = Math.max(12, shape.size * 3);
+        paint.beginPath();
+        paint.moveTo(to.x, to.y);
+        paint.lineTo(to.x - head * Math.cos(angle - Math.PI / 7), to.y - head * Math.sin(angle - Math.PI / 7));
+        paint.moveTo(to.x, to.y);
+        paint.lineTo(to.x - head * Math.cos(angle + Math.PI / 7), to.y - head * Math.sin(angle + Math.PI / 7));
+        paint.stroke();
+      }
+      paint.restore();
+    }
+
+    function render() {
+      paint.clearRect(0, 0, canvas.width, canvas.height);
+      shapes.forEach(stroke);
+      if (drawing) stroke(drawing);
+    }
+
+    // How far a point lies from a mark, so the eraser can take the whole mark
+    // it is over rather than rubbing a hole in it.
+    function distanceToSegment(point, a, b) {
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const length = dx * dx + dy * dy;
+      const t = length ? Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / length)) : 0;
+      return Math.hypot(point.x - (a.x + t * dx), point.y - (a.y + t * dy));
+    }
+
+    function distanceToShape(point, shape) {
+      const from = shape.points[0];
+      const to = shape.points[shape.points.length - 1];
+      if (shape.tool === "rect") {
+        const corners = [
+          { x: from.x, y: from.y }, { x: to.x, y: from.y },
+          { x: to.x, y: to.y }, { x: from.x, y: to.y },
+        ];
+        return Math.min(...corners.map((corner, index) => distanceToSegment(point, corner, corners[(index + 1) % 4])));
+      }
+      if (shape.tool === "ellipse") {
+        const cx = (from.x + to.x) / 2;
+        const cy = (from.y + to.y) / 2;
+        const rx = Math.abs(to.x - from.x) / 2;
+        const ry = Math.abs(to.y - from.y) / 2;
+        let best = Infinity;
+        for (let i = 0; i < 48; i += 1) {
+          const angle = (i / 48) * Math.PI * 2;
+          best = Math.min(best, Math.hypot(point.x - (cx + rx * Math.cos(angle)), point.y - (cy + ry * Math.sin(angle))));
+        }
+        return best;
+      }
+      let best = Infinity;
+      for (let i = 1; i < shape.points.length; i += 1) {
+        best = Math.min(best, distanceToSegment(point, shape.points[i - 1], shape.points[i]));
+      }
+      return shape.points.length > 1 ? best : Math.hypot(point.x - from.x, point.y - from.y);
+    }
+
+    function markAt(point) {
+      for (let i = shapes.length - 1; i >= 0; i -= 1) {
+        const shape = shapes[i];
+        const reach = Math.max(10, shape.size / 2 + 6, size);
+        if (distanceToShape(point, shape) <= reach) return shape;
+      }
+      return null;
+    }
+
+    const pointIn = (event) => {
+      const at = canvas.getBoundingClientRect();
+      return { x: event.clientX - at.left, y: event.clientY - at.top };
+    };
+
+    // With the eraser in hand, the mark under the pointer dims: that is the one
+    // a click takes away, whole.
+    canvas.addEventListener("pointermove", (event) => {
+      if (tool !== "eraser" || drawing) return;
+      const next = markAt(pointIn(event));
+      if (next === hovered) return;
+      hovered = next;
+      render();
+    });
+
+    canvas.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+      const point = pointIn(event);
+      canvas.setPointerCapture(event.pointerId);
+
+      if (tool === "eraser") {
+        let erased = shapes;
+        const rub = (at) => {
+          const mark = markAt(at);
+          if (!mark) return;
+          erased = erased.filter((shape) => shape !== mark);
+          shapes = erased;
+          hovered = null;
+          render();
+        };
+        const before = shapes;
+        shapes = shapes.slice();
+        erased = shapes;
+        rub(point);
+        const move = (moveEvent) => rub(pointIn(moveEvent));
+        const drop = () => {
+          canvas.removeEventListener("pointermove", move);
+          canvas.removeEventListener("pointerup", drop);
+          canvas.removeEventListener("pointercancel", drop);
+          const kept = shapes;
+          shapes = before;
+          if (kept.length !== before.length) commit(kept);
+          else render();
+        };
+        canvas.addEventListener("pointermove", move);
+        canvas.addEventListener("pointerup", drop);
+        canvas.addEventListener("pointercancel", drop);
+        return;
+      }
+
+      drawing = { tool, color, size, points: [point, point] };
+      render();
+
+      const move = (moveEvent) => {
+        const next = pointIn(moveEvent);
+        if (drawing.tool === "pen" || drawing.tool === "marker") drawing.points.push(next);
+        else drawing.points[1] = next;
+        render();
+      };
+      const drop = () => {
+        canvas.removeEventListener("pointermove", move);
+        canvas.removeEventListener("pointerup", drop);
+        canvas.removeEventListener("pointercancel", drop);
+        if (drawing) {
+          const mark = drawing;
+          drawing = null;
+          commit(shapes.concat(mark));
+        }
+      };
+      canvas.addEventListener("pointermove", move);
+      canvas.addEventListener("pointerup", drop);
+      canvas.addEventListener("pointercancel", drop);
+    });
+
+    undo.addEventListener("click", () => {
+      if (!past.length) return;
+      future.push(shapes);
+      shapes = past.pop();
+      render();
+    });
+    redo.addEventListener("click", () => {
+      if (!future.length) return;
+      past.push(shapes);
+      shapes = future.pop();
+      render();
+    });
+    wipe.addEventListener("click", () => {
+      if (shapes.length) commit([]);
+    });
+    close.addEventListener("click", () => toggle.click());
+
+    function start() {
+      fit();
+      canvas.hidden = false;
+      bar.hidden = false;
+      holdWidget("screen-draw");
+    }
+    function stop() {
+      canvas.hidden = true;
+      bar.hidden = true;
+      shapes = [];
+      past = [];
+      future = [];
+      drawing = null;
+      hovered = null;
+      render();
+    }
+
+    toggle.addEventListener("click", () => {
+      if (box.classList.contains("is-on")) start();
+      else stop();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !canvas.hidden) toggle.click();
+    });
+    window.addEventListener("resize", () => { if (!canvas.hidden) fit(); });
+  }
+
   // Mirror. The app hangs a camera preview under the notch; flipping the mock's
   // switch asks the browser for the camera and hangs the same preview under the
   // menu bar. The picture is only ever shown — nothing is recorded and nothing
@@ -2736,6 +3071,7 @@
     initCleanMode();
     initConvert();
     initMirror();
+    initScreenDraw();
     initFileTypeMenu();
     initAwakeToggle();
     initCompareRotation();
