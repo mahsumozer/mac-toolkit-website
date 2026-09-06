@@ -291,15 +291,15 @@
                     <strong>Color Picker</strong>
                   </div>
                   <div class="mock-color-row">
-                    <span class="mock-swatch" aria-hidden="true"></span>
-                    <strong>#F4F2ED</strong>
+                    <span class="mock-swatch" id="mock-swatch" aria-hidden="true"></span>
+                    <strong id="mock-color-value">#F4F2ED</strong>
                   </div>
                   <div class="mock-color-pills">
-                    <span>HEX</span>
-                    <span>RGB</span>
-                    <span>HSL</span>
+                    <button type="button" data-color-format="hex">HEX</button>
+                    <button type="button" data-color-format="rgb">RGB</button>
+                    <button type="button" data-color-format="hsl">HSL</button>
                   </div>
-                  <button class="mock-btn-accent" type="button">Pick Color</button>
+                  <button class="mock-btn-accent" id="mock-pick-color" type="button">Pick Color</button>
                 </div>
 
                 <div class="mock-card" data-widget="mirror" hidden>

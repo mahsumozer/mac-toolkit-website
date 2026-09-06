@@ -827,7 +827,8 @@ body.show-mac-handoff .mac-handoff:focus-within {
   height: 28px;
 }
 
-.hero-product .mock-color-pills span {
+.hero-product .mock-color-pills span,
+.hero-product .mock-color-pills button {
   min-height: 21px;
 }
 
@@ -1165,6 +1166,7 @@ body.show-mac-handoff .mac-handoff:focus-within {
   border-radius: 8px;
   background: var(--paper);
   border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: background 0.2s var(--ease);
 }
 
 .mock-color-row strong {
@@ -1180,7 +1182,8 @@ body.show-mac-handoff .mac-handoff:focus-within {
   margin-bottom: 10px;
 }
 
-.mock-color-pills span {
+.mock-color-pills span,
+.mock-color-pills button {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1192,6 +1195,25 @@ body.show-mac-handoff .mac-handoff:focus-within {
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.08em;
+  transition: color 0.16s var(--ease), background 0.16s var(--ease), border-color 0.16s var(--ease);
+}
+
+.mock-color-pills button:hover {
+  color: var(--white);
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+/* The format a click just put on the clipboard. */
+.mock-color-pills button.is-copied {
+  color: var(--accent);
+  background: rgba(245, 148, 29, 0.16);
+  border-color: rgba(245, 148, 29, 0.45);
+}
+
+.mock-color-pills button:focus-visible {
+  outline: 2px solid rgba(245, 148, 29, 0.7);
+  outline-offset: 2px;
 }
 
 /* The widgets that rotate into the hero panel after the four above. They are

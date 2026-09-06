@@ -46,6 +46,39 @@
     }, 2600);
   }
 
+  // A widget the visitor is actually using stays put: the panel's rotation
+  // never swaps out a card that is holding something — a running timer, a
+  // switch that is on, a name half typed — so nothing disappears mid-use.
+  // Passing `seconds` releases the hold on its own, for one-off actions.
+  const widgetHolds = new Map();
+
+  function widgetCard(name) {
+    return document.querySelector(`.hero-product .mock-card[data-widget="${name}"]`);
+  }
+
+  function holdWidget(name, seconds) {
+    const card = widgetCard(name);
+    if (!card) return;
+    card.dataset.inUse = "true";
+    // Held while it happens to be out of the panel — picked up from a search
+    // hit, say — it goes to the front of the queue and comes back in.
+    if (card.hidden) card.dataset.skips = "9";
+    window.clearTimeout(widgetHolds.get(name));
+    widgetHolds.delete(name);
+    if (!seconds) return;
+    widgetHolds.set(name, window.setTimeout(() => {
+      card.dataset.inUse = "false";
+      widgetHolds.delete(name);
+    }, seconds * 1000));
+  }
+
+  function releaseWidget(name) {
+    const card = widgetCard(name);
+    window.clearTimeout(widgetHolds.get(name));
+    widgetHolds.delete(name);
+    if (card) card.dataset.inUse = "false";
+  }
+
   function initHeader() {
     const header = document.getElementById("site-header");
     const menuButton = document.getElementById("menu-button");
@@ -215,6 +248,7 @@
       focusTimer = null;
       if (button) button.textContent = "Start";
       showStripTimer(false);
+      releaseWidget("pomodoro");
       showToast("Focus timer paused.");
       return;
     }
@@ -227,6 +261,7 @@
         if (button) button.textContent = "Start";
         updateFocus();
         showStripTimer(false);
+        releaseWidget("pomodoro");
         showToast("Focus session complete.");
         return;
       }
@@ -237,6 +272,7 @@
 
     if (button) button.textContent = "Pause";
     showStripTimer(true);
+    holdWidget("pomodoro");
     showToast("Focus timer started.");
   }
 
@@ -266,6 +302,7 @@
         void button.offsetWidth;
         button.classList.add("copied");
         window.setTimeout(() => button.classList.remove("copied"), 900);
+        holdWidget("clipboard", 20);
         try {
           await navigator.clipboard.writeText(value);
           showToast(`Copied: ${value}`);
@@ -421,6 +458,7 @@
     const ENTER_MS = 500;
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const shownAt = (card) => Number(card.dataset.shown || 0);
+    const held = (card) => card.dataset.inUse === "true";
     const byOldest = (a, b) => shownAt(a) - shownAt(b);
     const gapOf = (col) => parseFloat(getComputedStyle(col).gap) || 0;
     const visibleIn = (col) => Array.from(col.children).filter((c) => c.matches(".mock-card") && !c.hidden);
@@ -543,7 +581,8 @@
       const gap = gapOf(col);
       const budget = col.clientHeight - extrasHeight(col, gap);
       const colCards = visibleIn(col);
-      const colByAge = colCards.slice().sort(byOldest);
+      // A held card keeps its place and its height; only the rest can leave.
+      const colByAge = colCards.filter((c) => !held(c)).sort(byOldest);
       const heights = new Map();
       const heightOf = (card) => {
         if (!heights.has(card)) heights.set(card, measure(card, col));
@@ -574,7 +613,7 @@
       // Nothing rotates while the panel is put away from the status item.
       if (busy || paused || searching || document.hidden || surface.classList.contains("is-closed")) return;
       const pool = cards.filter((c) => c.hidden).sort(byOldest);
-      const visible = cards.filter((c) => !c.hidden).sort(byOldest);
+      const visible = cards.filter((c) => !c.hidden && !held(c)).sort(byOldest);
       if (!pool.length || !visible.length) return;
 
       const oldest = visible[0];
@@ -711,6 +750,8 @@
         const box = toggle.closest(".mock-toggle");
         const on = box.classList.toggle("is-on");
         toggle.setAttribute("aria-pressed", String(on));
+        const widget = toggle.closest(".mock-card")?.dataset.widget;
+        if (widget) (on ? holdWidget : releaseWidget)(widget);
         const title = box.querySelector(on ? ".mock-toggle-title .is-on-text" : ".mock-toggle-title .is-off-text");
         if (title) showToast(`${title.textContent.trim()}.`);
       });
@@ -745,6 +786,84 @@
     lockHeight();
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(lockHeight);
     window.setInterval(tick, INTERVAL);
+  }
+
+  // The Color Picker card. Pick Color opens the browser's eyedropper where
+  // there is one — the same tool the app reaches for — so a visitor really
+  // picks a colour off their screen; browsers without it step through a set of
+  // samples instead. Each format button copies the colour in that notation,
+  // the way the app's do.
+  function initColorPicker() {
+    const swatch = document.getElementById("mock-swatch");
+    const value = document.getElementById("mock-color-value");
+    const pick = document.getElementById("mock-pick-color");
+    const pills = Array.from(document.querySelectorAll("[data-color-format]"));
+    if (!swatch || !value || !pick) return;
+
+    const SAMPLES = ["#F4F2ED", "#F5941D", "#2E9E7B", "#4C6EF5", "#E4572E", "#1D1D1B"];
+    let sample = 0;
+    let color = value.textContent.trim() || SAMPLES[0];
+
+    const channels = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+
+    function asFormat(format) {
+      const [r, g, b] = channels(color);
+      if (format === "rgb") return `rgb(${r}, ${g}, ${b})`;
+      if (format !== "hsl") return color;
+      const [rf, gf, bf] = [r, g, b].map((c) => c / 255);
+      const max = Math.max(rf, gf, bf);
+      const min = Math.min(rf, gf, bf);
+      const d = max - min;
+      const l = (max + min) / 2;
+      let h = 0;
+      if (d) {
+        h = max === rf ? ((gf - bf) / d) % 6 : max === gf ? (bf - rf) / d + 2 : (rf - gf) / d + 4;
+        h = Math.round(h * 60);
+        if (h < 0) h += 360;
+      }
+      const sat = d ? Math.round((d / (1 - Math.abs(2 * l - 1))) * 100) : 0;
+      return `hsl(${h}, ${sat}%, ${Math.round(l * 100)}%)`;
+    }
+
+    function show(next) {
+      color = next.toUpperCase();
+      swatch.style.background = color;
+      value.textContent = color;
+    }
+
+    pills.forEach((pill) => {
+      pill.addEventListener("click", async () => {
+        const text = asFormat(pill.dataset.colorFormat);
+        holdWidget("color-picker", 20);
+        pills.forEach((other) => other.classList.toggle("is-copied", other === pill));
+        window.setTimeout(() => pill.classList.remove("is-copied"), 900);
+        try {
+          await navigator.clipboard.writeText(text);
+          showToast(`Copied: ${text}`);
+        } catch {
+          showToast(`Copy preview: ${text}`);
+        }
+      });
+    });
+
+    pick.addEventListener("click", async () => {
+      holdWidget("color-picker", 20);
+      if (window.EyeDropper) {
+        try {
+          const result = await new window.EyeDropper().open();
+          show(result.sRGBHex);
+          showToast(`Picked: ${color}`);
+        } catch {
+          // The eyedropper was dismissed; the card keeps the colour it had.
+        }
+        return;
+      }
+      sample = (sample + 1) % SAMPLES.length;
+      show(SAMPLES[sample]);
+      showToast(`Picked: ${color}`);
+    });
+
+    show(color);
   }
 
   // Sticky Notes: New slides a note out of the panel and onto the page, the
@@ -872,6 +991,7 @@
         note.remove();
         const at = notes.indexOf(note);
         if (at > -1) notes.splice(at, 1);
+        if (!notes.length) releaseWidget("sticky-notes");
       }, { once: true });
     }
 
@@ -943,6 +1063,7 @@
 
     newButton.addEventListener("click", () => {
       spawn();
+      holdWidget("sticky-notes");
       showToast("Sticky note on screen.");
     });
 
@@ -1020,6 +1141,7 @@
 
     const save = (path) => {
       const file = fileName();
+      holdWidget("new-file", 20);
       close();
       if (!file) return;
       window.clearTimeout(done);
@@ -1057,6 +1179,7 @@
 
     const sync = () => { create.disabled = !name.value.trim(); };
     const ask = () => {
+      holdWidget("new-file", 20);
       if (!fileName()) return;
       if (menu.classList.contains("is-open")) close();
       else open();
@@ -1064,8 +1187,10 @@
 
     name.addEventListener("input", () => {
       sync();
+      holdWidget("new-file", 20);
       if (!name.value.trim()) close();
     });
+    name.addEventListener("focus", () => holdWidget("new-file", 20));
     name.addEventListener("keydown", (event) => {
       if (event.key !== "Enter") return;
       event.preventDefault();
@@ -1131,6 +1256,7 @@
       field.setAttribute("aria-expanded", "false");
     };
     const open = () => {
+      holdWidget("new-file", 20);
       const box = surface.getBoundingClientRect();
       const at = field.getBoundingClientRect();
       menu.style.left = `${Math.round(at.left - box.left)}px`;
@@ -1860,6 +1986,7 @@
     initPanelToggle();
     initNewFileCard();
     initStickyNotes();
+    initColorPicker();
     initFileTypeMenu();
     initAwakeToggle();
     initCompareRotation();
