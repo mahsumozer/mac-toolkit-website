@@ -1,6 +1,10 @@
 #!/bin/sh
 set -eu
 
+# public/ is generated output, never a place to keep files: wipe it first so a
+# renamed or dropped asset cannot linger here and get re-uploaded on every
+# deploy (two unreferenced promo videos, 10.7 MB, shipped this way for weeks).
+rm -rf public
 mkdir -p public/assets
 
 cp CNAME public/
