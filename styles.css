@@ -480,6 +480,180 @@ body.show-mac-handoff .mac-handoff:focus-within {
   background: rgba(5, 5, 5, 0.06);
 }
 
+/* Mirror: the camera preview hangs under the menu bar, where the app hangs it
+   under the notch. The picture is flipped, as a mirror is. */
+.mirror-frame {
+  position: absolute;
+  left: 50%;
+  z-index: 5;
+  width: min(300px, 46vw);
+  aspect-ratio: 16 / 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.62);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  border: 1px solid var(--line-dark);
+  border-radius: 14px;
+  box-shadow: 0 30px 70px -26px rgba(0, 0, 0, 0.55);
+  cursor: grab;
+  touch-action: none;
+  transform: translateX(-50%);
+  animation: mirror-in 0.32s var(--ease) both;
+}
+
+/* Dragged off the bar it becomes a window of its own. */
+.mirror-frame.is-free {
+  transform: none;
+  animation: none;
+}
+
+.mirror-frame.is-dragging {
+  cursor: grabbing;
+}
+
+/* The mirror's controls, in the app's own floating bar. */
+.mirror-bar {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  /* Glass over the picture rather than a bar on top of it. */
+  background: rgba(0, 0, 0, 0.38);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  box-shadow: 0 12px 26px -14px rgba(0, 0, 0, 0.7);
+  opacity: 0;
+  transform: translate(-50%, 6px);
+  transition: opacity 0.16s var(--ease), transform 0.16s var(--ease);
+}
+
+.mirror-frame:hover .mirror-bar,
+.mirror-frame:focus-within .mirror-bar {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.mirror-button {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: rgba(255, 255, 255, 0.85);
+  background: none;
+  border: 0;
+  border-radius: 50%;
+  transition: color 0.14s var(--ease), background 0.14s var(--ease);
+}
+
+.mirror-button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.mirror-button:hover {
+  color: var(--white);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.mirror-button.is-close:hover {
+  color: var(--white);
+  background: rgba(255, 69, 58, 0.52);
+}
+
+.mirror-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* The shutter going off. */
+.mirror-frame.is-flashing::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: var(--white);
+  pointer-events: none;
+  animation: shot-flash 0.34s var(--ease) both;
+}
+
+/* The corner that sets how wide the mirror is. */
+.mirror-grip {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 22px;
+  height: 22px;
+  cursor: nwse-resize;
+  opacity: 0;
+  transition: opacity 0.16s var(--ease);
+}
+
+.mirror-grip::after {
+  content: "";
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid rgba(255, 255, 255, 0.8);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.8);
+  border-radius: 0 0 3px 0;
+}
+
+.mirror-frame:hover .mirror-grip,
+.mirror-frame.is-sizing .mirror-grip {
+  opacity: 1;
+}
+
+.mirror-frame video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transform: scaleX(-1);
+  transition: opacity 0.3s var(--ease);
+}
+
+.mirror-frame.is-live video {
+  opacity: 1;
+}
+
+.mirror-note {
+  position: absolute;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 11.5px;
+  font-weight: 650;
+}
+
+.mirror-frame.is-live .mirror-note {
+  display: none;
+}
+
+@keyframes mirror-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -10px) scale(0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mirror-frame {
+    animation: none;
+  }
+}
+
 /* Clean Mode: the screen goes under a veil while the panel says what is
    locked. A trackpad lock takes the pointer with it; a keyboard lock leaves
    the mouse alone, as the app does. */
@@ -666,6 +840,13 @@ body.show-mac-handoff .mac-handoff:focus-within {
   background: linear-gradient(160deg, #efece5, #e2ded4);
   border-radius: 6px;
   overflow: hidden;
+}
+
+.shot-thumb-screen img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
 }
 
 .shot-thumb-strip {

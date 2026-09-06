@@ -35,6 +35,10 @@
   // say — pushes the oldest out rather than filling the screen.
   const TOASTS_ON_SCREEN = 5;
 
+  // Set by the Screenshot card, which owns the corner the shots land in; the
+  // mirror drops its stills into the same corner.
+  let dropShotInCorner = null;
+
   function dismissToast(toast) {
     if (toast.classList.contains("out")) return;
     toast.classList.add("out");
@@ -798,6 +802,222 @@
     window.setInterval(tick, INTERVAL);
   }
 
+  // Mirror. The app hangs a camera preview under the notch; flipping the mock's
+  // switch asks the browser for the camera and hangs the same preview under the
+  // menu bar. The picture is only ever shown — nothing is recorded and nothing
+  // is sent anywhere — and the stream is handed back the moment it is switched
+  // off, so the camera light goes out with it.
+  function initMirror() {
+    const hero = document.querySelector(".hero");
+    const strip = document.querySelector(".desktop-strip");
+    const card = document.querySelector('.hero-product .mock-card[data-widget="mirror"]');
+    if (!hero || !strip || !card) return;
+    const box = card.querySelector(".mock-toggle");
+    const toggle = card.querySelector(".mock-switch");
+    if (!box || !toggle) return;
+
+    const frame = document.createElement("div");
+    frame.className = "mirror-frame";
+    frame.hidden = true;
+    const video = document.createElement("video");
+    video.autoplay = true;
+    video.muted = true;
+    video.playsInline = true;
+    video.setAttribute("aria-label", "Camera preview");
+    const note = document.createElement("p");
+    note.className = "mirror-note";
+    note.textContent = "Starting the camera…";
+    const grip = document.createElement("i");
+    grip.className = "mirror-grip";
+    grip.setAttribute("aria-hidden", "true");
+
+    // The mirror's own two controls: take the picture, and put the camera away.
+    const bar = document.createElement("div");
+    bar.className = "mirror-bar";
+    const shoot = document.createElement("button");
+    shoot.type = "button";
+    shoot.className = "mirror-button";
+    shoot.setAttribute("aria-label", "Take a photo");
+    shoot.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>';
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "mirror-button is-close";
+    close.setAttribute("aria-label", "Turn the mirror off");
+    close.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>';
+    bar.append(shoot, close);
+
+    frame.append(video, note, bar, grip);
+    hero.appendChild(frame);
+
+    let stream = null;
+    let free = false;
+
+    const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+    const ceiling = () => Math.round(strip.getBoundingClientRect().bottom - hero.getBoundingClientRect().top);
+
+    // Docked, the mirror sits just under the menu bar — a hair below it, so its
+    // rounded corners read.
+    const place = () => {
+      frame.style.top = `${ceiling() + 8}px`;
+    };
+
+    // Dragged: it keeps its own place on the page, inside the hero and never
+    // back up behind the bar.
+    function put(x, y) {
+      const box = hero.getBoundingClientRect();
+      frame.style.left = `${Math.round(clamp(x, 8, Math.max(8, box.width - frame.offsetWidth - 8)))}px`;
+      frame.style.top = `${Math.round(clamp(y, ceiling(), Math.max(ceiling(), box.height - frame.offsetHeight - 8)))}px`;
+    }
+
+    function unpin() {
+      if (free) return;
+      const box = hero.getBoundingClientRect();
+      const at = frame.getBoundingClientRect();
+      free = true;
+      frame.classList.add("is-free");
+      frame.style.left = `${Math.round(at.left - box.left)}px`;
+      frame.style.top = `${Math.round(at.top - box.top)}px`;
+    }
+
+    // Back to the bar, keeping whatever width it was given.
+    function dock() {
+      free = false;
+      frame.classList.remove("is-free");
+      frame.style.left = "";
+      place();
+    }
+
+    frame.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0 || event.target.closest("button, .mirror-grip")) return;
+      const box = hero.getBoundingClientRect();
+      const at = frame.getBoundingClientRect();
+      const from = { x: event.clientX, y: event.clientY, left: at.left - box.left, top: at.top - box.top };
+      let moving = false;
+      event.preventDefault();
+      frame.setPointerCapture(event.pointerId);
+
+      const move = (moveEvent) => {
+        const dx = moveEvent.clientX - from.x;
+        const dy = moveEvent.clientY - from.y;
+        if (!moving) {
+          if (Math.hypot(dx, dy) < 4) return;
+          moving = true;
+          unpin();
+          frame.classList.add("is-dragging");
+        }
+        put(from.left + dx, from.top + dy);
+      };
+      const drop = () => {
+        frame.classList.remove("is-dragging");
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", drop);
+        window.removeEventListener("pointercancel", drop);
+      };
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", drop);
+      window.addEventListener("pointercancel", drop);
+    });
+
+    // Two clicks send it back under the menu bar.
+    frame.addEventListener("dblclick", dock);
+
+    // The shutter: the frame on screen, mirrored as it is seen, goes to the
+    // same corner the screen captures land in. It is drawn in the page and
+    // never sent anywhere.
+    shoot.addEventListener("click", () => {
+      if (!stream || !video.videoWidth) return;
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const paint = canvas.getContext("2d");
+      paint.translate(canvas.width, 0);
+      paint.scale(-1, 1);
+      paint.drawImage(video, 0, 0);
+      frame.classList.remove("is-flashing");
+      void frame.offsetWidth;
+      frame.classList.add("is-flashing");
+      if (dropShotInCorner) dropShotInCorner(`${canvas.width} × ${canvas.height}`, canvas.toDataURL("image/png"));
+    });
+
+    close.addEventListener("click", () => toggle.click());
+
+    grip.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const box = hero.getBoundingClientRect();
+      const startX = event.clientX;
+      const startWidth = frame.offsetWidth;
+      grip.setPointerCapture(event.pointerId);
+      frame.classList.add("is-sizing");
+
+      const move = (moveEvent) => {
+        const limit = Math.max(200, Math.min(680, box.width - 40));
+        frame.style.width = `${Math.round(clamp(startWidth + (moveEvent.clientX - startX) * (free ? 1 : 2), 200, limit))}px`;
+        if (free) put(parseFloat(frame.style.left) || 0, parseFloat(frame.style.top) || 0);
+      };
+      const drop = () => {
+        frame.classList.remove("is-sizing");
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", drop);
+        window.removeEventListener("pointercancel", drop);
+      };
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", drop);
+      window.addEventListener("pointercancel", drop);
+    });
+
+    function revert() {
+      box.classList.remove("is-on");
+      toggle.setAttribute("aria-pressed", "false");
+      releaseWidget("mirror");
+    }
+
+    function stop() {
+      if (stream) stream.getTracks().forEach((track) => track.stop());
+      stream = null;
+      video.srcObject = null;
+      frame.hidden = true;
+      frame.classList.remove("is-live");
+    }
+
+    async function start() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        revert();
+        showToast("The camera needs a secure connection.");
+        return;
+      }
+      place();
+      note.textContent = "Starting the camera…";
+      frame.hidden = false;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+      } catch {
+        stop();
+        revert();
+        showToast("Camera access is off.");
+        return;
+      }
+      // Switched off again while the browser was still asking.
+      if (!box.classList.contains("is-on")) {
+        stop();
+        return;
+      }
+      video.srcObject = stream;
+      frame.classList.add("is-live");
+    }
+
+    toggle.addEventListener("click", () => {
+      if (box.classList.contains("is-on")) start();
+      else stop();
+    });
+    window.addEventListener("resize", () => {
+      if (frame.hidden) return;
+      if (free) put(parseFloat(frame.style.left) || 0, parseFloat(frame.style.top) || 0);
+      else place();
+    });
+  }
+
   // The Convert card. A file can be dropped on it or chosen from disk, and
   // only its name is ever read — nothing is opened, and nothing leaves the
   // browser. From that name the card knows the group it belongs to, offers the
@@ -1097,9 +1317,9 @@
     hero.appendChild(layer);
 
     const pad = (n) => String(n).padStart(2, "0");
-    const stamp = () => {
+    const stamp = (kind = "Screen Shot") => {
       const now = new Date();
-      return `Screen Shot ${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} at ${pad(now.getHours())}.${pad(now.getMinutes())}.${pad(now.getSeconds())}.png`;
+      return `${kind} ${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} at ${pad(now.getHours())}.${pad(now.getMinutes())}.${pad(now.getSeconds())}.png`;
     };
 
     function flash() {
@@ -1123,13 +1343,18 @@
       shot.addEventListener("animationend", () => shot.remove(), { once: true });
     }
 
-    function thumbnail(size) {
-      const file = stamp();
+    // `picture` is a still to show in place of the mock desktop — the mirror
+    // sends the frame it just took.
+    function thumbnail(size, picture) {
+      const file = picture ? stamp("Mirror Shot") : stamp();
       const thumb = document.createElement("button");
       thumb.type = "button";
       thumb.className = "shot-thumb";
       thumb.setAttribute("aria-label", `Save ${file}`);
-      thumb.innerHTML = '<span class="shot-thumb-screen"><i class="shot-thumb-strip"></i><i class="shot-thumb-panel"></i><em class="shot-thumb-save">Save</em></span>';
+      thumb.innerHTML = picture
+        ? '<span class="shot-thumb-screen"><img alt="" src=""><em class="shot-thumb-save">Save</em></span>'
+        : '<span class="shot-thumb-screen"><i class="shot-thumb-strip"></i><i class="shot-thumb-panel"></i><em class="shot-thumb-save">Save</em></span>';
+      if (picture) thumb.querySelector("img").src = picture;
       const label = document.createElement("span");
       label.className = "shot-thumb-size";
       label.textContent = size;
@@ -1279,6 +1504,8 @@
         if (badge) badge.lastChild.textContent = clock(recordedFor);
       }, 1000);
     }
+
+    dropShotInCorner = thumbnail;
 
     card.querySelectorAll("[data-shot]").forEach((button) => {
       button.addEventListener("click", () => {
@@ -2508,6 +2735,7 @@
     initStripMenus();
     initCleanMode();
     initConvert();
+    initMirror();
     initFileTypeMenu();
     initAwakeToggle();
     initCompareRotation();
