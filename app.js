@@ -426,6 +426,7 @@
     let clock = 0;
     let paused = false;
     let busy = false;
+    let searching = false;
 
     // Leave order starts at the bottom of the columns and alternates between
     // them, so the first swaps happen away from the panel's top corners.
@@ -546,7 +547,7 @@
     }
 
     async function tick() {
-      if (busy || paused || document.hidden) return;
+      if (busy || paused || searching || document.hidden) return;
       const pool = cards.filter((c) => c.hidden).sort(byOldest);
       const visible = cards.filter((c) => !c.hidden).sort(byOldest);
       if (!pool.length || !visible.length) return;
@@ -579,6 +580,106 @@
       await wait(ENTER_MS);
       entering.forEach((card) => card.classList.remove("is-entering"));
       busy = false;
+    }
+
+    // The panel search, scored like the app's: label beats keyword alias beats
+    // description. The best card moves up under the bar while there is text
+    // and returns to its slot when it is cleared; rotation waits meanwhile.
+    const SEARCH_FIELDS = {
+      "system-stats": { description: "CPU, RAM & uptime", keywords: ["cpu", "ram", "memory", "uptime", "stats", "monitor", "system"] },
+      "clipboard":    { description: "Recent clipboard items", keywords: ["copy", "paste", "history", "clip"] },
+      "screenshot":   { description: "Quick screen capture", keywords: ["capture", "record", "screen", "video", "snap"] },
+      "caffeine":     { description: "Prevent display sleep", keywords: ["awake", "sleep", "caffeine", "display"] },
+      "new-file":     { description: "Create files quickly", keywords: ["file", "create", "new", "template"] },
+      "convert":      { description: "Convert file formats", keywords: ["convert", "format", "pdf", "image", "jpg", "png", "rename"] },
+      "color-picker": { description: "Pick colors from screen", keywords: ["color", "colour", "hex", "rgb", "eyedropper", "pick"] },
+      "pomodoro":     { description: "Focus timer", keywords: ["timer", "focus", "break", "tomato"] },
+      "screen-draw":  { description: "Draw over the screen", keywords: ["draw", "annotate", "pen", "brush", "paint"] },
+      "mirror":       { description: "Camera preview under the notch", keywords: ["camera", "webcam", "notch", "face"] },
+      "clean-mode":   { description: "Lock input while you clean", keywords: ["clean", "lock", "keyboard", "trackpad", "wipe"] },
+      "sticky-notes": { description: "Quick notes on your screen", keywords: ["note", "notes", "memo", "sticky", "deck"] },
+    };
+
+    function searchScore(query, card) {
+      const q = query.trim().toLowerCase();
+      if (!q) return 0;
+      const fields = SEARCH_FIELDS[card.dataset.widget] || {};
+      const label = (card.querySelector(".mock-card-head strong")?.textContent || "").trim().toLowerCase();
+      const words = (fields.keywords || []).map((w) => w.toLowerCase());
+      const desc = (fields.description || "").toLowerCase();
+      if (label === q) return 5;
+      if (label.startsWith(q)) return 4;
+      if (label.includes(q)) return 3;
+      if (words.some((w) => w.startsWith(q))) return 2;
+      if (words.some((w) => w.includes(q)) || desc.includes(q)) return 1;
+      return 0;
+    }
+
+    const searchForm = document.querySelector("[data-mock-search]");
+    const searchInput = searchForm ? searchForm.querySelector("input") : null;
+    const searchClear = searchForm ? searchForm.querySelector(".mock-search-clear") : null;
+    const hitRow = document.querySelector("[data-mock-search-hit]");
+    let hit = null;
+
+    function clearHit() {
+      if (!hit) return;
+      const { card, parent, next, wasHidden } = hit;
+      card.classList.remove("is-hit");
+      card.style.transition = "";
+      card.style.transform = "";
+      parent.insertBefore(card, next && next.parentElement === parent ? next : null);
+      card.hidden = wasHidden;
+      hitRow.hidden = true;
+      hit = null;
+      lockHeight();
+    }
+
+    function showHit(card) {
+      if (hit && hit.card === card) return;
+      clearHit();
+      if (!card) return;
+      hit = { card, parent: card.parentElement, next: card.nextElementSibling, wasHidden: card.hidden };
+      card.classList.remove("is-entering", "is-leaving");
+      card.style.transition = "";
+      card.style.transform = "";
+      hitRow.appendChild(card);
+      card.hidden = false;
+      card.classList.add("is-hit");
+      hitRow.hidden = false;
+      // The grid follows its content while a card is up here, as the app's
+      // panel does, instead of keeping a hole where the card stood.
+      mock.style.height = "";
+    }
+
+    function runSearch() {
+      const query = searchInput.value;
+      searching = query.trim().length > 0;
+      if (searchClear) searchClear.hidden = !query;
+      let best = null;
+      let bestScore = 0;
+      cards.forEach((card) => {
+        const score = searchScore(query, card);
+        if (score > bestScore) { best = card; bestScore = score; }
+      });
+      showHit(best);
+    }
+
+    if (searchForm && searchInput && hitRow) {
+      searchForm.addEventListener("submit", (event) => event.preventDefault());
+      searchInput.addEventListener("input", runSearch);
+      searchInput.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && searchInput.value) {
+          searchInput.value = "";
+          runSearch();
+        }
+      });
+      if (searchClear) {
+        searchClear.addEventListener("click", () => {
+          searchInput.value = "";
+          runSearch();
+          searchInput.focus();
+        });
+      }
     }
 
     // Keep Awake, Mirror and Screen Draw flip their switch like the app does.

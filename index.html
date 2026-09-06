@@ -155,6 +155,14 @@
 
         <div class="hero-product" aria-label="Mac Kit product preview">
           <div class="hero-window">
+            <!-- The app's panel search: the best-matching card moves up under
+                 the bar while there is text, and goes back when it is cleared. -->
+            <form class="mock-search" data-mock-search role="search" autocomplete="off">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
+              <input type="text" placeholder="Search..." aria-label="Search tools" spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off">
+              <button class="mock-search-clear" type="button" aria-label="Clear search" hidden>&times;</button>
+            </form>
+            <div class="mock-search-hit" data-mock-search-hit hidden></div>
             <div class="app-mock" data-rotate>
               <div class="mock-col mock-col-left">
                 <div class="mock-card" data-widget="clipboard" data-initial>

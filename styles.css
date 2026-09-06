@@ -1221,6 +1221,98 @@ body.show-mac-handoff .mac-handoff:focus-within {
   }
 }
 
+/* The panel search bar and the row that holds the matching card. The hero
+   window stacks bar, hit and grid; the compare popover keeps its own grid. */
+.hero-product .hero-window {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hero-product .app-mock {
+  flex: none;
+}
+
+/* Cards stack from the top with one gap; the rotation fills the rest. */
+.hero-product .mock-col-left {
+  justify-content: flex-start;
+}
+
+.mock-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  margin: 0;
+  padding: 0 10px;
+  color: var(--white);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  transition: border-color 0.16s var(--ease), background 0.16s var(--ease);
+}
+
+.mock-search:focus-within {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(245, 148, 29, 0.6);
+}
+
+.mock-search svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.mock-search input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  color: var(--white);
+  background: none;
+  border: 0;
+  outline: none;
+  font-size: 12.5px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.mock-search input::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.mock-search-clear {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--white);
+  background: rgba(255, 255, 255, 0.16);
+  border: 0;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  transition: background 0.14s var(--ease);
+}
+
+.mock-search-clear:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.mock-search-hit > .mock-card {
+  animation: mock-card-in 0.3s var(--ease) both;
+}
+
+.mock-card.is-hit {
+  border-color: rgba(245, 148, 29, 0.55);
+}
+
 /* Hero scale for the rotating widgets, matching the tightened boxes above. */
 .hero-product .mock-stats {
   gap: 8px;
@@ -3887,6 +3979,20 @@ body.show-mac-handoff .mac-handoff:focus-within {
     min-height: 18px;
     padding: 0 6px;
     font-size: 8.5px;
+  }
+
+  .hero-product .hero-window {
+    gap: 6px;
+  }
+
+  .hero-window .mock-search {
+    min-height: 28px;
+    padding: 0 8px;
+    border-radius: 6px;
+  }
+
+  .hero-window .mock-search input {
+    font-size: 11px;
   }
 
   .footer-links {
