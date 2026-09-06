@@ -2777,7 +2777,7 @@ body.show-mac-handoff .mac-handoff:focus-within {
 }
 
 .compare-old .compare-total strong {
-  color: var(--soft-black);
+  color: var(--ink);
 }
 
 .compare-old .compare-total strong s {
@@ -2812,12 +2812,12 @@ body.show-mac-handoff .mac-handoff:focus-within {
 }
 
 .compare-old .compare-total strong span {
-  text-decoration: line-through;
-  text-decoration-color: rgba(5, 5, 5, 0.28);
-  text-decoration-thickness: 2px;
+  color: var(--ink);
 }
 
 .compare-total-accent strong {
+  /* A step down from the crossed-out $150+ it is answering. */
+  font-size: clamp(28px, 2.9vw, 38px);
   color: var(--ink);
 }
 
