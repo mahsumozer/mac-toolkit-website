@@ -1139,6 +1139,9 @@ body.show-mac-handoff .mac-handoff:focus-within {
 
 .hero-product {
   position: relative;
+  /* The panel hangs closer to the bar it belongs to; the trial card below it
+     stays where it is, since the column is stretched. */
+  margin-top: -2px;
   align-self: stretch;
   display: flex;
   align-items: flex-start;
