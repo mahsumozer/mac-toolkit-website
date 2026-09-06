@@ -869,6 +869,35 @@
     });
   }
 
+  // The markup ships the current build so the button works without JS; this
+  // asks GitHub for the newest release and rewrites the link, version and size
+  // so a new release does not leave the page pointing at an old .dmg.
+  function initLatestDownload() {
+    const link = document.querySelector("[data-latest-download]");
+    if (!link) return;
+
+    fetch("https://api.github.com/repos/mahsumozer/mac-kit-releases/releases/latest", {
+      headers: { Accept: "application/vnd.github+json" },
+    })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((release) => {
+        const asset = (release?.assets || []).find((item) => item.name?.endsWith("arm64.dmg"));
+        if (!asset?.browser_download_url) return;
+
+        link.setAttribute("href", asset.browser_download_url);
+
+        const version = String(release.tag_name || "").replace(/^v/, "");
+        const versionEl = document.querySelector("[data-latest-version]");
+        if (version && versionEl) versionEl.textContent = `Version ${version}`;
+
+        const sizeEl = document.querySelector("[data-latest-size]");
+        if (asset.size && sizeEl) {
+          sizeEl.innerHTML = `${Math.round(asset.size / 1048576)} MB &middot; .dmg`;
+        }
+      })
+      .catch(() => {});
+  }
+
   function formErrorMessage(code) {
     if (code === "invalid_email") return "Enter a valid email address.";
     if (code === "rate_limited") return "Too many requests. Try again in a few minutes.";
@@ -1395,6 +1424,7 @@
     initAwakeToggle();
     decorateCheckoutLinks();
     initDownloadButtons();
+    initLatestDownload();
     initEmailForms();
     initMacHandoff();
     initHandoffPrompt();
