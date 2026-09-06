@@ -4247,7 +4247,7 @@ body.show-mac-handoff .mac-handoff:focus-within {
 }
 
 .hero-trial-cta:hover svg {
-  transform: translateX(2px);
+  transform: translateY(2px);
 }
 
 @media (max-width: 1100px) {

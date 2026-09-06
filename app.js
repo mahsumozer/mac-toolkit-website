@@ -873,8 +873,8 @@
   // asks GitHub for the newest release and rewrites the link, version and size
   // so a new release does not leave the page pointing at an old .dmg.
   function initLatestDownload() {
-    const link = document.querySelector("[data-latest-download]");
-    if (!link) return;
+    const links = document.querySelectorAll("[data-latest-download]");
+    if (!links.length) return;
 
     fetch("https://api.github.com/repos/mahsumozer/mac-kit-releases/releases/latest", {
       headers: { Accept: "application/vnd.github+json" },
@@ -884,7 +884,7 @@
         const asset = (release?.assets || []).find((item) => item.name?.endsWith("arm64.dmg"));
         if (!asset?.browser_download_url) return;
 
-        link.setAttribute("href", asset.browser_download_url);
+        links.forEach((link) => link.setAttribute("href", asset.browser_download_url));
 
         const version = String(release.tag_name || "").replace(/^v/, "");
         const versionEl = document.querySelector("[data-latest-version]");
