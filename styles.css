@@ -216,6 +216,7 @@ svg {
 }
 
 .hero {
+  position: relative;
   min-height: 100svh;
   padding: 0 clamp(18px, 4vw, 48px) 64px;
   display: grid;
@@ -479,6 +480,168 @@ body.show-mac-handoff .mac-handoff:focus-within {
   background: rgba(5, 5, 5, 0.06);
 }
 
+/* Sticky notes the panel drops onto the page, the way the app opens a note
+   window on the desktop: they slide out of the panel, take a colour from the
+   app's palette, and can be typed in, dragged and thrown away. */
+.sticky-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.sticky-note {
+  position: absolute;
+  z-index: 1;
+  width: 196px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border-radius: 12px;
+  box-shadow: 0 20px 44px -20px rgba(5, 5, 5, 0.45), 0 2px 6px rgba(5, 5, 5, 0.1);
+  cursor: grab;
+  pointer-events: auto;
+  /* The note takes the gesture itself, so a drag moves it instead of scrolling
+     the page under it. */
+  touch-action: none;
+  transform: rotate(var(--tilt, 0deg));
+  animation: sticky-in 0.42s var(--ease) both;
+}
+
+.sticky-note.is-front {
+  z-index: 2;
+}
+
+.sticky-note.is-dragging {
+  cursor: grabbing;
+  user-select: none;
+  box-shadow: 0 30px 60px -22px rgba(5, 5, 5, 0.5), 0 2px 6px rgba(5, 5, 5, 0.1);
+}
+
+/* List slides every note back to its slot instead of snapping it there. */
+.sticky-note.is-tidy {
+  transition: left 0.4s var(--ease), top 0.4s var(--ease);
+}
+
+.sticky-note.is-leaving {
+  animation: sticky-out 0.24s var(--ease) both;
+}
+
+.sticky-note-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sticky-note-title {
+  flex: 1;
+  cursor: text;
+  min-width: 0;
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: 0;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  outline: none;
+}
+
+.sticky-note-close {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-radius: 50%;
+  font-size: 15px;
+  line-height: 1;
+  opacity: 0.45;
+  transition: opacity 0.14s var(--ease), background 0.14s var(--ease);
+}
+
+.sticky-note-close:hover {
+  opacity: 1;
+  background: var(--rule);
+}
+
+.sticky-note-lines {
+  display: grid;
+  gap: 3px;
+}
+
+.sticky-note-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.sticky-note-row i {
+  flex: none;
+  font-size: 10.5px;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.65;
+}
+
+.sticky-note-row input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: 0;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 550;
+  cursor: text;
+  outline: none;
+}
+
+.sticky-note-title::placeholder,
+.sticky-note-row input::placeholder {
+  color: currentColor;
+  opacity: 0.55;
+}
+
+@keyframes sticky-in {
+  from {
+    opacity: 0;
+    transform: translate(var(--from-x, 40px), var(--from-y, -40px)) scale(0.82) rotate(-6deg);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(var(--tilt, 0deg));
+  }
+}
+
+@keyframes sticky-out {
+  to {
+    opacity: 0;
+    transform: scale(0.9) rotate(calc(var(--tilt, 0deg) + 3deg));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sticky-note,
+  .sticky-note.is-leaving {
+    animation: none;
+  }
+
+  .sticky-note.is-tidy {
+    transition: none;
+  }
+}
+
 .hero-product {
   position: relative;
   align-self: stretch;
@@ -539,6 +702,27 @@ body.show-mac-handoff .mac-handoff:focus-within {
   flex: 1;
 }
 
+/* A running session shows its countdown inside the status item, the way the
+   app titles its tray while the timer runs: one pill, icon then time. */
+.strip-timer {
+  color: var(--white);
+  font-variant-numeric: tabular-nums;
+  animation: strip-timer-in 0.24s var(--ease) both;
+}
+
+@keyframes strip-timer-in {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .strip-timer {
+    animation: none;
+  }
+}
+
 /* The status item. It opens the panel and puts it away again, so it carries
    the menu bar's own pressed and idle states. */
 .bolt {
@@ -547,7 +731,8 @@ body.show-mac-handoff .mac-handoff:focus-within {
   min-width: 36px;
   align-items: center;
   justify-content: center;
-  padding: 0;
+  gap: 6px;
+  padding: 0 8px;
   color: var(--white);
   background: rgba(255, 255, 255, 0.14);
   border: 0;
@@ -717,6 +902,17 @@ body.show-mac-handoff .mac-handoff:focus-within {
   border-radius: 8px;
   font-size: 12.5px;
   font-weight: 800;
+  transition: background 0.16s var(--ease), opacity 0.16s var(--ease), filter 0.16s var(--ease);
+}
+
+/* An empty name leaves nothing to create, exactly as in the app. */
+.mock-btn-accent[disabled] {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.mock-btn-accent.is-done {
+  background: #34c759;
 }
 
 .mock-card > .mock-btn-accent {
@@ -756,14 +952,16 @@ body.show-mac-handoff .mac-handoff:focus-within {
   gap: 2px;
   padding: 6px;
   color: var(--white);
-  /* Nearly opaque: the menu can overlap the light trial card below the
-     window, where a translucent panel reads as broken. */
-  background: rgba(16, 16, 16, 0.94);
-  -webkit-backdrop-filter: blur(18px);
-  backdrop-filter: blur(18px);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  /* The panel's own warm dark, one step above its surface so the menu reads as
+     a sheet lifted off the panel. Kept mostly opaque because the menu can
+     overlap the light trial card below the window, where a see-through sheet
+     reads as broken. */
+  background: rgba(41, 40, 38, 0.9);
+  -webkit-backdrop-filter: blur(22px);
+  backdrop-filter: blur(22px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 10px;
-  box-shadow: 0 24px 52px -22px rgba(0, 0, 0, 0.7);
+  box-shadow: 0 20px 44px -24px rgba(0, 0, 0, 0.6);
   opacity: 0;
   visibility: hidden;
   transform: translateY(-6px);
@@ -813,6 +1011,7 @@ body.show-mac-handoff .mac-handoff:focus-within {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
+  transition: color 0.16s var(--ease), background 0.16s var(--ease), border-color 0.16s var(--ease);
 }
 
 .mock-clip-row:last-child {
@@ -897,6 +1096,7 @@ body.show-mac-handoff .mac-handoff:focus-within {
   border-radius: 8px;
   font-size: 14px;
   font-weight: 750;
+  transition: color 0.16s var(--ease), background 0.16s var(--ease), border-color 0.16s var(--ease);
 }
 
 .mock-shot-grid {
@@ -913,6 +1113,43 @@ body.show-mac-handoff .mac-handoff:focus-within {
   border-radius: 8px;
   font-size: 12px;
   font-weight: 750;
+  transition: color 0.16s var(--ease), background 0.16s var(--ease), border-color 0.16s var(--ease);
+}
+
+/* Every control in the panel says when the pointer is on it, the way the app
+   does: plain surfaces lift and their edge brightens, accent-filled ones
+   brighten in place. */
+.mock-shot-grid button:hover,
+.mock-pomo-controls button:not(.mock-btn-accent):hover,
+.mock-add-button:hover,
+.mock-clip-row:hover {
+  color: var(--white);
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+.mock-btn-accent:not([disabled]):hover {
+  filter: brightness(1.08);
+}
+
+.mock-switch:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.mock-toggle.is-on .mock-switch:hover {
+  filter: brightness(1.08);
+}
+
+.mock-shot-grid button:focus-visible,
+.mock-pomo-controls button:focus-visible,
+.mock-btn-accent:focus-visible,
+.mock-add-button:focus-visible,
+.mock-clip-row:focus-visible,
+.mock-switch:focus-visible,
+.mock-select:focus-visible {
+  outline: 2px solid rgba(245, 148, 29, 0.7);
+  outline-offset: 2px;
 }
 
 .mock-color-row {
@@ -1128,6 +1365,27 @@ body.show-mac-handoff .mac-handoff:focus-within {
   text-overflow: ellipsis;
 }
 
+/* The New File name box: a real field, typed like the app's. */
+.mock-name {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  color: var(--white);
+  background: none;
+  border: 0;
+  font: inherit;
+  outline: none;
+}
+
+.mock-name::placeholder {
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.mock-field:focus-within {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(245, 148, 29, 0.48);
+}
+
 .mock-field-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -1152,27 +1410,81 @@ body.show-mac-handoff .mac-handoff:focus-within {
   border-color: rgba(245, 148, 29, 0.48);
 }
 
-/* The file-type list, built by app.js and parked next to the "+" menu. */
+/* The folder list Create opens before it writes anything, standing in for the
+   picker the app opens. Built by app.js and parked in the panel. */
+.mock-place-menu {
+  min-width: 218px;
+}
+
+.mock-menu-title {
+  grid-column: 1 / -1;
+  margin: 2px 0 4px;
+  padding: 0 10px;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mock-place-menu button {
+  gap: 8px;
+}
+
+.mock-place-menu button svg {
+  flex: none;
+  width: 13px;
+  height: 13px;
+  opacity: 0.6;
+}
+
+.mock-place-menu button em {
+  margin-left: auto;
+  color: rgba(255, 255, 255, 0.42);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  font-style: normal;
+}
+
+/* The file-type list, built by app.js and parked next to the "+" menu. The
+   templates read as chips, like the format row in the Convert card, so the
+   list belongs to the panel instead of sitting on it as a slab. */
 .mock-file-menu {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  width: 210px;
+  gap: 4px;
+  width: 208px;
   min-width: 0;
+  padding: 8px;
 }
 
 .mock-file-menu button {
   gap: 6px;
+  min-height: 26px;
+  padding: 0 8px;
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 7px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 11px;
+  font-size: 10.5px;
+  font-weight: 600;
 }
 
 .mock-file-menu button i {
+  font-size: 11px;
   font-style: normal;
+}
+
+.mock-file-menu button:hover {
+  color: var(--white);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .mock-file-menu button.is-selected {
   color: var(--accent);
   background: rgba(245, 148, 29, 0.16);
+  border-color: rgba(245, 148, 29, 0.45);
 }
 
 .mock-select::after {

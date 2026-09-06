@@ -126,6 +126,7 @@
             <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
               <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
             </svg>
+            <span class="strip-timer" id="strip-timer" hidden>25:00</span>
           </button>
           <span class="strip-battery">94%</span>
           <span id="menu-clock">10:42 AM</span>
@@ -320,10 +321,12 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"></path><path d="M14 2v5a1 1 0 0 0 1 1h5"></path><path d="M9 15h6"></path><path d="M12 18v-6"></path></svg>
                     <strong>New File</strong>
                   </div>
-                  <div class="mock-field"><span>meeting-notes</span></div>
+                  <div class="mock-field">
+                    <input class="mock-name" id="mock-file-name" type="text" value="meeting-notes" placeholder="my-file" aria-label="File name" spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off">
+                  </div>
                   <div class="mock-field-row">
                     <button class="mock-field mock-select" type="button" data-file-type data-value="md" aria-haspopup="listbox" aria-expanded="false"><span>📝 .md</span></button>
-                    <button class="mock-btn-accent" type="button">Create</button>
+                    <button class="mock-btn-accent" id="mock-file-create" type="button">Create</button>
                   </div>
                 </div>
 
@@ -347,8 +350,8 @@
                     <strong>Sticky Notes</strong>
                   </div>
                   <div class="mock-shot-grid">
-                    <button type="button">New</button>
-                    <button type="button">List</button>
+                    <button type="button" data-sticky="new">New</button>
+                    <button type="button" data-sticky="list">List</button>
                   </div>
                 </div>
 

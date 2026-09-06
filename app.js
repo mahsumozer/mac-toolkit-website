@@ -190,12 +190,21 @@
   function updateFocus() {
     const time = document.getElementById("focus-time");
     const ring = document.getElementById("focus-ring");
+    const strip = document.getElementById("strip-timer");
     const minutes = String(Math.floor(focusRemaining / 60)).padStart(2, "0");
     const seconds = String(focusRemaining % 60).padStart(2, "0");
     const degrees = Math.round((1 - focusRemaining / focusTotal) * 360);
 
     if (time) time.textContent = `${minutes}:${seconds}`;
     if (ring) ring.style.setProperty("--focus-progress", `${degrees}deg`);
+    // The status item carries the time left while a session runs, and drops it
+    // when the timer stops, the way the app titles its tray.
+    if (strip) strip.textContent = `${minutes}:${seconds}`;
+  }
+
+  function showStripTimer(running) {
+    const strip = document.getElementById("strip-timer");
+    if (strip) strip.hidden = !running;
   }
 
   function toggleFocus() {
@@ -205,6 +214,7 @@
       window.clearInterval(focusTimer);
       focusTimer = null;
       if (button) button.textContent = "Start";
+      showStripTimer(false);
       showToast("Focus timer paused.");
       return;
     }
@@ -216,6 +226,7 @@
         focusRemaining = focusTotal;
         if (button) button.textContent = "Start";
         updateFocus();
+        showStripTimer(false);
         showToast("Focus session complete.");
         return;
       }
@@ -225,6 +236,7 @@
     }, 1000);
 
     if (button) button.textContent = "Pause";
+    showStripTimer(true);
     showToast("Focus timer started.");
   }
 
@@ -735,6 +747,347 @@
     window.setInterval(tick, INTERVAL);
   }
 
+  // Sticky Notes: New slides a note out of the panel and onto the page, the
+  // way the app opens a note window on your desktop. Notes can be typed in,
+  // dragged around the hero and thrown away; List gathers them back into a
+  // tidy cascade beside the panel. The palette and the ink are the app's own.
+  function initStickyNotes() {
+    const hero = document.querySelector(".hero");
+    const panel = document.getElementById("hero-panel");
+    const newButton = document.querySelector("[data-sticky='new']");
+    const listButton = document.querySelector("[data-sticky='list']");
+    if (!hero || !panel || !newButton || !listButton) return;
+
+    const COLORS = ["#fbe08a", "#f9bfc8", "#dcc7f7", "#bcd7f7", "#b0e5cb"];
+    const LINES = 3;
+
+    // The app writes on a pastel card in a deep shade of the card's own hue,
+    // so the print reads as part of the paper rather than grey laid over it.
+    const inkFor = (hex, alpha = 1) => {
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+      const max = Math.max(r, g, b);
+      const d = max - Math.min(r, g, b);
+      let hue = 0;
+      if (d) {
+        hue = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+        hue = Math.round(hue * 60);
+        if (hue < 0) hue += 360;
+      }
+      return `hsla(${hue}, 62%, 22%, ${alpha})`;
+    };
+
+    const layer = document.createElement("div");
+    layer.className = "sticky-layer";
+    hero.appendChild(layer);
+    const notes = [];
+    let made = 0;
+
+    const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+    // Where a note sits is written as left/top, so it is measured without the
+    // tilt: a rotated element's bounding box is bigger than the note itself,
+    // and mixing the two makes a note jump the moment it is picked up. The
+    // whole note is kept on the hero, never half-clipped at an edge.
+    function put(note, x, y) {
+      const box = layer.getBoundingClientRect();
+      const strip = document.querySelector(".desktop-strip");
+      const ceiling = strip ? Math.max(8, strip.getBoundingClientRect().bottom - box.top + 10) : 8;
+      note.style.left = `${Math.round(clamp(x, 8, Math.max(8, box.width - note.offsetWidth - 8)))}px`;
+      note.style.top = `${Math.round(clamp(y, ceiling, Math.max(ceiling, box.height - note.offsetHeight - 8)))}px`;
+    }
+
+    const leftOf = (note) => parseFloat(note.style.left) || 0;
+    const topOf = (note) => parseFloat(note.style.top) || 0;
+
+    function front(note) {
+      notes.forEach((other) => other.classList.toggle("is-front", other === note));
+    }
+
+    // Notes land in the open space under the panel and step down from there,
+    // clear of the headline on the left.
+    function slotFor(index) {
+      const box = layer.getBoundingClientRect();
+      const at = panel.getBoundingClientRect();
+      const step = index % 5;
+      return {
+        x: at.left - box.left - 232 + step * 30,
+        y: at.bottom - box.top + 22 + step * 26,
+      };
+    }
+
+    // A note is dragged from anywhere on it, including its text: a press that
+    // travels is a drag, a press that stays put is a click into the field.
+    // The pointer is captured from the first press, so a fast drag that leaves
+    // the note behind still moves it, and the note follows the pointer by the
+    // distance travelled rather than by where it was grabbed.
+    function drag(note) {
+      note.addEventListener("pointerdown", (event) => {
+        if (event.button !== 0 || event.target.closest("button")) return;
+        const from = { x: event.clientX, y: event.clientY, left: leftOf(note), top: topOf(note) };
+        const field = event.target.closest("input");
+        let moving = false;
+        front(note);
+        // The note takes the press itself. Left to the browser, a press that
+        // starts on a line becomes a text selection: it fights the move and
+        // drops the pointer capture halfway through a quick drag. The caret is
+        // put back below, on a press that turned out not to be a drag.
+        event.preventDefault();
+        note.setPointerCapture(event.pointerId);
+
+        const move = (moveEvent) => {
+          const dx = moveEvent.clientX - from.x;
+          const dy = moveEvent.clientY - from.y;
+          if (!moving) {
+            if (Math.hypot(dx, dy) < 4) return;
+            moving = true;
+            note.classList.remove("is-tidy");
+            note.classList.add("is-dragging");
+          }
+          put(note, from.left + dx, from.top + dy);
+        };
+        const drop = (upEvent) => {
+          // A press that never travelled is a click into the line it landed on.
+          if (!moving && field && upEvent.type === "pointerup") {
+            field.focus();
+            const end = field.value.length;
+            field.setSelectionRange(end, end);
+          }
+          note.classList.remove("is-dragging");
+          window.removeEventListener("pointermove", move);
+          window.removeEventListener("pointerup", drop);
+          window.removeEventListener("pointercancel", drop);
+        };
+        // Tracked on the window, not on the note: a quick drag outruns the
+        // note it is moving, and events aimed at whatever is under the cursor
+        // would leave the note stranded mid-flight.
+        window.addEventListener("pointermove", move);
+        window.addEventListener("pointerup", drop);
+        window.addEventListener("pointercancel", drop);
+      });
+    }
+
+    function remove(note) {
+      note.classList.add("is-leaving");
+      note.addEventListener("animationend", () => {
+        note.remove();
+        const at = notes.indexOf(note);
+        if (at > -1) notes.splice(at, 1);
+      }, { once: true });
+    }
+
+    function spawn() {
+      const color = COLORS[made % COLORS.length];
+      const note = document.createElement("div");
+      note.className = "sticky-note is-front";
+      note.style.background = color;
+      note.style.color = inkFor(color);
+      note.style.setProperty("--rule", inkFor(color, 0.3));
+      // A stack of paper never lands square.
+      note.style.setProperty("--tilt", `${(made % 3) - 1}deg`);
+
+      const head = document.createElement("div");
+      head.className = "sticky-note-head";
+      const title = document.createElement("input");
+      title.className = "sticky-note-title";
+      title.type = "text";
+      title.placeholder = "Note title";
+      title.setAttribute("aria-label", "Note title");
+      const close = document.createElement("button");
+      close.className = "sticky-note-close";
+      close.type = "button";
+      close.setAttribute("aria-label", "Close note");
+      close.innerHTML = "&times;";
+      close.addEventListener("click", () => remove(note));
+      head.append(title, close);
+
+      const lines = document.createElement("div");
+      lines.className = "sticky-note-lines";
+      const rows = [];
+      for (let i = 0; i < LINES; i += 1) {
+        const row = document.createElement("label");
+        row.className = "sticky-note-row";
+        const mark = document.createElement("i");
+        mark.setAttribute("aria-hidden", "true");
+        mark.textContent = `${i + 1}.`;
+        const input = document.createElement("input");
+        input.type = "text";
+        input.setAttribute("aria-label", `Line ${i + 1}`);
+        input.addEventListener("keydown", (event) => {
+          if (event.key !== "Enter") return;
+          event.preventDefault();
+          (rows[i + 1] || rows[0]).focus();
+        });
+        rows.push(input);
+        row.append(mark, input);
+        lines.appendChild(row);
+      }
+
+      note.append(head, lines);
+      layer.appendChild(note);
+      front(note);
+      const slot = slotFor(made);
+      put(note, slot.x, slot.y);
+
+      // The note starts where the panel is and slides out to its slot.
+      const from = panel.getBoundingClientRect();
+      const at = note.getBoundingClientRect();
+      note.style.setProperty("--from-x", `${Math.round(from.left + from.width / 2 - at.left - at.width / 2)}px`);
+      note.style.setProperty("--from-y", `${Math.round(from.top + 120 - at.top)}px`);
+
+      drag(note);
+      notes.push(note);
+      made += 1;
+      title.focus({ preventScroll: true });
+      return note;
+    }
+
+    newButton.addEventListener("click", () => {
+      spawn();
+      showToast("Sticky note on screen.");
+    });
+
+    listButton.addEventListener("click", () => {
+      if (!notes.length) {
+        showToast("No sticky notes yet.");
+        return;
+      }
+      notes.forEach((note, index) => {
+        note.classList.add("is-tidy");
+        const slot = slotFor(index);
+        put(note, slot.x, slot.y);
+        window.setTimeout(() => note.classList.remove("is-tidy"), 420);
+      });
+      showToast(`${notes.length} note${notes.length > 1 ? "s" : ""} on screen.`);
+    });
+
+    let resizeTimer = null;
+    window.addEventListener("resize", () => {
+      window.clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(() => {
+        notes.forEach((note) => put(note, leftOf(note), topOf(note)));
+      }, 150);
+    });
+  }
+
+  // The New File card, typed like the app's: the name field is real, Create
+  // waits for a name, and — as in the app, which opens a folder picker before
+  // it writes anything — Create asks where the file should go. Choosing a
+  // folder flashes the button and names the file that would land there;
+  // dismissing the list creates nothing. The type comes from the list beside it.
+  function initNewFileCard() {
+    const surface = document.querySelector(".hero-product .hero-window");
+    const name = document.getElementById("mock-file-name");
+    const create = document.getElementById("mock-file-create");
+    const type = document.querySelector("[data-file-type]");
+    if (!surface || !name || !create || !type) return;
+
+    const PLACES = [
+      ["Desktop", '<rect x="2" y="3" width="20" height="14" rx="2"></rect><path d="M8 21h8"></path><path d="M12 17v4"></path>', "~/Desktop"],
+      ["Documents", '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z"></path>', "~/Documents"],
+      ["Downloads", '<path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M4 21h16"></path>', "~/Downloads"],
+      ["Home", '<path d="m3 10 9-7 9 7v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><path d="M9 22V12h6v10"></path>', "~"],
+    ];
+
+    const menu = document.createElement("div");
+    menu.className = "mock-add-menu mock-place-menu";
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("aria-label", "Choose a folder");
+    const title = document.createElement("p");
+    title.className = "mock-menu-title";
+    title.textContent = "Save to";
+    menu.appendChild(title);
+
+    let done = null;
+    const fileName = () => {
+      const typed = name.value.trim();
+      if (!typed) return "";
+      const ext = type.dataset.value || "txt";
+      return typed.endsWith(`.${ext}`) ? typed : `${typed}.${ext}`;
+    };
+
+    const close = () => {
+      menu.classList.remove("is-open");
+      create.setAttribute("aria-expanded", "false");
+    };
+    const open = () => {
+      const box = surface.getBoundingClientRect();
+      const at = create.getBoundingClientRect();
+      menu.style.right = `${Math.round(box.right - at.right)}px`;
+      menu.style.top = `${Math.round(at.bottom - box.top) + 6}px`;
+      menu.classList.add("is-open");
+      create.setAttribute("aria-expanded", "true");
+    };
+
+    const save = (path) => {
+      const file = fileName();
+      close();
+      if (!file) return;
+      window.clearTimeout(done);
+      create.classList.add("is-done");
+      create.textContent = "Created";
+      done = window.setTimeout(() => {
+        create.classList.remove("is-done");
+        create.textContent = "Create";
+      }, 1400);
+      showToast(`Created: ${path === "~" ? "~" : path}/${file}`);
+    };
+
+    PLACES.forEach(([label, icon, path]) => {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.setAttribute("role", "menuitem");
+      const glyph = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      glyph.setAttribute("viewBox", "0 0 24 24");
+      glyph.setAttribute("fill", "none");
+      glyph.setAttribute("stroke", "currentColor");
+      glyph.setAttribute("stroke-width", "2");
+      glyph.setAttribute("stroke-linecap", "round");
+      glyph.setAttribute("stroke-linejoin", "round");
+      glyph.setAttribute("aria-hidden", "true");
+      glyph.innerHTML = icon;
+      const text = document.createElement("span");
+      text.textContent = label;
+      const where = document.createElement("em");
+      where.textContent = path;
+      item.append(glyph, text, where);
+      item.addEventListener("click", () => save(path));
+      menu.appendChild(item);
+    });
+    surface.appendChild(menu);
+
+    const sync = () => { create.disabled = !name.value.trim(); };
+    const ask = () => {
+      if (!fileName()) return;
+      if (menu.classList.contains("is-open")) close();
+      else open();
+    };
+
+    name.addEventListener("input", () => {
+      sync();
+      if (!name.value.trim()) close();
+    });
+    name.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      ask();
+    });
+    create.addEventListener("click", (event) => {
+      event.stopPropagation();
+      ask();
+    });
+    document.addEventListener("click", (event) => {
+      if (!menu.contains(event.target) && event.target !== create) close();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") close();
+    });
+    document.addEventListener("mock-layout-change", close);
+    window.addEventListener("resize", close);
+    create.setAttribute("aria-haspopup", "menu");
+    create.setAttribute("aria-expanded", "false");
+    sync();
+  }
+
   // The status item in the mock menu bar. The panel still opens on its own;
   // the bolt puts it away and brings the very same panel back, so nothing in
   // it is reset in between. The panel keeps its space while closed, so the
@@ -767,6 +1120,10 @@
     menu.className = "mock-add-menu mock-file-menu";
     menu.setAttribute("role", "listbox");
     menu.setAttribute("aria-label", "File type");
+    const title = document.createElement("p");
+    title.className = "mock-menu-title";
+    title.textContent = "File type";
+    menu.appendChild(title);
 
     const close = () => {
       menu.classList.remove("is-open");
@@ -1501,6 +1858,8 @@
     initAddMenu();
     initWidgetRotation();
     initPanelToggle();
+    initNewFileCard();
+    initStickyNotes();
     initFileTypeMenu();
     initAwakeToggle();
     initCompareRotation();
