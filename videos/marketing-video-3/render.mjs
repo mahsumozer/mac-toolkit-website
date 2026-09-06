@@ -10,6 +10,7 @@ const DURATION = 24;
 // Each entry freezes story time at [storyTime] for [seconds] of output.
 const HOLDS = [
   [2.95, 0.85], // Screenshot panel just opened
+  [6.2, 5.1], // Shot captured: camera pushes in, cursor hovers the preview, both pull back
   [6.9, 0.85], // Color Picker panel just opened
   [10.7, 0.85], // Clipboard results just shown
   [13.95, 0.85], // Pomodoro panel just opened, before Start
@@ -27,9 +28,9 @@ function storyTime(outT) {
   return outT - acc;
 }
 const ROOT = process.cwd();
-const OUT_DIR = join(ROOT, "marketing-video-zoom", "out");
-const VIDEO_OUT = join(OUT_DIR, "mac-kit-launch-promo-zoom.mp4");
-const POSTER_OUT = join(OUT_DIR, "mac-kit-launch-poster-zoom.png");
+const OUT_DIR = join(ROOT, "marketing-video-3", "out");
+const VIDEO_OUT = join(OUT_DIR, "mac-kit-launch-promo-3.mp4");
+const POSTER_OUT = join(OUT_DIR, "mac-kit-launch-poster-3.png");
 
 const orange = "#ff9f1c";
 const ink = "#f7f3ea";
@@ -100,6 +101,14 @@ const UI = {
   swatch: "rgba(255,255,255,0.18)",
   green: "#22c55e",
 };
+
+// ---- Capture preview card (faithful to CapturePreview.tsx + main.ts layout) ----
+const CARD_W = 230;
+const CARD_H = 158;
+const CARD_MARGIN = 16;
+const CARD_RIGHT_X = WIDTH - CARD_W - CARD_MARGIN;
+const CARD_BOTTOM_Y = HEIGHT - CARD_H - CARD_MARGIN;
+const ACC = "#3b82f6";
 
 // ---- Math helpers ----
 function clamp(value, min = 0, max = 1) {
@@ -247,7 +256,9 @@ function defs() {
       <stop offset="78%" stop-color="#5aa9ff"/>
       <stop offset="100%" stop-color="#b98bff"/>
     </linearGradient>
-    <clipPath id="thumbClip"><rect x="12" y="12" width="206" height="142" rx="8"/></clipPath>
+    <filter id="cardShadow" x="-60%" y="-60%" width="220%" height="220%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
     <filter id="winShadow" x="-20%" y="-20%" width="140%" height="150%">
       <feDropShadow dx="0" dy="30" stdDeviation="42" flood-color="#000000" flood-opacity="0.45"/>
     </filter>
@@ -311,39 +322,6 @@ function popoverState(t) {
     }
   }
   return { op, active };
-}
-
-// ---- Camera: pushes in whenever the panel is open, pulls back once it closes ----
-const ZOOM_MAX = 1.5;
-const ZOOM_RAMP = 0.55;
-// Panels that reopen almost immediately share one push-in, so the camera holds
-// instead of bouncing out and back in for a half-second gap.
-const ZOOM_SPANS = POP_INTERVALS.reduce((spans, [openT, closeT]) => {
-  const last = spans[spans.length - 1];
-  if (last && openT - last[1] < 1) last[1] = closeT;
-  else spans.push([openT, closeT]);
-  return spans;
-}, []);
-function zoomAmount(t) {
-  let p = 0;
-  for (const [openT, closeT] of ZOOM_SPANS) {
-    const inP = easeInOutCubic(between(t, openT - 0.2, openT - 0.2 + ZOOM_RAMP));
-    const outP = 1 - easeInOutCubic(between(t, closeT, closeT + ZOOM_RAMP));
-    p = Math.max(p, Math.min(inP, outP));
-  }
-  return p;
-}
-function camera(t) {
-  const p = zoomAmount(t);
-  if (p <= 0.002) return ["<g>", "</g>"];
-  const z = lerp(1, ZOOM_MAX, p);
-  // Clamp the focus so the desktop keeps covering the frame; otherwise the menu
-  // bar drifts down from the top edge and the whole scene stops reading as a screen.
-  const hx = WIDTH / 2 / z;
-  const hy = HEIGHT / 2 / z;
-  const fx = Math.min(Math.max(lerp(WIDTH / 2, PX + PW / 2, p), hx), WIDTH - hx);
-  const fy = Math.min(Math.max(lerp(HEIGHT / 2, PY + PH / 2, p), hy), HEIGHT - hy);
-  return [`<g transform="translate(${WIDTH / 2} ${HEIGHT / 2}) scale(${z}) translate(${-fx} ${-fy})">`, "</g>"];
 }
 
 // ---- Menu bar ----
@@ -613,9 +591,9 @@ function popover(t) {
 
 // ---- Screenshot capture overlay ----
 function captureOverlay(t, cx, cy) {
-  const on = t > 3.8 && t < 6.35;
+  const on = t > 3.8 && t < 6.05;
   if (!on) return "";
-  const op = fade(t, 3.8, 4.0, 6.15, 6.35);
+  const op = fade(t, 3.8, 4.0, 5.9, 6.05);
   const x0 = 340;
   const y0 = 270;
   const dragging = t > 4.6;
@@ -625,7 +603,7 @@ function captureOverlay(t, cx, cy) {
   const ry = Math.min(y0, y1);
   const rw = Math.abs(x1 - x0);
   const rh = Math.abs(y1 - y0);
-  const flash = t > 5.75 ? easeOutCubic(between(t, 5.75, 5.9)) * (1 - easeOutCubic(between(t, 5.9, 6.15))) : 0;
+  const flash = t > 5.75 ? easeOutCubic(between(t, 5.75, 5.86)) * (1 - easeOutCubic(between(t, 5.86, 6.0))) : 0;
   return `<g opacity="${op}">
     <rect x="0" y="${MB_H}" width="${WIDTH}" height="${HEIGHT - MB_H}" fill="rgba(10,12,20,0.42)"/>
     ${dragging ? `<rect x="${rx}" y="${ry}" width="${rw}" height="${rh}" fill="rgba(255,255,255,0.14)" stroke="${orange}" stroke-width="2.5" stroke-dasharray="9 7"/>
@@ -635,21 +613,222 @@ function captureOverlay(t, cx, cy) {
     <line x1="0" y1="${y1}" x2="${WIDTH}" y2="${y1}" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
   </g>`;
 }
-function shotThumb(t) {
-  const op = fade(t, 5.95, 6.25, 6.6, 6.9);
-  if (op <= 0) return "";
-  // Miniature of the actual captured region (340,270 → 760,560), scaled into the thumb.
-  const s = 206 / 420;
-  return `<g opacity="${op}" transform="translate(760 720)">
-    <rect x="0" y="0" width="230" height="196" rx="14" fill="#1b1b24" stroke="rgba(255,255,255,0.2)"/>
-    <g clip-path="url(#thumbClip)">
-      <rect x="12" y="12" width="206" height="142" fill="#ffffff"/>
-      <g transform="translate(${12 - 340 * s} ${12 - 270 * s}) scale(${s})">${browserWindow(5)}</g>
+// The shot lands in the bottom-right corner, exactly like showCapturePreview().
+// Times here are output time, not story time: the landing plays through the hold
+// at story 6.2, where story time is frozen.
+const SHOT_LAND = 6.9;
+const SHOT_GONE = 12.6;
+
+// ---- Hover state of the preview card ----
+// Drawn 1:1 against CapturePreview.tsx: the card is 230x158 there and here, so
+// every offset below is the literal value from that file. Corner buttons are
+// 26px circles inset 7px — close top-left, pin top-right, edit bottom-left —
+// over a rgba(0,0,0,0.34) scrim, with the two centre pills stacked in between.
+const CB = 26;
+const CB_IN = 7;
+const CB_FILL = "rgba(20,20,24,0.85)";
+const CB_STROKE = "rgba(255,255,255,0.18)";
+const PILL_FILL = "rgba(20,20,24,0.88)";
+function iconX(x, y, size, color) {
+  return icon(x, y, size, color, `<path d="M5 5 L15 15"/><path d="M15 5 L5 15"/>`);
+}
+function iconPin(x, y, size, color) {
+  return icon(x, y, size, color, `<path d="M10 13.5 V18.5"/><path d="M6.5 2 H13.5"/><path d="M8.5 2 V8 L5.5 10.5 V13.5 H14.5 V10.5 L11.5 8 V2"/>`);
+}
+function iconPencil(x, y, size, color) {
+  return icon(x, y, size, color, `<path d="M13.5 2.5 L17.5 6.5 L7 17 L2.5 18 L3.5 13.5 Z"/><path d="M11.5 4.5 L15.5 8.5"/>`);
+}
+function iconFolder(x, y, size, color) {
+  return icon(x, y, size, color, `<path d="M2.5 15.5 V5 A1.5 1.5 0 0 1 4 3.5 H8 L10 6 H16 A1.5 1.5 0 0 1 17.5 7.5 V15.5 A1.5 1.5 0 0 1 16 17 H4 A1.5 1.5 0 0 1 2.5 15.5 Z"/>`);
+}
+// A 26px circle whose glyph is drawn at 13px, centred — same as the lucide
+// icons the real buttons render at that size.
+function cornerButton(cx, cy, glyph) {
+  return `<circle cx="${cx}" cy="${cy}" r="${CB / 2}" fill="${CB_FILL}" stroke="${CB_STROKE}"/>
+    ${glyph(cx - 6.5, cy - 6.5, 13, "#ffffff")}`;
+}
+// Both actions are drawn at one width so the pair reads as a stack rather than
+// a ragged column. Radius 16 / 12px 600 label, icon then text, and the pair is
+// centred as a unit the way the real button's justify-content: center does.
+const ACTION_W = 138;
+const ACTION_H = 28;
+const ACTION_GAP = 6;
+// Per-character advances for the sans stack at semibold, in em. A flat average
+// is off by several points on a label like "Show in Finder", which is enough to
+// visibly pull the row off centre.
+const NARROW = "iljtfIr.,'\" ";
+const WIDE = "mwMW";
+function labelWidth(label, size) {
+  let em = 0;
+  for (const ch of label) {
+    if (NARROW.includes(ch)) em += 0.3;
+    else if (WIDE.includes(ch)) em += 0.82;
+    else if (ch === ch.toUpperCase()) em += 0.62;
+    else em += 0.57;
+  }
+  return em * size;
+}
+// Ink bounds of each glyph inside its 20x20 box, stroke included. The glyphs
+// do not fill their box, so centring on the box leaves the row looking
+// off-centre and the icon-to-label gap looking wider than it is.
+const ACTION_ICON_INK = { copy: [1.5, 17], folder: [1.5, 18.5] };
+function centreAction(cx, cy, label, glyph, inkKey) {
+  const x = cx - ACTION_W / 2;
+  const y = cy - ACTION_H / 2;
+  const [ink0, ink1] = ACTION_ICON_INK[inkKey];
+  const scale = 13 / 20;
+  const inkW = (ink1 - ink0) * scale;
+  const contentW = inkW + ACTION_GAP + labelWidth(label, 12);
+  const inkX = cx - contentW / 2;
+  return `<rect x="${x}" y="${y}" width="${ACTION_W}" height="${ACTION_H}" rx="16" fill="${PILL_FILL}" stroke="${CB_STROKE}"/>
+    ${glyph(inkX - ink0 * scale, y + 7.5, 13, "#ffffff")}
+    ${text(label, inkX + inkW + ACTION_GAP, y + 19, 12, { weight: 600, fill: "#ffffff" })}`;
+}
+function previewHover(outT) {
+  const h = hoverAmount(outT);
+  if (h <= 0.002) return "";
+  const X = CARD_RIGHT_X;
+  const Y = CARD_BOTTOM_Y;
+  const midX = X + CARD_W / 2;
+  const midY = Y + CARD_H / 2;
+  return `<g opacity="${h.toFixed(3)}">
+    <g clip-path="url(#cardclip0)">
+      <rect x="${X}" y="${Y}" width="${CARD_W}" height="${CARD_H}" fill="rgba(0,0,0,0.34)"/>
+      ${cornerButton(X + CB_IN + CB / 2, Y + CB_IN + CB / 2, iconX)}
+      ${cornerButton(X + CARD_W - CB_IN - CB / 2, Y + CB_IN + CB / 2, iconPin)}
+      ${cornerButton(X + CB_IN + CB / 2, Y + CARD_H - CB_IN - CB / 2, iconPencil)}
+      ${centreAction(midX, midY - 18, "Copy", iconCopy, "copy")}
+      ${centreAction(midX, midY + 18, "Show in Finder", iconFolder, "folder")}
     </g>
-    <circle cx="30" cy="174" r="9" fill="#6ee7b7"/>
-    <path d="M25 174 l4 4 l7 -8" stroke="#16131a" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-    ${text("Copied and saved", 48, 180, 15, { weight: 700, fill: "#d9d5dc" })}
   </g>`;
+}
+
+function previewStack(outT) {
+  const appear = easeOutCubic(between(outT, SHOT_LAND, SHOT_LAND + 0.36));
+  const op = appear * (1 - easeOutCubic(between(outT, SHOT_GONE, SHOT_GONE + 0.5)));
+  if (op <= 0) return "";
+  const enterOff = (1 - appear) * 18;
+  const sc = lerp(0.92, 1, appear);
+  const ox = CARD_RIGHT_X + CARD_W / 2;
+  const oy = CARD_BOTTOM_Y + CARD_H / 2;
+  // Miniature of the actual captured region (340,270 → 760,560), scaled to fill the card.
+  const s = CARD_W / 420;
+  return `<g opacity="${op.toFixed(3)}" filter="url(#cardShadow)" transform="translate(${enterOff.toFixed(1)} ${enterOff.toFixed(1)})">
+    <g transform="translate(${ox} ${oy}) scale(${sc.toFixed(3)}) translate(${-ox} ${-oy})">
+      <clipPath id="cardclip0"><rect x="${CARD_RIGHT_X}" y="${CARD_BOTTOM_Y}" width="${CARD_W}" height="${CARD_H}" rx="12"/></clipPath>
+      <g clip-path="url(#cardclip0)">
+        <rect x="${CARD_RIGHT_X}" y="${CARD_BOTTOM_Y}" width="${CARD_W}" height="${CARD_H}" fill="#ffffff"/>
+        <g transform="translate(${CARD_RIGHT_X - 340 * s} ${CARD_BOTTOM_Y - 270 * s}) scale(${s})">${browserWindow(5)}</g>
+      </g>
+      ${previewHover(outT)}
+      <rect x="${CARD_RIGHT_X}" y="${CARD_BOTTOM_Y}" width="${CARD_W}" height="${CARD_H}" rx="12" fill="none" stroke="${ACC}" stroke-width="1.5"/>
+    </g>
+  </g>`;
+}
+
+// ---- Camera ----
+// A short push into the preview corner once the shot lands. Output time, because
+// the whole landing plays inside the story-time freeze at 6.2.
+const ZOOM_MAX = 1.38;
+const ZOOM_IN = [6.95, 7.6];
+const ZOOM_OUT = [11.45, 12.05];
+function cardZoom(outT) {
+  return Math.min(
+    easeInOutCubic(between(outT, ZOOM_IN[0], ZOOM_IN[1])),
+    1 - easeInOutCubic(between(outT, ZOOM_OUT[0], ZOOM_OUT[1])),
+  );
+}
+
+// And a push into the top-right corner whenever the panel is open. It leads the
+// open by the ramp so the camera is already moving as the cursor lands on the
+// menu-bar icon. Story time, so it sits still through the panel holds.
+const PANEL_ZOOM_MAX = 1.5;
+const PANEL_ZOOM_RAMP = 0.55;
+const PANEL_ZOOM_LEAD = 0.2;
+// Panels that reopen almost immediately share one push-in, so the camera holds
+// instead of bouncing out and back in for a half-second gap.
+const PANEL_ZOOM_SPANS = POP_INTERVALS.reduce((spans, [openT, closeT]) => {
+  const last = spans[spans.length - 1];
+  if (last && openT - last[1] < 1) last[1] = closeT;
+  else spans.push([openT, closeT]);
+  return spans;
+}, []);
+function panelZoom(t) {
+  let p = 0;
+  for (const [openT, closeT] of PANEL_ZOOM_SPANS) {
+    const from = openT - PANEL_ZOOM_LEAD;
+    const inP = easeInOutCubic(between(t, from, from + PANEL_ZOOM_RAMP));
+    const outP = 1 - easeInOutCubic(between(t, closeT, closeT + PANEL_ZOOM_RAMP));
+    p = Math.max(p, Math.min(inP, outP));
+  }
+  return p;
+}
+
+function camera(outT, t) {
+  const card = cardZoom(outT);
+  const pan = panelZoom(t);
+  const p = Math.max(card, pan);
+  if (p <= 0.002) return ["<g>", "</g>"];
+  const onCard = card >= pan;
+  const z = lerp(1, onCard ? ZOOM_MAX : PANEL_ZOOM_MAX, p);
+  const tx = onCard ? CARD_RIGHT_X + CARD_W / 2 : PX + PW / 2;
+  const ty = onCard ? CARD_BOTTOM_Y + CARD_H / 2 : PY + PH / 2;
+  // Clamp the focus so the desktop keeps covering the frame; otherwise the edges
+  // drift inward and the scene stops reading as a screen.
+  const hx = WIDTH / 2 / z;
+  const hy = HEIGHT / 2 / z;
+  const fx = clamp(lerp(WIDTH / 2, tx, p), hx, WIDTH - hx);
+  const fy = clamp(lerp(HEIGHT / 2, ty, p), hy, HEIGHT - hy);
+  return [
+    `<g transform="translate(${WIDTH / 2} ${HEIGHT / 2}) scale(${z.toFixed(4)}) translate(${(-fx).toFixed(2)} ${(-fy).toFixed(2)})">`,
+    "</g>",
+  ];
+}
+
+// ---- Hover pass over the landed preview ----
+// Output time, like the zoom: story time is frozen at 6.2 through this whole
+// stretch, so cursorPos() is pinned to where the drag ended and the pass has to
+// drive the cursor itself. It resolves back to that same point before the freeze
+// lifts, so the story-driven path picks up exactly where it left off.
+const HOVER_TRIP_IN = [7.7, 8.6];
+const HOVER_TRIP_OUT = [10.5, 11.4];
+const HOVER_FROM = [760, 560];
+// Right of the centre pills and below the pin, so the cursor sits on the card
+// without covering any of the controls it just revealed.
+const HOVER_TO = [CARD_RIGHT_X + 190, CARD_BOTTOM_Y + 112];
+const HOVER_FADE = 0.15; // .preview-actions transition in CapturePreview.tsx
+function hoverCursor(outT) {
+  if (outT < HOVER_TRIP_IN[0] || outT > HOVER_TRIP_OUT[1]) return null;
+  if (outT <= HOVER_TRIP_IN[1]) {
+    const p = easeInOutCubic(between(outT, HOVER_TRIP_IN[0], HOVER_TRIP_IN[1]));
+    return [lerp(HOVER_FROM[0], HOVER_TO[0], p), lerp(HOVER_FROM[1], HOVER_TO[1], p)];
+  }
+  if (outT < HOVER_TRIP_OUT[0]) return HOVER_TO;
+  const p = easeInOutCubic(between(outT, HOVER_TRIP_OUT[0], HOVER_TRIP_OUT[1]));
+  return [lerp(HOVER_TO[0], HOVER_FROM[0], p), lerp(HOVER_TO[1], HOVER_FROM[1], p)];
+}
+// The controls key off the pointer actually being inside the card, not off a
+// hand-written time: the crossings are scanned once here so they stay right if
+// the keyframes above move.
+const [HOVER_ENTER, HOVER_LEAVE] = (() => {
+  const step = 1 / (FPS * 8);
+  let enter = null;
+  let leave = null;
+  for (let t = HOVER_TRIP_IN[0]; t <= HOVER_TRIP_OUT[1]; t += step) {
+    const p = hoverCursor(t);
+    const inside = p
+      && p[0] >= CARD_RIGHT_X && p[0] <= CARD_RIGHT_X + CARD_W
+      && p[1] >= CARD_BOTTOM_Y && p[1] <= CARD_BOTTOM_Y + CARD_H;
+    if (!inside) continue;
+    if (enter == null) enter = t;
+    leave = t;
+  }
+  return [enter, leave];
+})();
+function hoverAmount(outT) {
+  if (HOVER_ENTER == null) return 0;
+  return easeOutCubic(between(outT, HOVER_ENTER, HOVER_ENTER + HOVER_FADE))
+    * (1 - easeOutCubic(between(outT, HOVER_LEAVE, HOVER_LEAVE + HOVER_FADE)));
 }
 
 // ---- Color loupe on desktop ----
@@ -721,6 +900,7 @@ const CURSOR_KEYS = [
   [4.4, 360, 300],
   [4.6, 360, 300],
   [5.75, 760, 560],
+  [6.2, 760, 560], // rests where the drag ended while the shot flies to the corner
   [6.6, ICON_CX, ICON_CY],
   [7.4, ...pp(264.75, 202.5)], // Color Picker > Pick Color (no format row yet)
   [8.6, HERO_CX, HERO_CY],
@@ -747,10 +927,9 @@ function cursorPos(t) {
   const k = CURSOR_KEYS[CURSOR_KEYS.length - 1];
   return [k[1], k[2]];
 }
-function cursorLayer(t) {
+function cursorLayer(t, x, y) {
   const op = fade(t, 0.0, 0.5, 18.4, 19.0);
   if (op <= 0) return "";
-  const [x, y] = cursorPos(t);
   let ripples = "";
   for (const ct of CLICK_TIMES) {
     const rp = (t - ct) / 0.45;
@@ -773,7 +952,7 @@ function cursorLayer(t) {
 function captions(t) {
   const list = [
     [2.7, 3.7, "Open it straight from the menu bar."],
-    [4.2, 6.2, "Screenshot any region of your screen."],
+    [4.2, 6.5, "Screenshot any region of your screen."],
     [7.8, 10.0, "Pick any color, right off the screen."],
     [10.8, 13.1, "Every action lands in your clipboard."],
     [15.0, 17.5, "A focus timer that lives in the menu bar."],
@@ -826,9 +1005,12 @@ function cta(t) {
 }
 
 function frameSvg(index) {
-  const t = storyTime(index / FPS);
-  const [cx, cy] = cursorPos(t);
-  const [camOpen, camClose] = camera(t);
+  const outT = index / FPS;
+  const t = storyTime(outT);
+  // The hover pass owns the cursor while story time is frozen; the overlay and
+  // the loupe are both off in that window, so they keep reading the story path.
+  const [cx, cy] = hoverCursor(outT) ?? cursorPos(t);
+  const [camOpen, camClose] = camera(outT, t);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}">
     ${defs()}
     ${camOpen}
@@ -837,10 +1019,10 @@ function frameSvg(index) {
     ${browserWindow(t)}
     ${menuBar(t)}
     ${captureOverlay(t, cx, cy)}
-    ${shotThumb(t)}
+    ${previewStack(outT)}
     ${colorLoupe(t, cx, cy)}
     ${popover(t)}
-    ${cursorLayer(t)}
+    ${cursorLayer(t, cx, cy)}
     ${camClose}
     ${captions(t)}
     ${cta(t)}

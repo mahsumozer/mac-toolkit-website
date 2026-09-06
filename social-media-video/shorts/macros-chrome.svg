@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#141021"/>
+      <stop offset="0.45" stop-color="#0b0910"/>
+      <stop offset="1" stop-color="#0a0810"/>
+    </linearGradient>
+    <mask id="hole">
+      <rect width="1080" height="1920" fill="#ffffff"/>
+      <rect x="36" y="432" width="1008" height="766" rx="26" ry="26" fill="#000000"/>
+    </mask>
+  </defs>
+
+  <g mask="url(#hole)">
+    <rect width="1080" height="1920" fill="url(#bg)"/>
+    <circle cx="1040" cy="240" r="300" fill="#f5941d" opacity="0.07"/>
+  </g>
+
+  <g font-family="Inter, -apple-system, Helvetica, sans-serif">
+    <text fill="#ffffff" font-size="72" font-weight="700" letter-spacing="-2.2"><tspan x="48" y="150">Macros that type</tspan><tspan x="48" y="238">straight into the</tspan><tspan x="48" y="326">app you're using.</tspan></text>
+    <text x="48" y="1306" fill="rgba(255,255,255,0.62)" font-size="34" font-weight="500">Mac Kit · macOS menu bar toolkit</text>
+    <circle cx="56" cy="1390" r="6" fill="#f5941d"/>
+    <text x="84" y="1402" fill="rgba(255,255,255,0.82)" font-size="38" font-weight="500">Screenshot + OCR · Screen Draw</text>
+    <circle cx="56" cy="1468" r="6" fill="#f5941d"/>
+    <text x="84" y="1480" fill="rgba(255,255,255,0.82)" font-size="38" font-weight="500">Clipboard · Converter · Macros</text>
+    <circle cx="56" cy="1546" r="6" fill="#f5941d"/>
+    <text x="84" y="1558" fill="rgba(255,255,255,0.82)" font-size="38" font-weight="500">Pomodoro · Monitor · Color Picker</text>
+    <circle cx="56" cy="1624" r="6" fill="#f5941d"/>
+    <text x="84" y="1636" fill="rgba(255,255,255,0.82)" font-size="38" font-weight="500">$14.90 once — no subscription</text>
+    <text x="48" y="1802" fill="#ffffff" font-size="46" font-weight="700" letter-spacing="-1">usemackit.com</text>
+    <rect x="48" y="1824" width="252" height="4" rx="2" fill="#f5941d"/>
+  </g>
+</svg>

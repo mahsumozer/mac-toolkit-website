@@ -34,3 +34,13 @@ new-videos/*
 /scripts/*
 # wrangler local cache/state in any worker directory
 .wrangler/
+
+# marketing-video-* moved under videos/; same split as before the move —
+# render.mjs is source, preview.mjs and out/ are generated.
+videos/*/out/
+videos/*/preview.mjs
+videos/video-screenshots/
+videos/*.png
+# social-media-video/: the app screenshots are sources (scripts/og-card.html
+# reads shot-home.png); the shorts PNGs are rendered from the SVGs beside them.
+social-media-video/shorts/*.png
