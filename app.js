@@ -409,7 +409,7 @@
     const cards = Array.from(mock.querySelectorAll(".mock-card[data-widget]"));
     if (cols.length < 2 || cards.length < 3) return;
 
-    const INTERVAL = 3000;
+    const INTERVAL = 2000;
     const LEAVE_MS = 260;
     const ENTER_MS = 500;
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");

@@ -4087,15 +4087,22 @@ body.show-mac-handoff .mac-handoff:focus-within {
   }
 }
 
+/* Icon-only: a 44px disc that matches the pill's inner height. */
 .hero-trial-cta {
   flex: none;
-  gap: 8px;
-  white-space: nowrap;
+  width: 44px;
+  padding: 0;
+  border-radius: 50%;
 }
 
 .hero-trial-cta svg {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
+  transition: transform 180ms var(--ease);
+}
+
+.hero-trial-cta:hover svg {
+  transform: translateX(2px);
 }
 
 @media (max-width: 1100px) {
