@@ -847,6 +847,7 @@ body.show-mac-handoff .mac-handoff:focus-within {
 }
 
 .desktop-strip {
+  position: relative;
   grid-column: 1 / -1;
   align-self: start;
   margin-top: clamp(48px, 8vw, 110px);
@@ -876,6 +877,82 @@ body.show-mac-handoff .mac-handoff:focus-within {
 .strip-app {
   color: var(--white);
   font-weight: 850;
+}
+
+/* The menu bar's words open menus of their own, so they carry a menu title's
+   hover and its lit state while one is open. */
+.strip-word {
+  margin: 0 -5px;
+  padding: 3px 7px;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-radius: 5px;
+  font: inherit;
+  transition: color 0.14s var(--ease), background 0.14s var(--ease);
+}
+
+.strip-word:hover {
+  color: var(--white);
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.strip-word[aria-expanded="true"] {
+  color: var(--white);
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.strip-word:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.75);
+  outline-offset: 1px;
+}
+
+/* The menu itself hangs from its word, in the panel's own sheet. */
+.mock-add-menu.strip-menu {
+  top: calc(100% + 6px);
+  /* The shared menu is pinned to the right edge; this one hangs from its own
+     word, so it gives that up and takes its width from its items. It also
+     wears the menu bar's own glass rather than the panel's sheet, so it reads
+     as part of the bar it drops from. */
+  right: auto;
+  width: 196px;
+  min-width: 0;
+  background: rgba(0, 0, 0, 0.55);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  border-color: var(--line-dark);
+  box-shadow: 0 24px 60px -28px rgba(0, 0, 0, 0.55);
+}
+
+/* The easter egg: hearts drifting up off the menu bar. */
+.love-heart {
+  position: fixed;
+  /* Over the site header, which the hearts pass on their way up. */
+  z-index: 60;
+  color: #ff5a7a;
+  font-size: 18px;
+  pointer-events: none;
+  animation: love-heart 1.6s var(--ease) both;
+}
+
+@keyframes love-heart {
+  from {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.6);
+  }
+  25% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translate(var(--drift, 0px), -120px) scale(1.15);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .love-heart {
+    animation-duration: 0.6s;
+  }
 }
 
 .strip-spacer {
@@ -4277,8 +4354,8 @@ body.show-mac-handoff .mac-handoff:focus-within {
     overflow: hidden;
   }
 
-  .desktop-strip span:nth-child(4),
-  .desktop-strip span:nth-child(5),
+  /* Only the first menu word survives the narrow bar, with the battery. */
+  .desktop-strip .strip-word + .strip-word,
   .desktop-strip .strip-battery {
     display: none;
   }

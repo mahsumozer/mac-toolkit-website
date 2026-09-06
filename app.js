@@ -798,6 +798,85 @@
     window.setInterval(tick, INTERVAL);
   }
 
+  // The menu bar's own menus. File, Edit and View each drop a menu holding the
+  // one line this app was built for.
+  function initStripMenus() {
+    const strip = document.querySelector(".desktop-strip");
+    if (!strip) return;
+
+    // The hearts ride over the page, not inside the hero: rising out of the
+    // menu bar they would otherwise slide in behind the site header.
+    function love(from) {
+      for (let i = 0; i < 7; i += 1) {
+        const heart = document.createElement("span");
+        heart.className = "love-heart";
+        heart.textContent = "❤️";
+        heart.style.left = `${Math.round(from.left + Math.random() * 90 - 20)}px`;
+        heart.style.top = `${Math.round(from.bottom)}px`;
+        heart.style.setProperty("--drift", `${Math.round(Math.random() * 70 - 35)}px`);
+        heart.style.animationDelay = `${i * 90}ms`;
+        heart.addEventListener("animationend", () => heart.remove(), { once: true });
+        document.body.appendChild(heart);
+      }
+      showToast("We love you back. ❤️");
+    }
+
+    const words = Array.from(strip.querySelectorAll("[data-menu]"));
+    let open = null;
+
+    function close() {
+      if (!open) return;
+      open.menu.classList.remove("is-open");
+      open.word.setAttribute("aria-expanded", "false");
+      open = null;
+    }
+
+    words.forEach((word) => {
+      const menu = document.createElement("div");
+      menu.className = "mock-add-menu strip-menu";
+      menu.setAttribute("role", "menu");
+      menu.setAttribute("aria-label", word.textContent);
+
+      const egg = document.createElement("button");
+      egg.type = "button";
+      egg.setAttribute("role", "menuitem");
+      egg.textContent = "I love Mac Kit";
+      egg.addEventListener("click", () => {
+        const at = word.getBoundingClientRect();
+        close();
+        love(at);
+      });
+      menu.appendChild(egg);
+      strip.appendChild(menu);
+
+      const show = () => {
+        close();
+        const box = strip.getBoundingClientRect();
+        const at = word.getBoundingClientRect();
+        menu.style.left = `${Math.round(at.left - box.left)}px`;
+        menu.classList.add("is-open");
+        word.setAttribute("aria-expanded", "true");
+        open = { word, menu };
+      };
+
+      word.addEventListener("click", (event) => {
+        event.stopPropagation();
+        if (open && open.word === word) close();
+        else show();
+      });
+      // With one menu down, running along the bar opens the next, as macOS does.
+      word.addEventListener("mouseenter", () => { if (open && open.word !== word) show(); });
+    });
+
+    document.addEventListener("click", (event) => {
+      if (open && !open.menu.contains(event.target)) close();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") close();
+    });
+    window.addEventListener("resize", close);
+  }
+
   // The Screenshot card. The page cannot read the visitor's screen, and should
   // not ask to, so the capture is played out on the hero instead: the shutter
   // flashes, a thumbnail slides into the corner the way macOS parks one, and
@@ -2201,6 +2280,7 @@
     initStickyNotes();
     initColorPicker();
     initScreenshot();
+    initStripMenus();
     initFileTypeMenu();
     initAwakeToggle();
     initCompareRotation();
