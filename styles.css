@@ -4246,6 +4246,12 @@ body.show-mac-handoff .mac-handoff:focus-within {
   transition: transform 180ms var(--ease);
 }
 
+/* Desktop keeps the round icon-only button; the label is for the stacked
+   mobile layout, where a full-width circle would render as an ellipse. */
+.hero-trial-cta-label {
+  display: none;
+}
+
 .hero-trial-cta:hover svg {
   transform: translateY(2px);
 }
@@ -4267,6 +4273,13 @@ body.show-mac-handoff .mac-handoff:focus-within {
 
   .hero-trial-cta {
     width: 100%;
+    gap: 9px;
+    padding: 0 20px;
+    border-radius: 999px;
+  }
+
+  .hero-trial-cta-label {
+    display: inline;
   }
 }
 
