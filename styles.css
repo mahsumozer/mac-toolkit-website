@@ -1117,6 +1117,39 @@ body.show-mac-handoff .mac-handoff:focus-within {
 
 .mock-select {
   justify-content: space-between;
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.16s var(--ease), background 0.16s var(--ease);
+}
+
+.mock-select:hover,
+.mock-select.is-active {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(245, 148, 29, 0.48);
+}
+
+/* The file-type list, built by app.js and parked next to the "+" menu. */
+.mock-file-menu {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 210px;
+  min-width: 0;
+}
+
+.mock-file-menu button {
+  gap: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+}
+
+.mock-file-menu button i {
+  font-style: normal;
+}
+
+.mock-file-menu button.is-selected {
+  color: var(--accent);
+  background: rgba(245, 148, 29, 0.16);
 }
 
 .mock-select::after {

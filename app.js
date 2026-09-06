@@ -563,6 +563,7 @@
       const staying = visibleIn(col).filter((c) => !leaving.includes(c));
 
       busy = true;
+      mock.dispatchEvent(new CustomEvent("mock-layout-change", { bubbles: true }));
       await fadeOut(leaving);
       const before = staying.map((card) => [card, card.getBoundingClientRect().top]);
       const anchor = leaving[0];
@@ -636,6 +637,7 @@
 
     function showHit(card) {
       if (hit && hit.card === card) return;
+      mock.dispatchEvent(new CustomEvent("mock-layout-change", { bubbles: true }));
       clearHit();
       if (!card) return;
       hit = { card, parent: card.parentElement, next: card.nextElementSibling, wasHidden: card.hidden };
@@ -723,6 +725,75 @@
     lockHeight();
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(lockHeight);
     window.setInterval(tick, INTERVAL);
+  }
+
+  // The New File card's type field opens the app's template list. The list
+  // lives beside the "+" menu, outside the clipped grid, and is placed under
+  // the field when it opens; any card movement closes it.
+  function initFileTypeMenu() {
+    const surface = document.querySelector(".hero-product .hero-window");
+    const field = document.querySelector("[data-file-type]");
+    if (!surface || !field) return;
+    const label = field.querySelector("span");
+    const TEMPLATES = [
+      ["txt", "📄"], ["md", "📝"], ["js", "📜"], ["ts", "📘"], ["css", "🎨"], ["html", "🌐"],
+      ["json", "📋"], ["py", "🐍"], ["yaml", "⚙️"], ["env", "🔐"], ["csv", "🧮"], ["xml", "🧾"],
+      ["sql", "🗃️"], ["sh", "💻"], ["rtf", "🖋️"], ["docx", "📃"], ["xlsx", "📊"], ["pptx", "📽️"],
+    ];
+    const menu = document.createElement("div");
+    menu.className = "mock-add-menu mock-file-menu";
+    menu.setAttribute("role", "listbox");
+    menu.setAttribute("aria-label", "File type");
+
+    const close = () => {
+      menu.classList.remove("is-open");
+      field.classList.remove("is-active");
+      field.setAttribute("aria-expanded", "false");
+    };
+    const open = () => {
+      const box = surface.getBoundingClientRect();
+      const at = field.getBoundingClientRect();
+      menu.style.left = `${Math.round(at.left - box.left)}px`;
+      menu.style.top = `${Math.round(at.bottom - box.top) + 4}px`;
+      menu.style.right = "auto";
+      menu.classList.add("is-open");
+      field.classList.add("is-active");
+      field.setAttribute("aria-expanded", "true");
+    };
+
+    TEMPLATES.forEach(([ext, icon]) => {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.setAttribute("role", "option");
+      const glyph = document.createElement("i");
+      glyph.setAttribute("aria-hidden", "true");
+      glyph.textContent = icon;
+      item.append(glyph, `.${ext}`);
+      if (ext === field.dataset.value) item.classList.add("is-selected");
+      item.addEventListener("click", () => {
+        field.dataset.value = ext;
+        if (label) label.textContent = `${icon} .${ext}`;
+        menu.querySelectorAll("button").forEach((b) => b.classList.toggle("is-selected", b === item));
+        close();
+        showToast(`File type: .${ext}`);
+      });
+      menu.appendChild(item);
+    });
+    surface.appendChild(menu);
+
+    field.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (menu.classList.contains("is-open")) close();
+      else open();
+    });
+    document.addEventListener("click", (event) => {
+      if (!menu.contains(event.target) && !field.contains(event.target)) close();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") close();
+    });
+    document.addEventListener("mock-layout-change", close);
+    window.addEventListener("resize", close);
   }
 
   function initAddMenu() {
@@ -1308,6 +1379,7 @@
     initClipboard();
     initAddMenu();
     initWidgetRotation();
+    initFileTypeMenu();
     initAwakeToggle();
     decorateCheckoutLinks();
     initDownloadButtons();
