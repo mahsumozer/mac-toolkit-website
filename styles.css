@@ -480,6 +480,94 @@ body.show-mac-handoff .mac-handoff:focus-within {
   background: rgba(5, 5, 5, 0.06);
 }
 
+/* Clean Mode: the screen goes under a veil while the panel says what is
+   locked. A trackpad lock takes the pointer with it; a keyboard lock leaves
+   the mouse alone, as the app does. */
+.clean-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: clamp(120px, 22vh, 240px);
+  background: rgba(5, 5, 5, 0.22);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.22s var(--ease), visibility 0s linear 0.22s;
+}
+
+.clean-veil.is-on {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.22s var(--ease), visibility 0s linear 0s;
+}
+
+.clean-veil.is-blocking {
+  pointer-events: auto;
+  cursor: not-allowed;
+}
+
+.clean-veil-pill {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  padding: 10px 16px;
+  color: var(--white);
+  background: rgba(0, 0, 0, 0.62);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  border: 1px solid var(--line-dark);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 24px 60px -28px rgba(0, 0, 0, 0.6);
+}
+
+.clean-veil-pill svg {
+  width: 15px;
+  height: 15px;
+  color: var(--accent);
+}
+
+/* The locked panel keeps its look but stops taking the pointer. */
+.hero-window.is-input-locked .app-mock,
+.hero-window.is-input-locked .mock-search {
+  pointer-events: none;
+}
+
+/* The card's locked state, in the app's own wording. */
+.mock-clean-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mock-clean-state strong {
+  display: block;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.mock-clean-state em {
+  display: block;
+  margin-top: 1px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 10px;
+  font-style: normal;
+}
+
+.mock-clean-state .mock-btn-accent {
+  flex: none;
+  min-height: 26px;
+  padding: 0 12px;
+  font-size: 11px;
+}
+
 /* The screenshot the panel plays out on the hero: the shutter flash, the
    thumbnail macOS parks in the corner, and the two pickers Area and Window
    put up before they take anything. */
@@ -504,11 +592,22 @@ body.show-mac-handoff .mac-handoff:focus-within {
   100% { opacity: 0; }
 }
 
+/* The corner the shots land in: the newest sits at the bottom and the ones
+   before it stack upwards, clear of the trial card below. */
+/* The shots share the bottom-right corner with the messages and climb it the
+   same way: each one whole, the newest at the bottom, the ones before it
+   pushed up. */
+.shot-tray {
+  justify-self: end;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 2px;
+  pointer-events: auto;
+}
+
 .shot-thumb {
-  position: absolute;
-  right: 22px;
-  /* Clear of the trial card that sits in the hero's bottom corner. */
-  bottom: 124px;
+  position: relative;
   width: 168px;
   padding: 6px;
   background: var(--paper-2);
@@ -517,7 +616,42 @@ body.show-mac-handoff .mac-handoff:focus-within {
   box-shadow: 0 22px 46px -20px rgba(5, 5, 5, 0.45);
   cursor: pointer;
   pointer-events: auto;
+  transition: transform 0.18s var(--ease), box-shadow 0.18s var(--ease), border-color 0.18s var(--ease);
   animation: shot-thumb-in 0.42s var(--ease) both;
+}
+
+/* Resting on a shot lifts it and offers the save; it also stops waiting to
+   leave, so there is time to take it. */
+.shot-thumb:hover {
+  transform: translateY(-3px);
+  border-color: rgba(5, 5, 5, 0.22);
+  box-shadow: 0 28px 56px -20px rgba(5, 5, 5, 0.5);
+}
+
+.shot-thumb-save {
+  position: absolute;
+  inset: auto 8px 8px;
+  padding: 5px 0;
+  color: var(--white);
+  background: rgba(5, 5, 5, 0.78);
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 750;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.18s var(--ease), transform 0.18s var(--ease);
+}
+
+.shot-thumb:hover .shot-thumb-save {
+  opacity: 1;
+  transform: none;
+}
+
+.shot-thumb:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 .shot-thumb.is-leaving {

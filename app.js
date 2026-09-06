@@ -50,7 +50,7 @@
     toast.textContent = message;
     region.appendChild(toast);
 
-    const standing = Array.from(region.children).filter((t) => !t.classList.contains("out"));
+    const standing = Array.from(region.querySelectorAll(".toast")).filter((t) => !t.classList.contains("out"));
     standing.slice(0, Math.max(0, standing.length - TOASTS_ON_SCREEN)).forEach(dismissToast);
 
     window.setTimeout(() => dismissToast(toast), 2600);
@@ -798,6 +798,74 @@
     window.setInterval(tick, INTERVAL);
   }
 
+  // Clean Mode. The app blocks the keyboard or the trackpad so a Mac can be
+  // wiped down; the page cannot take a visitor's input away and should not try,
+  // so it locks its own screen instead: the hero goes under a veil, a trackpad
+  // lock really does swallow clicks on the panel until Esc, and the card wears
+  // the same locked state the app shows.
+  function initCleanMode() {
+    const hero = document.querySelector(".hero");
+    const panel = document.getElementById("hero-panel");
+    const card = document.querySelector('.hero-product .mock-card[data-widget="clean-mode"]');
+    if (!hero || !panel || !card) return;
+
+    const locks = card.querySelector("[data-clean-locks]");
+    const state = card.querySelector("[data-clean-state]");
+    const title = card.querySelector("[data-clean-title]");
+    const hint = card.querySelector("[data-clean-hint]");
+    const unlock = card.querySelector("[data-clean-unlock]");
+    if (!locks || !state || !title || !hint || !unlock) return;
+
+    const veil = document.createElement("div");
+    veil.className = "clean-veil";
+    veil.innerHTML = '<p class="clean-veil-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg><span data-clean-veil-text></span></p>';
+    const veilText = veil.querySelector("[data-clean-veil-text]");
+    hero.appendChild(veil);
+
+    let locked = null;
+
+    function stop() {
+      if (!locked) return;
+      locked = null;
+      veil.classList.remove("is-on", "is-blocking");
+      panel.classList.remove("is-input-locked");
+      state.hidden = true;
+      locks.hidden = false;
+      releaseWidget("clean-mode");
+      showToast("Clean Mode off.");
+    }
+
+    function start(kind) {
+      locked = kind;
+      const keyboard = kind === "keyboard";
+      title.textContent = keyboard ? "Keyboard Clean Mode" : "Trackpad Clean Mode";
+      hint.hidden = keyboard;
+      unlock.hidden = !keyboard;
+      locks.hidden = true;
+      state.hidden = false;
+      veilText.textContent = keyboard ? "Keyboard locked — wipe away" : "Trackpad locked — press Esc to unlock";
+      veil.classList.add("is-on");
+      // Only the trackpad lock takes the pointer; a keyboard lock leaves the
+      // mouse working, as it does in the app.
+      veil.classList.toggle("is-blocking", !keyboard);
+      panel.classList.toggle("is-input-locked", !keyboard);
+      holdWidget("clean-mode");
+      showToast(keyboard ? "Keyboard locked." : "Trackpad locked. Press Esc to unlock.");
+    }
+
+    card.querySelectorAll("[data-clean]").forEach((button) => {
+      button.addEventListener("click", () => start(button.dataset.clean));
+    });
+    unlock.addEventListener("click", stop);
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") stop();
+    });
+    // A click at the veil is the locked trackpad being tried; say so.
+    veil.addEventListener("click", () => {
+      if (locked === "trackpad") showToast("Trackpad is locked. Press Esc to unlock.");
+    });
+  }
+
   // The menu bar's own menus. File, Edit and View each drop a menu holding the
   // one line this app was built for.
   function initStripMenus() {
@@ -906,35 +974,57 @@
       sheet.addEventListener("animationend", () => sheet.remove(), { once: true });
     }
 
-    // macOS parks the shot in the corner for a moment; so does the mock.
+    // macOS parks the shot in the corner for a moment, and stacks the next ones
+    // above it; three is as deep as the corner goes here. Resting on one holds
+    // it there, so it can be read and saved instead of slipping away.
+    const SHOTS_IN_CORNER = 3;
+    const tray = document.createElement("div");
+    tray.className = "shot-tray";
+    (document.getElementById("toast-region") || layer).appendChild(tray);
+
+    function dropShot(shot) {
+      if (shot.classList.contains("is-leaving")) return;
+      shot.classList.add("is-leaving");
+      shot.addEventListener("animationend", () => shot.remove(), { once: true });
+    }
+
     function thumbnail(size) {
-      layer.querySelectorAll(".shot-thumb").forEach((old) => old.remove());
       const file = stamp();
       const thumb = document.createElement("button");
       thumb.type = "button";
       thumb.className = "shot-thumb";
       thumb.setAttribute("aria-label", `Save ${file}`);
-      thumb.innerHTML = '<span class="shot-thumb-screen"><i class="shot-thumb-strip"></i><i class="shot-thumb-panel"></i></span>';
+      thumb.innerHTML = '<span class="shot-thumb-screen"><i class="shot-thumb-strip"></i><i class="shot-thumb-panel"></i><em class="shot-thumb-save">Save</em></span>';
       const label = document.createElement("span");
       label.className = "shot-thumb-size";
       label.textContent = size;
       thumb.appendChild(label);
-      const drop = () => {
-        thumb.classList.add("is-leaving");
-        thumb.addEventListener("animationend", () => thumb.remove(), { once: true });
+
+      let leaving = null;
+      const drop = () => dropShot(thumb);
+      const park = (ms) => {
+        window.clearTimeout(leaving);
+        leaving = window.setTimeout(() => { if (thumb.isConnected) drop(); }, ms);
       };
+
+      thumb.addEventListener("mouseenter", () => window.clearTimeout(leaving));
+      thumb.addEventListener("mouseleave", () => park(2000));
       thumb.addEventListener("click", () => {
         showToast(`Saved: ~/Desktop/${file}`);
         drop();
       });
-      layer.appendChild(thumb);
-      window.setTimeout(() => { if (thumb.isConnected) drop(); }, 5200);
+
+      const standing = Array.from(tray.children).filter((t) => !t.classList.contains("is-leaving"));
+      standing.slice(0, Math.max(0, standing.length + 1 - SHOTS_IN_CORNER)).forEach(dropShot);
+      tray.appendChild(thumb);
+      park(5200);
     }
 
+    // No message for a capture: the thumbnail in the corner already says it,
+    // with the size on it.
     function capture(size) {
       flash();
       thumbnail(size);
-      showToast(`Captured ${size}`);
       holdWidget("screenshot", 20);
     }
 
@@ -2281,6 +2371,7 @@
     initColorPicker();
     initScreenshot();
     initStripMenus();
+    initCleanMode();
     initFileTypeMenu();
     initAwakeToggle();
     initCompareRotation();
