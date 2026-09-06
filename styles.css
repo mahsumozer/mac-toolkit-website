@@ -1386,7 +1386,8 @@ body.show-mac-handoff .mac-handoff:focus-within {
      wears the menu bar's own glass rather than the panel's sheet, so it reads
      as part of the bar it drops from. */
   right: auto;
-  width: 196px;
+  /* As wide as the line it holds, no wider. */
+  width: max-content;
   min-width: 0;
   background: rgba(0, 0, 0, 0.55);
   -webkit-backdrop-filter: blur(18px);
@@ -2209,6 +2210,20 @@ body.show-mac-handoff .mac-handoff:focus-within {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 10px;
   font-style: normal;
+}
+
+/* The add-tool list runs long, so it reads in two columns rather than a
+   column that outgrows the panel. */
+#mock-add-menu {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px 4px;
+  width: 340px;
+  min-width: 0;
+}
+
+#mock-add-menu button {
+  white-space: nowrap;
 }
 
 /* The file-type list, built by app.js and parked next to the "+" menu. The

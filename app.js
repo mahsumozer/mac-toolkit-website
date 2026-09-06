@@ -440,10 +440,16 @@
       else open();
     });
 
+    // Picking a tool types it into the panel's search, which is how the panel
+    // brings a card to the front.
+    const search = menu.closest(".hero-window")?.querySelector("[data-mock-search] input");
     menu.querySelectorAll("[role='menuitem']").forEach((item) => {
       item.addEventListener("click", () => {
-        showToast(`Added: ${item.textContent.trim()}`);
         close();
+        if (!search) return;
+        search.value = item.dataset.query || item.textContent.trim();
+        search.dispatchEvent(new Event("input", { bubbles: true }));
+        search.focus({ preventScroll: true });
       });
     });
 
