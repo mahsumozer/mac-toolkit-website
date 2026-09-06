@@ -423,12 +423,25 @@
   function setupAddMenu(toggle, menu) {
     if (!toggle || !menu) return;
 
+    // The list hangs below the panel, so it lives outside it: a sheet blurred
+    // inside the panel only sees the panel behind it, and past its edge it has
+    // nothing to blur and turns into a black slab.
+    const panel = toggle.closest(".hero-window");
+    const hero = panel ? panel.closest(".hero") : null;
+    if (panel && hero) hero.appendChild(menu);
+
     const close = () => {
       menu.classList.remove("is-open");
       toggle.classList.remove("is-active");
       toggle.setAttribute("aria-expanded", "false");
     };
     const open = () => {
+      if (panel && hero) {
+        const box = hero.getBoundingClientRect();
+        const at = panel.getBoundingClientRect();
+        menu.style.top = `${Math.round(at.bottom - box.top + 6)}px`;
+        menu.style.right = `${Math.round(box.right - at.right + 12)}px`;
+      }
       menu.classList.add("is-open");
       toggle.classList.add("is-active");
       toggle.setAttribute("aria-expanded", "true");

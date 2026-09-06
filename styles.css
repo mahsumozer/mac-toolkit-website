@@ -1382,18 +1382,10 @@ body.show-mac-handoff .mac-handoff:focus-within {
 .mock-add-menu.strip-menu {
   top: calc(100% + 6px);
   /* The shared menu is pinned to the right edge; this one hangs from its own
-     word, so it gives that up and takes its width from its items. It also
-     wears the menu bar's own glass rather than the panel's sheet, so it reads
-     as part of the bar it drops from. */
+     word, so it gives that up and takes the width of the line it holds. */
   right: auto;
-  /* As wide as the line it holds, no wider. */
   width: max-content;
   min-width: 0;
-  background: rgba(0, 0, 0, 0.55);
-  -webkit-backdrop-filter: blur(18px);
-  backdrop-filter: blur(18px);
-  border-color: var(--line-dark);
-  box-shadow: 0 24px 60px -28px rgba(0, 0, 0, 0.55);
 }
 
 /* The easter egg: hearts drifting up off the menu bar. */
@@ -1682,16 +1674,14 @@ body.show-mac-handoff .mac-handoff:focus-within {
   gap: 2px;
   padding: 6px;
   color: var(--white);
-  /* The panel's own warm dark, one step above its surface so the menu reads as
-     a sheet lifted off the panel. Kept mostly opaque because the menu can
-     overlap the light trial card below the window, where a see-through sheet
-     reads as broken. */
-  background: rgba(41, 40, 38, 0.9);
-  -webkit-backdrop-filter: blur(22px);
-  backdrop-filter: blur(22px);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  /* The same glass the menu bar and its menus are made of, so every list in
+     the mock belongs to the same surface. */
+  background: rgba(0, 0, 0, 0.55);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  border: 1px solid var(--line-dark);
   border-radius: 10px;
-  box-shadow: 0 20px 44px -24px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 24px 60px -28px rgba(0, 0, 0, 0.55);
   opacity: 0;
   visibility: hidden;
   transform: translateY(-6px);
