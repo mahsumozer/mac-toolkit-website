@@ -3032,6 +3032,8 @@ body.show-mac-handoff .mac-handoff:focus-within {
 /* Home card only: the price row is centred inside the card. */
 .pricing-card-centered .pricing-price {
   justify-content: center;
+  padding-bottom: 8px;
+  border-bottom: 0;
 }
 
 .pricing-card-centered .pricing-price strong {
@@ -3161,63 +3163,6 @@ body.show-mac-handoff .mac-handoff:focus-within {
 .get-app-cta svg {
   width: 17px;
   height: 17px;
-}
-
-.get-app-info {
-  position: relative;
-  display: inline-flex;
-  flex: none;
-}
-
-.info-button {
-  display: inline-flex;
-  width: 34px;
-  height: 34px;
-  align-items: center;
-  justify-content: center;
-  color: var(--muted);
-  background: transparent;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 800;
-  font-style: italic;
-  transition: color 180ms var(--ease), border-color 180ms var(--ease);
-}
-
-.get-app-info:hover .info-button,
-.get-app-info:focus-within .info-button {
-  color: var(--ink);
-  border-color: currentColor;
-}
-
-.info-popover {
-  position: absolute;
-  right: 0;
-  bottom: calc(100% + 10px);
-  z-index: 5;
-  display: grid;
-  gap: 5px;
-  width: max-content;
-  max-width: 240px;
-  padding: 12px 14px;
-  color: var(--soft-white);
-  background: var(--ink);
-  border-radius: 10px;
-  font-size: 12.5px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(4px);
-  transition: opacity 180ms var(--ease), transform 180ms var(--ease), visibility 180ms;
-}
-
-.get-app-info:hover .info-popover,
-.get-app-info:focus-within .info-popover {
-  opacity: 1;
-  visibility: visible;
-  transform: none;
 }
 
 .get-app-note {
@@ -4288,8 +4233,7 @@ body.show-mac-handoff .mac-handoff:focus-within {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  /* Matches the download button beside the 34px info button + 12px gap. */
-  width: calc(100% - 46px);
+  width: 100%;
   min-height: 40px;
   margin: 0;
   padding: 0 14px;

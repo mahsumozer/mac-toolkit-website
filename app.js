@@ -869,9 +869,9 @@
     });
   }
 
-  // The markup ships the current build so the button works without JS; this
-  // asks GitHub for the newest release and rewrites the link, version and size
-  // so a new release does not leave the page pointing at an old .dmg.
+  // The markup ships the current build so the buttons work without JS; this
+  // asks GitHub for the newest release and rewrites every download link, so a
+  // new release does not leave the page pointing at an old .dmg.
   function initLatestDownload() {
     const links = document.querySelectorAll("[data-latest-download]");
     if (!links.length) return;
@@ -885,15 +885,6 @@
         if (!asset?.browser_download_url) return;
 
         links.forEach((link) => link.setAttribute("href", asset.browser_download_url));
-
-        const version = String(release.tag_name || "").replace(/^v/, "");
-        const versionEl = document.querySelector("[data-latest-version]");
-        if (version && versionEl) versionEl.textContent = `Version ${version}`;
-
-        const sizeEl = document.querySelector("[data-latest-size]");
-        if (asset.size && sizeEl) {
-          sizeEl.innerHTML = `${Math.round(asset.size / 1048576)} MB &middot; .dmg`;
-        }
       })
       .catch(() => {});
   }
