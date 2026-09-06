@@ -798,6 +798,141 @@
     window.setInterval(tick, INTERVAL);
   }
 
+  // The Convert card. A file can be dropped on it or chosen from disk, and
+  // only its name is ever read — nothing is opened, and nothing leaves the
+  // browser. From that name the card knows the group it belongs to, offers the
+  // formats the app offers for it, blocks the one it already is, and plays the
+  // conversion out.
+  function initConvert() {
+    const card = document.querySelector('.hero-product .mock-card[data-widget="convert"]');
+    if (!card) return;
+    const drop = card.querySelector("[data-convert-drop]");
+    const name = card.querySelector("[data-convert-name]");
+    const clear = card.querySelector("[data-convert-clear]");
+    const chips = card.querySelector("[data-convert-chips]");
+    const run = card.querySelector("[data-convert-run]");
+    if (!drop || !name || !clear || !chips || !run) return;
+
+    const GROUPS = [
+      { group: "Image", inputs: ["png", "jpg", "webp", "gif", "tiff", "bmp", "heic", "avif", "psd", "cr2", "nef", "arw", "dng"], items: ["png", "jpg", "gif", "tiff", "heic", "bmp", "ico", "pdf"] },
+      { group: "Document", inputs: ["pdf", "txt", "md", "html", "rtf", "doc", "docx", "odt"], items: ["pdf", "docx", "txt", "md", "html", "rtf", "odt"] },
+      { group: "Audio", inputs: ["mp3", "m4a", "wav", "aiff", "flac", "caf", "ogg", "opus", "aac"], items: ["m4a", "wav", "aiff", "flac", "caf"] },
+      { group: "Video", inputs: ["mov", "mp4", "m4v"], items: ["mp4", "mov", "m4v", "m4a"] },
+    ];
+    const ALIASES = { jpeg: "jpg", tif: "tiff", heif: "heic", htm: "html", markdown: "md", aif: "aiff" };
+    const extOf = (file) => {
+      const dot = file.lastIndexOf(".");
+      const ext = dot > 0 ? file.slice(dot + 1).toLowerCase() : "";
+      return ALIASES[ext] || ext;
+    };
+    const groupFor = (ext) => GROUPS.find((g) => g.inputs.includes(ext));
+
+    const picker = document.createElement("input");
+    picker.type = "file";
+    picker.hidden = true;
+    card.appendChild(picker);
+
+    let file = name.textContent.trim();
+    let target = "jpg";
+
+    function render() {
+      const ext = file ? extOf(file) : "";
+      const group = groupFor(ext);
+      name.textContent = file || "Drop or click to browse";
+      drop.classList.toggle("is-empty", !file);
+      clear.hidden = !file;
+      chips.hidden = !file;
+      run.disabled = !file;
+      if (!group) {
+        chips.replaceChildren();
+        run.textContent = "Convert";
+        return;
+      }
+      if (target === ext || !group.items.includes(target)) target = group.items.find((f) => f !== ext) || ext;
+      chips.replaceChildren(...group.items.map((format) => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.textContent = `.${format}`;
+        chip.classList.toggle("is-selected", format === target);
+        chip.classList.toggle("is-blocked", format === ext);
+        chip.disabled = format === ext;
+        chip.addEventListener("click", () => {
+          target = format;
+          holdWidget("convert", 20);
+          render();
+        });
+        return chip;
+      }));
+      run.textContent = `→ .${target}`;
+    }
+
+    function accept(fileName) {
+      const group = groupFor(extOf(fileName));
+      if (!group) {
+        showToast(`Unsupported format: ${fileName}`);
+        return;
+      }
+      file = fileName;
+      holdWidget("convert", 20);
+      render();
+    }
+
+    drop.addEventListener("click", () => {
+      if (file) return;
+      picker.click();
+    });
+    drop.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      if (!file) picker.click();
+    });
+    picker.addEventListener("change", () => {
+      const chosen = picker.files && picker.files[0];
+      if (chosen) accept(chosen.name);
+      picker.value = "";
+    });
+
+    ["dragenter", "dragover"].forEach((type) => {
+      drop.addEventListener(type, (event) => {
+        event.preventDefault();
+        drop.classList.add("is-dropping");
+      });
+    });
+    ["dragleave", "dragend"].forEach((type) => {
+      drop.addEventListener(type, () => drop.classList.remove("is-dropping"));
+    });
+    drop.addEventListener("drop", (event) => {
+      event.preventDefault();
+      drop.classList.remove("is-dropping");
+      const dropped = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+      if (dropped) accept(dropped.name);
+    });
+
+    clear.addEventListener("click", (event) => {
+      event.stopPropagation();
+      file = "";
+      holdWidget("convert", 20);
+      render();
+    });
+
+    let working = null;
+    run.addEventListener("click", () => {
+      if (!file) return;
+      const out = `${file.replace(/\.[^.]+$/, "")}.${target}`;
+      window.clearTimeout(working);
+      run.disabled = true;
+      run.textContent = "Converting…";
+      holdWidget("convert", 20);
+      working = window.setTimeout(() => {
+        run.disabled = false;
+        render();
+        showToast(`Converted: ${out}`);
+      }, 900);
+    });
+
+    render();
+  }
+
   // Clean Mode. The app blocks the keyboard or the trackpad so a Mac can be
   // wiped down; the page cannot take a visitor's input away and should not try,
   // so it locks its own screen instead: the hero goes under a veil, a trackpad
@@ -2372,6 +2507,7 @@
     initScreenshot();
     initStripMenus();
     initCleanMode();
+    initConvert();
     initFileTypeMenu();
     initAwakeToggle();
     initCompareRotation();
