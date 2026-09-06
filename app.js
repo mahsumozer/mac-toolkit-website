@@ -427,6 +427,8 @@
     let paused = false;
     let busy = false;
     let searching = false;
+    let hit = null;
+    const hitRow = document.querySelector("[data-mock-search-hit]");
 
     // Leave order starts at the bottom of the columns and alternates between
     // them, so the first swaps happen away from the panel's top corners.
@@ -451,7 +453,21 @@
     }
 
     // The panel keeps the height of its opening layout, so swaps never move
-    // the rest of the hero; the columns fill that budget and no more.
+    // the rest of the hero; the columns fill that budget and no more. While a
+    // search hit sits above the grid, the grid gives up that much height so
+    // the window's outer size, and everything below it, stays put.
+    const surface = mock.closest(".hero-window") || mock;
+    let lockedHeight = 0;
+    function applyHeight() {
+      if (!lockedHeight) return;
+      let height = lockedHeight;
+      if (hit) {
+        const windowGap = parseFloat(getComputedStyle(surface).rowGap) || parseFloat(getComputedStyle(surface).gap) || 0;
+        height = Math.max(0, lockedHeight - hitRow.offsetHeight - windowGap);
+      }
+      mock.style.height = `${Math.ceil(height)}px`;
+      surface.classList.toggle("is-searching", !!hit);
+    }
     function lockHeight() {
       mock.style.height = "";
       let tallest = 0;
@@ -460,7 +476,8 @@
         const set = Array.from(col.querySelectorAll(".mock-card[data-initial]"));
         tallest = Math.max(tallest, set.reduce((sum, c) => sum + measure(c, col), 0) + gap * Math.max(0, set.length - 1) + extrasHeight(col, gap));
       });
-      if (tallest) mock.style.height = `${Math.ceil(tallest)}px`;
+      lockedHeight = tallest;
+      applyHeight();
     }
 
     function fadeOut(list) {
@@ -619,8 +636,6 @@
     const searchForm = document.querySelector("[data-mock-search]");
     const searchInput = searchForm ? searchForm.querySelector("input") : null;
     const searchClear = searchForm ? searchForm.querySelector(".mock-search-clear") : null;
-    const hitRow = document.querySelector("[data-mock-search-hit]");
-    let hit = null;
 
     function clearHit() {
       if (!hit) return;
@@ -632,7 +647,7 @@
       card.hidden = wasHidden;
       hitRow.hidden = true;
       hit = null;
-      lockHeight();
+      applyHeight();
     }
 
     function showHit(card) {
@@ -648,9 +663,7 @@
       card.hidden = false;
       card.classList.add("is-hit");
       hitRow.hidden = false;
-      // The grid follows its content while a card is up here, as the app's
-      // panel does, instead of keeping a hole where the card stood.
-      mock.style.height = "";
+      applyHeight();
     }
 
     function runSearch() {
@@ -708,7 +721,6 @@
 
     // Hovering or focusing the panel holds the rotation so a visitor can play
     // with the card they're on.
-    const surface = mock.closest(".hero-window") || mock;
     surface.addEventListener("mouseenter", () => { paused = true; });
     surface.addEventListener("mouseleave", () => { paused = false; });
     surface.addEventListener("focusin", () => { paused = true; });

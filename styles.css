@@ -1346,6 +1346,12 @@ body.show-mac-handoff .mac-handoff:focus-within {
   border-color: rgba(245, 148, 29, 0.55);
 }
 
+/* The grid is shorter while a hit is shown; its cut edge fades out. */
+.hero-window.is-searching .app-mock {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent);
+}
+
 /* Hero scale for the rotating widgets, matching the tightened boxes above. */
 .hero-product .mock-stats {
   gap: 8px;
