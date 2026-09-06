@@ -31,6 +31,16 @@
   let focusRemaining = 25 * 60;
   let focusTotal = 25 * 60;
 
+  // At most five messages stand at once: a burst of them — a run of copies,
+  // say — pushes the oldest out rather than filling the screen.
+  const TOASTS_ON_SCREEN = 5;
+
+  function dismissToast(toast) {
+    if (toast.classList.contains("out")) return;
+    toast.classList.add("out");
+    toast.addEventListener("animationend", () => toast.remove(), { once: true });
+  }
+
   function showToast(message) {
     const region = document.getElementById("toast-region");
     if (!region) return;
@@ -40,10 +50,10 @@
     toast.textContent = message;
     region.appendChild(toast);
 
-    window.setTimeout(() => {
-      toast.classList.add("out");
-      toast.addEventListener("animationend", () => toast.remove(), { once: true });
-    }, 2600);
+    const standing = Array.from(region.children).filter((t) => !t.classList.contains("out"));
+    standing.slice(0, Math.max(0, standing.length - TOASTS_ON_SCREEN)).forEach(dismissToast);
+
+    window.setTimeout(() => dismissToast(toast), 2600);
   }
 
   // A widget the visitor is actually using stays put: the panel's rotation
@@ -788,6 +798,196 @@
     window.setInterval(tick, INTERVAL);
   }
 
+  // The Screenshot card. The page cannot read the visitor's screen, and should
+  // not ask to, so the capture is played out on the hero instead: the shutter
+  // flashes, a thumbnail slides into the corner the way macOS parks one, and
+  // Area and Window first ask what to take. Record keeps a red badge and a
+  // running clock in the menu bar, as the app does while it captures video.
+  function initScreenshot() {
+    const hero = document.querySelector(".hero");
+    const panel = document.getElementById("hero-panel");
+    const card = document.querySelector('.hero-product .mock-card[data-widget="screenshot"]');
+    const badge = document.getElementById("strip-record");
+    if (!hero || !panel || !card) return;
+
+    const layer = document.createElement("div");
+    layer.className = "shot-layer";
+    hero.appendChild(layer);
+
+    const pad = (n) => String(n).padStart(2, "0");
+    const stamp = () => {
+      const now = new Date();
+      return `Screen Shot ${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} at ${pad(now.getHours())}.${pad(now.getMinutes())}.${pad(now.getSeconds())}.png`;
+    };
+
+    function flash() {
+      const sheet = document.createElement("div");
+      sheet.className = "shot-flash";
+      layer.appendChild(sheet);
+      sheet.addEventListener("animationend", () => sheet.remove(), { once: true });
+    }
+
+    // macOS parks the shot in the corner for a moment; so does the mock.
+    function thumbnail(size) {
+      layer.querySelectorAll(".shot-thumb").forEach((old) => old.remove());
+      const file = stamp();
+      const thumb = document.createElement("button");
+      thumb.type = "button";
+      thumb.className = "shot-thumb";
+      thumb.setAttribute("aria-label", `Save ${file}`);
+      thumb.innerHTML = '<span class="shot-thumb-screen"><i class="shot-thumb-strip"></i><i class="shot-thumb-panel"></i></span>';
+      const label = document.createElement("span");
+      label.className = "shot-thumb-size";
+      label.textContent = size;
+      thumb.appendChild(label);
+      const drop = () => {
+        thumb.classList.add("is-leaving");
+        thumb.addEventListener("animationend", () => thumb.remove(), { once: true });
+      };
+      thumb.addEventListener("click", () => {
+        showToast(`Saved: ~/Desktop/${file}`);
+        drop();
+      });
+      layer.appendChild(thumb);
+      window.setTimeout(() => { if (thumb.isConnected) drop(); }, 5200);
+    }
+
+    function capture(size) {
+      flash();
+      thumbnail(size);
+      showToast(`Captured ${size}`);
+      holdWidget("screenshot", 20);
+    }
+
+    const screenSize = () => `${Math.round(window.innerWidth)} × ${Math.round(window.innerHeight)}`;
+
+    // Area: the hero dims and takes a drag, showing the size as it goes.
+    function pickArea() {
+      const picker = document.createElement("div");
+      picker.className = "shot-picker";
+      const hint = document.createElement("p");
+      hint.className = "shot-hint";
+      hint.textContent = "Drag to select an area — Esc to cancel";
+      picker.appendChild(hint);
+      const marquee = document.createElement("div");
+      marquee.className = "shot-marquee";
+      marquee.hidden = true;
+      const size = document.createElement("span");
+      size.className = "shot-marquee-size";
+      marquee.appendChild(size);
+      picker.appendChild(marquee);
+      layer.appendChild(picker);
+      holdWidget("screenshot");
+
+      const close = () => {
+        picker.remove();
+        document.removeEventListener("keydown", onKey);
+        holdWidget("screenshot", 20);
+      };
+      const onKey = (event) => { if (event.key === "Escape") close(); };
+      document.addEventListener("keydown", onKey);
+
+      picker.addEventListener("pointerdown", (event) => {
+        if (event.button !== 0) return;
+        const box = picker.getBoundingClientRect();
+        const from = { x: event.clientX - box.left, y: event.clientY - box.top };
+        picker.setPointerCapture(event.pointerId);
+        hint.remove();
+        marquee.hidden = false;
+        let width = 0;
+        let height = 0;
+
+        const move = (moveEvent) => {
+          const x = moveEvent.clientX - box.left;
+          const y = moveEvent.clientY - box.top;
+          width = Math.abs(x - from.x);
+          height = Math.abs(y - from.y);
+          marquee.style.left = `${Math.min(x, from.x)}px`;
+          marquee.style.top = `${Math.min(y, from.y)}px`;
+          marquee.style.width = `${width}px`;
+          marquee.style.height = `${height}px`;
+          size.textContent = `${Math.round(width)} × ${Math.round(height)}`;
+        };
+        const drop = () => {
+          picker.removeEventListener("pointermove", move);
+          picker.removeEventListener("pointerup", drop);
+          close();
+          if (width > 8 && height > 8) capture(`${Math.round(width)} × ${Math.round(height)}`);
+        };
+        picker.addEventListener("pointermove", move);
+        picker.addEventListener("pointerup", drop);
+      });
+    }
+
+    // Window: the panel lights up as the window under the pointer.
+    function pickWindow() {
+      panel.classList.add("is-shot-target");
+      holdWidget("screenshot");
+      const close = () => {
+        panel.classList.remove("is-shot-target");
+        panel.removeEventListener("click", take, true);
+        document.removeEventListener("keydown", onKey);
+        window.removeEventListener("click", onOutside, true);
+        holdWidget("screenshot", 20);
+      };
+      const take = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        close();
+        const at = panel.getBoundingClientRect();
+        capture(`${Math.round(at.width)} × ${Math.round(at.height)}`);
+      };
+      const onKey = (event) => { if (event.key === "Escape") close(); };
+      const onOutside = (event) => { if (!panel.contains(event.target)) close(); };
+      panel.addEventListener("click", take, true);
+      document.addEventListener("keydown", onKey);
+      window.setTimeout(() => window.addEventListener("click", onOutside, true), 0);
+    }
+
+    // Record: the menu bar carries the red badge and the elapsed time.
+    let recordTimer = null;
+    let recordedFor = 0;
+    const recordButton = card.querySelector("[data-shot='record']");
+    const clock = (seconds) => `${Math.floor(seconds / 60)}:${pad(seconds % 60)}`;
+
+    function stopRecording() {
+      window.clearInterval(recordTimer);
+      recordTimer = null;
+      if (badge) badge.hidden = true;
+      if (recordButton) recordButton.textContent = "Record";
+      card.classList.remove("is-recording");
+      showToast(`Recording saved — ${clock(recordedFor)}`);
+      holdWidget("screenshot", 20);
+    }
+
+    function startRecording() {
+      recordedFor = 0;
+      if (badge) {
+        badge.lastChild.textContent = clock(0);
+        badge.hidden = false;
+      }
+      if (recordButton) recordButton.textContent = "Stop";
+      card.classList.add("is-recording");
+      holdWidget("screenshot");
+      showToast("Recording the screen.");
+      recordTimer = window.setInterval(() => {
+        recordedFor += 1;
+        if (badge) badge.lastChild.textContent = clock(recordedFor);
+      }, 1000);
+    }
+
+    card.querySelectorAll("[data-shot]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const kind = button.dataset.shot;
+        if (kind === "full") capture(screenSize());
+        else if (kind === "area") pickArea();
+        else if (kind === "window") pickWindow();
+        else if (recordTimer) stopRecording();
+        else startRecording();
+      });
+    });
+  }
+
   // The Color Picker card. Pick Color opens the browser's eyedropper where
   // there is one — the same tool the app reaches for — so a visitor really
   // picks a colour off their screen; browsers without it step through a set of
@@ -802,6 +1002,7 @@
 
     const SAMPLES = ["#F4F2ED", "#F5941D", "#2E9E7B", "#4C6EF5", "#E4572E", "#1D1D1B"];
     let sample = 0;
+    let format = "hex";
     let color = value.textContent.trim() || SAMPLES[0];
 
     const channels = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
@@ -825,17 +1026,29 @@
       return `hsl(${h}, ${sat}%, ${Math.round(l * 100)}%)`;
     }
 
+    // The card reads the colour in whichever notation was picked last, so the
+    // code above the buttons is the one the visitor asked for.
+    function render() {
+      const text = asFormat(format);
+      swatch.style.background = color;
+      value.textContent = text;
+      value.classList.toggle("is-long", text.length > 8);
+      pills.forEach((pill) => pill.classList.toggle("is-selected", pill.dataset.colorFormat === format));
+    }
+
     function show(next) {
       color = next.toUpperCase();
-      swatch.style.background = color;
-      value.textContent = color;
+      render();
     }
 
     pills.forEach((pill) => {
       pill.addEventListener("click", async () => {
-        const text = asFormat(pill.dataset.colorFormat);
+        format = pill.dataset.colorFormat;
+        const text = asFormat(format);
         holdWidget("color-picker", 20);
-        pills.forEach((other) => other.classList.toggle("is-copied", other === pill));
+        render();
+        pills.forEach((other) => other.classList.remove("is-copied"));
+        pill.classList.add("is-copied");
         window.setTimeout(() => pill.classList.remove("is-copied"), 900);
         try {
           await navigator.clipboard.writeText(text);
@@ -1987,6 +2200,7 @@
     initNewFileCard();
     initStickyNotes();
     initColorPicker();
+    initScreenshot();
     initFileTypeMenu();
     initAwakeToggle();
     initCompareRotation();

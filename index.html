@@ -126,6 +126,7 @@
             <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
               <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
             </svg>
+            <span class="strip-record" id="strip-record" hidden><i aria-hidden="true"></i>0:00</span>
             <span class="strip-timer" id="strip-timer" hidden>25:00</span>
           </button>
           <span class="strip-battery">94%</span>
@@ -278,10 +279,10 @@
                     <strong>Screenshot</strong>
                   </div>
                   <div class="mock-shot-grid">
-                    <button type="button">Full</button>
-                    <button type="button">Area</button>
-                    <button type="button">Window</button>
-                    <button type="button">Record</button>
+                    <button type="button" data-shot="full">Full</button>
+                    <button type="button" data-shot="area">Area</button>
+                    <button type="button" data-shot="window">Window</button>
+                    <button type="button" data-shot="record">Record</button>
                   </div>
                 </div>
 

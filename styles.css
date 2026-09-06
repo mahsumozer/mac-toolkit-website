@@ -480,6 +480,186 @@ body.show-mac-handoff .mac-handoff:focus-within {
   background: rgba(5, 5, 5, 0.06);
 }
 
+/* The screenshot the panel plays out on the hero: the shutter flash, the
+   thumbnail macOS parks in the corner, and the two pickers Area and Window
+   put up before they take anything. */
+.shot-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.shot-flash {
+  position: absolute;
+  inset: 0;
+  background: var(--white);
+  animation: shot-flash 0.34s var(--ease) both;
+}
+
+@keyframes shot-flash {
+  0% { opacity: 0; }
+  18% { opacity: 0.85; }
+  100% { opacity: 0; }
+}
+
+.shot-thumb {
+  position: absolute;
+  right: 22px;
+  /* Clear of the trial card that sits in the hero's bottom corner. */
+  bottom: 124px;
+  width: 168px;
+  padding: 6px;
+  background: var(--paper-2);
+  border: 1px solid rgba(5, 5, 5, 0.12);
+  border-radius: 10px;
+  box-shadow: 0 22px 46px -20px rgba(5, 5, 5, 0.45);
+  cursor: pointer;
+  pointer-events: auto;
+  animation: shot-thumb-in 0.42s var(--ease) both;
+}
+
+.shot-thumb.is-leaving {
+  animation: shot-thumb-out 0.3s var(--ease) both;
+}
+
+/* A miniature of the desktop behind it: the menu bar and the panel. */
+.shot-thumb-screen {
+  position: relative;
+  display: block;
+  height: 96px;
+  background: linear-gradient(160deg, #efece5, #e2ded4);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.shot-thumb-strip {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  left: 6px;
+  height: 8px;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 3px;
+}
+
+.shot-thumb-panel {
+  position: absolute;
+  right: 8px;
+  bottom: 10px;
+  width: 62px;
+  height: 60px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 5px;
+}
+
+.shot-thumb-size {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9.5px;
+  font-weight: 650;
+  text-align: center;
+}
+
+@keyframes shot-thumb-in {
+  from {
+    opacity: 0;
+    transform: translateX(40px) scale(0.94);
+  }
+}
+
+@keyframes shot-thumb-out {
+  to {
+    opacity: 0;
+    transform: translateX(30px) scale(0.96);
+  }
+}
+
+.shot-picker {
+  position: absolute;
+  inset: 0;
+  cursor: crosshair;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.shot-hint {
+  position: absolute;
+  top: 22px;
+  left: 50%;
+  padding: 6px 12px;
+  color: var(--white);
+  background: rgba(5, 5, 5, 0.78);
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 650;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+/* Everything outside the selection dims, as on a real screen capture. */
+.shot-marquee {
+  position: absolute;
+  border: 1px solid var(--accent);
+  box-shadow: 0 0 0 9999px rgba(5, 5, 5, 0.34);
+}
+
+.shot-marquee-size {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-top: 6px;
+  padding: 3px 7px;
+  color: var(--white);
+  background: rgba(5, 5, 5, 0.82);
+  border-radius: 5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  font-weight: 650;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+/* The window Window is about to take. */
+.hero-window.is-shot-target {
+  cursor: crosshair;
+  box-shadow: 0 0 0 3px rgba(245, 148, 29, 0.55), 0 50px 120px rgba(0, 0, 0, 0.32);
+}
+
+/* The status item while the app is capturing video. */
+.strip-record {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--white);
+  font-variant-numeric: tabular-nums;
+}
+
+.strip-record i {
+  width: 7px;
+  height: 7px;
+  background: #ff453a;
+  border-radius: 50%;
+  animation: strip-record-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes strip-record-pulse {
+  50% { opacity: 0.35; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shot-flash,
+  .shot-thumb,
+  .shot-thumb.is-leaving,
+  .strip-record i {
+    animation: none;
+  }
+}
+
 /* Sticky notes the panel drops onto the page, the way the app opens a note
    window on the desktop: they slide out of the panel, take a colour from the
    app's palette, and can be typed in, dragged and thrown away. */
@@ -1169,7 +1349,16 @@ body.show-mac-handoff .mac-handoff:focus-within {
   transition: background 0.2s var(--ease);
 }
 
+.mock-color-row strong.is-long {
+  font-size: 11.5px;
+  letter-spacing: 0;
+}
+
 .mock-color-row strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 16px;
   letter-spacing: 0.02em;
@@ -1202,6 +1391,12 @@ body.show-mac-handoff .mac-handoff:focus-within {
   color: var(--white);
   background: rgba(255, 255, 255, 0.14);
   border-color: rgba(255, 255, 255, 0.24);
+}
+
+.mock-color-pills button.is-selected {
+  color: var(--accent);
+  background: rgba(245, 148, 29, 0.14);
+  border-color: rgba(245, 148, 29, 0.4);
 }
 
 /* The format a click just put on the clipboard. */
