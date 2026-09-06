@@ -355,11 +355,6 @@
     }
 
     updateColorPreview();
-
-    setupAddMenu(
-      popover.querySelector("[data-compare-add]"),
-      popover.querySelector("[data-compare-add-menu]")
-    );
   }
 
   function setupAddMenu(toggle, menu) {
@@ -889,6 +884,84 @@
       .catch(() => {});
   }
 
+  // The compare panel mirrors the hero's rotating widgets. The pools are split
+  // by size — the left column only holds tall cards, the right only short ones
+  // — so the panel keeps its one-big-two-small shape no matter what is up.
+  // Every five seconds two of the three on screen are swapped out at random.
+  function initCompareRotation() {
+    const mock = document.querySelector("[data-compare-rotate]");
+    const menu = document.querySelector(".compare-menubar-kit");
+    if (!mock || !menu) return;
+
+    const columns = Array.from(mock.querySelectorAll(":scope > .mock-col"))
+      .map((col) => Array.from(col.querySelectorAll(".mock-card[data-widget]")))
+      .filter((cards) => cards.length > 1 && cards.some((card) => card.hidden));
+    if (!columns.length) return;
+
+    const INTERVAL = 5000;
+    const LEAVE_MS = 200;
+    const ENTER_MS = 400;
+    const SWAPS = 2;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const pick = (list) => list[Math.floor(Math.random() * list.length)];
+
+    // Card heights differ a lot (six clipboard rows vs one toggle), so the
+    // panel is held at the height of the layout it opens with instead of
+    // resizing under the cursor on every swap.
+    function lockHeight() {
+      mock.style.minHeight = "";
+      mock.style.minHeight = `${mock.offsetHeight}px`;
+    }
+    lockHeight();
+    let resizeTimer = null;
+    window.addEventListener("resize", () => {
+      window.clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(lockHeight, 200);
+    });
+
+    function swap(leaving, entering) {
+      const finish = () => {
+        leaving.classList.remove("is-leaving");
+        leaving.hidden = true;
+        entering.hidden = false;
+        if (reduceMotion.matches) return;
+        entering.classList.add("is-entering");
+        window.setTimeout(() => entering.classList.remove("is-entering"), ENTER_MS);
+      };
+
+      if (reduceMotion.matches) {
+        finish();
+        return;
+      }
+      leaving.classList.add("is-leaving");
+      window.setTimeout(finish, LEAVE_MS);
+    }
+
+    window.setInterval(() => {
+      if (document.hidden || !menu.classList.contains("is-open")) return;
+
+      const slots = [];
+      columns.forEach((cards) => {
+        cards.filter((card) => !card.hidden).forEach((card) => slots.push({ card, cards }));
+      });
+      for (let i = slots.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [slots[i], slots[j]] = [slots[j], slots[i]];
+      }
+
+      // Both swaps are decided before either one runs, so a card entering on
+      // the first cannot also be chosen for the second.
+      const claimed = new Set();
+      slots.slice(0, SWAPS).forEach(({ card, cards }) => {
+        const pool = cards.filter((option) => option.hidden && !claimed.has(option));
+        if (!pool.length) return;
+        const entering = pick(pool);
+        claimed.add(entering);
+        swap(card, entering);
+      });
+    }, INTERVAL);
+  }
+
   function formErrorMessage(code) {
     if (code === "invalid_email") return "Enter a valid email address.";
     if (code === "rate_limited") return "Too many requests. Try again in a few minutes.";
@@ -1413,6 +1486,7 @@
     initWidgetRotation();
     initFileTypeMenu();
     initAwakeToggle();
+    initCompareRotation();
     decorateCheckoutLinks();
     initDownloadButtons();
     initLatestDownload();

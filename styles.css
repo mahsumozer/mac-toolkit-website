@@ -2129,7 +2129,7 @@ body.show-mac-handoff .mac-handoff:focus-within {
 .compare-section {
   position: relative;
   scroll-margin-top: 88px;
-  padding: clamp(76px, 10vw, 150px) clamp(18px, 4vw, 48px);
+  padding: clamp(76px, 10vw, 150px) clamp(16px, 2.4vw, 32px);
   background: var(--paper-2);
 }
 
@@ -2137,7 +2137,19 @@ body.show-mac-handoff .mac-handoff:focus-within {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: stretch;
-  gap: clamp(20px, 3vw, 40px);
+  gap: clamp(14px, 1.8vw, 26px);
+}
+
+/* The tag sits above its box, so the grid item is the cell and the bordered
+   column is what stretches inside it. */
+.compare-cell {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.compare-cell > .compare-col {
+  flex: 1 1 auto;
 }
 
 .compare-col {
@@ -2157,7 +2169,7 @@ body.show-mac-handoff .mac-handoff:focus-within {
 }
 
 .compare-col-head {
-  margin-bottom: 24px;
+  margin-bottom: 14px;
 }
 
 .compare-col-head p {
@@ -2318,6 +2330,12 @@ body.show-mac-handoff .mac-handoff:focus-within {
   display: none;
 }
 
+/* The compare panel's search bar is decorative — the real one is the hero's.
+   Without this it still takes mouse focus and lights up its accent ring. */
+.compare-menu-popover .mock-search {
+  pointer-events: none;
+}
+
 .compare-menu-popover {
   position: absolute;
   top: calc(100% + 10px);
@@ -2345,12 +2363,36 @@ body.show-mac-handoff .mac-handoff:focus-within {
 }
 
 .compare-menu-popover .hero-window {
+  /* The base rule is a single-row grid, so the search bar sat flush on the
+     cards; the hero stacks with a gap and the popover does the same. */
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
   width: 100%;
   padding: 8px;
   background: rgba(34, 34, 31, 0.66);
   box-shadow:
     0 32px 70px -36px rgba(5, 5, 5, 0.7),
     0 12px 26px -20px rgba(5, 5, 5, 0.5);
+}
+
+/* Widget rotation inside the compare panel: the leaver shrinks away, the
+   newcomer pops in. */
+.compare-menu-popover .mock-card.is-leaving {
+  opacity: 0;
+  transform: scale(0.97);
+  transition: opacity 200ms var(--ease), transform 200ms var(--ease);
+}
+
+.compare-menu-popover .mock-card.is-entering {
+  animation: compare-card-in 400ms var(--ease);
+}
+
+@keyframes compare-card-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(6px);
+  }
 }
 
 .compare-menu-popover .app-mock {
@@ -2612,7 +2654,7 @@ body.show-mac-handoff .mac-handoff:focus-within {
 
 .compare-empty-space {
   flex: 1 1 auto;
-  min-height: clamp(190px, 24vw, 260px);
+  min-height: clamp(215px, 26vw, 292px);
 }
 
 .compare-merge {
