@@ -858,7 +858,7 @@
     // Docked, the mirror sits just under the menu bar — a hair below it, so its
     // rounded corners read.
     const place = () => {
-      frame.style.top = `${ceiling() + 8}px`;
+      frame.style.top = `${ceiling()}px`;
     };
 
     // Dragged: it keeps its own place on the page, inside the hero and never
