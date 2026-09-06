@@ -559,7 +559,8 @@
     }
 
     async function tick() {
-      if (busy || paused || searching || document.hidden) return;
+      // Nothing rotates while the panel is put away from the status item.
+      if (busy || paused || searching || document.hidden || surface.classList.contains("is-closed")) return;
       const pool = cards.filter((c) => c.hidden).sort(byOldest);
       const visible = cards.filter((c) => !c.hidden).sort(byOldest);
       if (!pool.length || !visible.length) return;
@@ -732,6 +733,21 @@
     lockHeight();
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(lockHeight);
     window.setInterval(tick, INTERVAL);
+  }
+
+  // The status item in the mock menu bar. The panel still opens on its own;
+  // the bolt puts it away and brings the very same panel back, so nothing in
+  // it is reset in between. The panel keeps its space while closed, so the
+  // trial card below it and the rest of the hero stay where they are.
+  function initPanelToggle() {
+    const bolt = document.getElementById("panel-toggle");
+    const panel = document.getElementById("hero-panel");
+    if (!bolt || !panel) return;
+
+    bolt.addEventListener("click", () => {
+      const open = !panel.classList.toggle("is-closed");
+      bolt.setAttribute("aria-expanded", String(open));
+    });
   }
 
   // The New File card's type field opens the app's template list. The list
@@ -1484,6 +1500,7 @@
     initClipboard();
     initAddMenu();
     initWidgetRotation();
+    initPanelToggle();
     initFileTypeMenu();
     initAwakeToggle();
     initCompareRotation();

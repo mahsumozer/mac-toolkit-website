@@ -122,11 +122,11 @@
           <span>Edit</span>
           <span>View</span>
           <span class="strip-spacer"></span>
-          <span class="bolt" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          <button class="bolt" id="panel-toggle" type="button" aria-controls="hero-panel" aria-expanded="true" aria-label="Mac Kit panel">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
               <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
             </svg>
-          </span>
+          </button>
           <span class="strip-battery">94%</span>
           <span id="menu-clock">10:42 AM</span>
         </div>
@@ -154,7 +154,7 @@
         </div>
 
         <div class="hero-product" aria-label="Mac Kit product preview">
-          <div class="hero-window">
+          <div class="hero-window" id="hero-panel">
             <!-- The app's panel search: the best-matching card moves up under
                  the bar while there is text, and goes back when it is cleared. -->
             <form class="mock-search" data-mock-search role="search" autocomplete="off">
