@@ -57,22 +57,40 @@
 /* The tabs switch the left column, so they sit on the same grid as the panel
    below and their rule stops where that column stops rather than running under
    the canvas. The second cell is left empty on purpose. */
+/* One pair of numbers, read by the row itself and by the canvas that climbs
+   back up through it. Split them and they drift. */
+.studio-main {
+  --tab-row: 44px;
+  --tab-gap: 12px;
+}
+
 .tabs {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 520px);
   gap: 26px;
-  margin-bottom: 12px;
+  margin-bottom: var(--tab-gap);
 }
 
 .tab-list {
   display: flex;
+  align-items: stretch;
   gap: 6px;
+  height: var(--tab-row);
   border-bottom: 1px solid var(--line);
 }
 
 @media (max-width: 1080px) {
   .tabs {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Nothing sits above the canvas in its own column, so it starts at the top of
+   the page rather than below a row of tabs that belong to the other column.
+   Only in two columns — stacked, the tabs are genuinely above it. */
+@media (min-width: 1081px) {
+  .studio-preview {
+    margin-top: calc((var(--tab-row) + var(--tab-gap)) * -1);
   }
 }
 
@@ -1757,4 +1775,33 @@ kbd {
   background: #fff;
   color: #050505;
   border-color: #fff;
+}
+
+/* --------------------------------------------------- timeline multi-select */
+
+.tl-check {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* The header tick sits in the ruler-height spacer above the first label, so it
+   lines up with the column it governs. */
+.tl-gutter-spacer {
+  display: flex;
+  align-items: center;
+  padding: 0 9px;
+}
+
+.tl-label.is-checked {
+  background: rgba(245, 148, 29, 0.1);
+}
+
+/* The label became a div once it held a checkbox — a button cannot contain one
+   — so it has to say it is clickable itself. */
+.tl-label {
+  user-select: none;
 }
