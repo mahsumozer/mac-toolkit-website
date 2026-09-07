@@ -121,6 +121,20 @@
   scroll-margin-top: 79px;
 }
 
+/* One step at a time, once the rail has been used to pick one. */
+.tab-panel.is-solo .block {
+  display: none;
+}
+
+.tab-panel.is-solo .block.is-solo-target {
+  display: block;
+}
+
+.step-rail-all {
+  margin-bottom: 6px;
+  font-weight: 650;
+}
+
 @media (max-width: 1240px) {
   .step-rail {
     display: none;

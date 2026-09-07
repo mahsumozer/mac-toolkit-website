@@ -2255,8 +2255,12 @@ function fillSelect(select, items, { value, label, empty }) {
 }
 
 // The rail is built from whatever blocks the open tab actually has, so it can
-// never list a step that is not there. Clicking one opens that block and scrolls
-// to it; the others are left exactly as they were.
+// never list a step that is not there.
+//
+// Picking a step shows that step and only that step. Six blocks stacked in one
+// column means the one you are working in is surrounded by five you are not,
+// and the page is three screens tall for no reason. "All steps" puts the stack
+// back, and is where every tab starts.
 function renderStepRail() {
   const rail = $("#step-rail");
   if (!rail) return;
@@ -2264,16 +2268,38 @@ function renderStepRail() {
   const panel = document.querySelector(".tab-panel.is-active");
   if (!panel) return;
 
-  for (const block of panel.querySelectorAll("details.block")) {
+  const blocks = [...panel.querySelectorAll("details.block")];
+  if (!blocks.length) return;
+
+  const mark = (button) => {
+    for (const other of rail.children) other.classList.toggle("is-active", other === button);
+  };
+
+  const all = document.createElement("button");
+  all.type = "button";
+  all.className = "step-rail-item step-rail-all is-active";
+  all.textContent = "All steps";
+  all.addEventListener("click", () => {
+    panel.classList.remove("is-solo");
+    for (const block of blocks) block.classList.remove("is-solo-target");
+    mark(all);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+  rail.appendChild(all);
+
+  for (const block of blocks) {
     const summary = block.querySelector("summary");
     const button = document.createElement("button");
     button.type = "button";
     button.className = "step-rail-item";
     button.textContent = (summary ? summary.textContent : "Step").trim();
     button.addEventListener("click", () => {
+      panel.classList.add("is-solo");
+      for (const other of blocks) other.classList.toggle("is-solo-target", other === block);
+      // A step arrived at on purpose should not also be collapsed.
       block.open = true;
-      block.scrollIntoView({ behavior: "smooth", block: "start" });
-      for (const other of rail.children) other.classList.toggle("is-active", other === button);
+      mark(button);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     });
     rail.appendChild(button);
   }
