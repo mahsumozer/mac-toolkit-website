@@ -54,11 +54,26 @@
 
 /* -------------------------------------------------------------------- tabs */
 
+/* The tabs switch the left column, so they sit on the same grid as the panel
+   below and their rule stops where that column stops rather than running under
+   the canvas. The second cell is left empty on purpose. */
 .tabs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 520px);
+  gap: 26px;
+  margin-bottom: 12px;
+}
+
+.tab-list {
   display: flex;
   gap: 6px;
   border-bottom: 1px solid var(--line);
-  margin-bottom: 12px;
+}
+
+@media (max-width: 1080px) {
+  .tabs {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .tab {
@@ -498,6 +513,35 @@
    reaches the layer beneath it. */
 .preview-head > * {
   pointer-events: auto;
+}
+
+/* The buttons were drawn for the page's paper background and are now on black,
+   where a ghost button all but disappears. */
+.preview-head .button-ghost {
+  color: rgba(255, 255, 255, 0.85);
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.preview-head .button-ghost:hover:not(:disabled) {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.preview-head .button-ghost:disabled {
+  color: rgba(255, 255, 255, 0.38);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.preview-head .button-dark {
+  background: #fff;
+  color: #050505;
+  border-color: #fff;
+}
+
+.preview-head .button-dark:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.88);
 }
 
 .canvas-wrap {
@@ -1704,4 +1748,13 @@ kbd {
 /* The studio is a workbench, not a document: it wants the top of the window. */
 .studio-main {
   padding-top: 16px;
+}
+
+/* `.button.is-current` paints the active toggle with the page's ink, which on
+   the dark canvas overlay is nearly invisible. Inverted here, and last in the
+   file so it wins on order. */
+.preview-head .button.is-current {
+  background: #fff;
+  color: #050505;
+  border-color: #fff;
 }
