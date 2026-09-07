@@ -215,6 +215,13 @@ svg {
   background: currentColor;
 }
 
+/* The lower line is shorter but ends where the upper one does: the negative
+   margin shifts its centred box right by the half it lost. */
+.menu-button span:last-child {
+  width: 11px;
+  margin-right: -5px;
+}
+
 .hero {
   position: relative;
   min-height: 100svh;
@@ -4982,6 +4989,39 @@ body.show-mac-handoff .mac-handoff:focus-within {
   /* Clear of the mock menu bar and the panel, which fill the top of a phone. */
   .clean-veil {
     padding-top: min(58vh, 540px);
+  }
+
+  /* The corner button already offers the visitor the link, so the hero does not
+     carry the same form a second time. */
+  body.show-mac-handoff .mac-handoff {
+    display: none;
+  }
+
+  /* A phone cannot run the app, so the hero's download card has nothing to
+     offer there; the handoff button in the corner covers that visitor. */
+  /* Outranks the card's own rule, which is declared later in the sheet. */
+  .hero-product .hero-trial {
+    display: none;
+  }
+
+  /* On a phone the buy card is the whole column, so it sits in the middle of it
+     rather than pushed to the right edge the wide layout puts it against. */
+  .download-section .pricing-plans {
+    justify-self: center;
+    margin-right: 0;
+  }
+
+  /* The buy card is a grid item: without these its track inflates to the card's
+     min-content and the card hangs off the side of a phone. */
+  .pricing-plans,
+  .pricing-plans-single {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pricing-card,
+  .pricing-note {
+    min-width: 0;
+    max-width: 100%;
   }
 
   /* The corner already carries the handoff button on a phone, so the messages
