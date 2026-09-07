@@ -10,6 +10,10 @@
     "video:launch": "node marketing-video/render.mjs",
     "video:new": "node new-videos/render-all.mjs",
     "video:new:stills": "node new-videos/render-all.mjs --stills",
-    "video:new:verify": "node new-videos/verify.mjs"
+    "video:new:verify": "node new-videos/verify.mjs",
+    "studio": "node social/studio-server.mjs"
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "^0.124.0"
   }
 }
