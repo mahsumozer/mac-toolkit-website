@@ -180,6 +180,11 @@ const drawPreview = debounce(async () => {
 // "2. 1. Hunting for cop…", which tells you nothing, while the background is
 // what you actually recognise a slide by. The headline moves to the tooltip.
 function renderSlideStrip() {
+  // Keep and Cut on an empty deck are two buttons that do nothing, which is a
+  // lesson in not trusting the rest of the page.
+  const blitz = document.querySelector(".blitz");
+  if (blitz) blitz.hidden = !state.image.slides.length;
+
   const strip = $("#slide-strip");
   strip.innerHTML = "";
   state.image.slides.forEach((slide, i) => {
@@ -2002,6 +2007,9 @@ async function loadOutput() {
         video.src = fileUrl(item);
         video.controls = true;
         video.preload = "metadata";
+        // Without a poster the card is a black rectangle until it is played.
+        // The server already thumbnails every video it lists.
+        if (item.poster) video.poster = `${API}${item.poster}`;
         media.appendChild(video);
         const expand = document.createElement("button");
         expand.type = "button";
@@ -2153,9 +2161,31 @@ function wireDropZone(zone, input, dir, done) {
 const PROVIDER_LABELS = { deepseek: "DeepSeek", anthropic: "Claude", none: "AI" };
 const writerLabel = () => `Write with ${PROVIDER_LABELS[state.library.copyProvider] || "AI"}`;
 
+// With no model key the writer returns 428, so the button that cannot work
+// stops looking like the one you are meant to press: the templates take the
+// dark weight and the writer says what it is waiting for.
+function syncWriterButtons() {
+  const ready = state.library.copyProvider && state.library.copyProvider !== "none";
+  for (const [writer, templates] of [
+    ["#img-generate", "#img-offline"],
+    ["#vid-generate", "#vid-offline"],
+  ]) {
+    const write = $(writer);
+    const offline = $(templates);
+    if (!write || !offline) continue;
+    write.textContent = ready ? writerLabel() : "Write with AI";
+    write.disabled = !ready;
+    write.title = ready ? "" : "Add deepseekApiKey or anthropicApiKey to social/studio.config.json";
+    write.classList.toggle("button-dark", ready);
+    write.classList.toggle("button-ghost", !ready);
+    offline.classList.toggle("button-dark", !ready);
+    offline.classList.toggle("button-ghost", ready);
+  }
+}
+
 async function loadLibrary() {
   state.library = await api("/library");
-  for (const sel of ["#img-generate", "#vid-generate"]) $(sel).textContent = writerLabel();
+  syncWriterButtons();
   fillSelect($("#vid-music"), state.library.music, { value: (i) => i.path, label: (i) => i.name, empty: "None" });
   renderClipGrid("#vid-app-grid", state.library.appClips);
   renderClipGrid("#vid-bg-grid", state.library.videos);
@@ -2254,6 +2284,11 @@ function wireImageTab() {
     if (state.image.index < state.image.slides.length - 1) selectSlide(state.image.index + 1);
     else drawPreview();
   };
+  // The empty stage is the first thing anyone sees, so it carries the action
+  // rather than describing it.
+  const start = $("#preview-start");
+  if (start) start.addEventListener("click", () => $("#img-offline").click());
+
   $("#blitz-keep").addEventListener("click", () => setKeep(true));
   $("#blitz-cut").addEventListener("click", () => setKeep(false));
 

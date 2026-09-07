@@ -1186,6 +1186,9 @@ async function listOut() {
           name,
           at: stat.mtimeMs,
           url: videos[0].url,
+          // listDir() thumbnails every video it returns; carrying the poster
+          // through is what stops the Output tab being a wall of black cards.
+          poster: videos[0].poster,
           path: videos[0].path,
           size: videos[0].size,
           dir: abs,
@@ -1196,7 +1199,16 @@ async function listOut() {
       items.push({ kind: "image", name, at: stat.mtimeMs, post: await read("post.json"), images: await listDir(abs, IMAGE_EXT), dir: abs });
     } else if (VIDEO_EXT.has(extname(name).toLowerCase())) {
       // Renders from before projects existed are still flat files.
-      items.push({ kind: "video", name, at: stat.mtimeMs, url: `/file?p=${encodeURIComponent(abs)}`, path: abs, size: stat.size, project: null });
+      items.push({
+        kind: "video",
+        name,
+        at: stat.mtimeMs,
+        url: `/file?p=${encodeURIComponent(abs)}`,
+        poster: `/thumb?p=${encodeURIComponent(abs)}`,
+        path: abs,
+        size: stat.size,
+        project: null,
+      });
     }
   }
   return items.sort((a, b) => b.at - a.at);

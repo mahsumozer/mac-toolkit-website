@@ -96,7 +96,7 @@
 
 .studio-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 440px);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 520px);
   gap: 26px;
   align-items: start;
 }
@@ -1349,13 +1349,34 @@ kbd {
   inset: 0;
   margin: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  pointer-events: none;
-  color: rgba(255, 255, 255, 0.4);
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.42);
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.02em;
+  text-align: center;
+  padding: 0 24px;
+}
+
+/* The stage is decoration except for the one button in the middle of it. */
+.stage-empty p,
+.stage-empty span {
+  margin: 0;
+  pointer-events: none;
+}
+
+.stage-empty p {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 15px;
+}
+
+.stage-empty span {
+  font-weight: 500;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.34);
 }
 
 /* An audio track reads as a different kind of thing from a picture layer. */
@@ -1563,4 +1584,33 @@ kbd {
 .clip-grid-photos .clip-expand {
   top: auto;
   bottom: 5px;
+}
+
+
+/* An empty timeline still occupies the foot of the window on every step, so it
+   folds down to its own message until there is something to lay out. */
+.timeline:has(.tl-empty) {
+  padding: 9px 14px 10px;
+  gap: 6px;
+}
+
+.timeline:has(.tl-empty) .tl-ruler,
+.timeline:has(.tl-empty) .tl-gutter-scroll {
+  display: none;
+}
+
+/* With the gutter gone the body still holds its 168px first column, which
+   squeezes the message into a sliver. Empty, it is one column. */
+.timeline:has(.tl-empty) .timeline-body {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.timeline:has(.tl-empty) .tl-empty {
+  padding: 2px 0;
+}
+
+/* A playhead over an empty timeline marks a position in nothing, and it lands
+   on the first letter of the message. */
+.timeline:has(.tl-empty) .tl-playhead {
+  display: none;
 }
