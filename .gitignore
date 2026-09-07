@@ -33,6 +33,7 @@ new-videos/*
 /social/*
 !/social/STUDIO.md
 !/social/studio.html
+!/social/hub.mjs
 !/social/studio.js
 !/social/studio.css
 !/social/studio-server.mjs
