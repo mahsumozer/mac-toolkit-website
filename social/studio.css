@@ -1529,3 +1529,38 @@ kbd {
   color: #fff;
   background: rgba(0, 0, 0, 0.55);
 }
+
+/* Removing something from a media shelf. Dim until the card is hovered, red on
+   its own hover — the same grammar as the output bin. */
+.clip-remove {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  z-index: 2;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  font-size: 12px;
+  line-height: 1;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transition: opacity 0.16s var(--ease), background 0.16s var(--ease);
+}
+
+.clip-card:hover .clip-remove,
+.clip-remove:focus-visible {
+  opacity: 1;
+}
+
+.clip-remove:hover {
+  background: var(--bad);
+}
+
+/* The enlarge button steps aside for it, the same way it did on output cards. */
+.clip-grid-photos .clip-expand {
+  top: auto;
+  bottom: 5px;
+}

@@ -740,7 +740,13 @@ function renderClipGrid(gridSel, items) {
 // no path on this machine, and ffmpeg needs one at render.
 function renderPhotoGrid() {
   const grid = $("#vid-photo-grid");
-  const items = [...state.library.photos, ...state.library.appShots];
+  // Two sources behind one shelf: the user's own drops, and the repo's real
+  // marketing screenshots. Deleting the second kind costs the repo an asset, so
+  // the confirm has to say which is which.
+  const items = [
+    ...state.library.photos.map((item) => ({ ...item, from: "studio/library/photos", mine: true })),
+    ...state.library.appShots.map((item) => ({ ...item, from: "social-media-video (repo asset)", mine: false })),
+  ];
   grid.innerHTML = "";
   $("#vid-photo-hint").textContent = items.length
     ? "Click a still to drop it on the canvas as its own layer."
@@ -772,6 +778,18 @@ function renderPhotoGrid() {
     });
     media.appendChild(expand);
 
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "clip-remove";
+    remove.title = `Move ${item.name} to the Trash`;
+    remove.setAttribute("aria-label", `Delete ${item.name}`);
+    remove.textContent = "✕";
+    remove.addEventListener("click", (event) => {
+      event.stopPropagation();
+      trashStill(item);
+    });
+    media.appendChild(remove);
+
     const name = document.createElement("span");
     name.className = "clip-name";
     name.textContent = item.name;
@@ -801,6 +819,30 @@ function stillWindow() {
   const end = Number((start + hold).toFixed(2));
   if (end > editor.comp.duration) setCompDuration(end + 0.2);
   return { start, end };
+}
+
+// Goes to the Trash rather than being unlinked: half this shelf is the repo's
+// own marketing screenshots, and a mis-click there should be undoable.
+async function trashStill(item) {
+  const where = item.mine ? "your library" : "the repo's marketing screenshots";
+  if (
+    !window.confirm(
+      `Move ${item.name} to the Trash?\n\nIt comes from ${item.from} — ${where}.\nYou can put it back from the Trash if this was a mistake.`,
+    )
+  )
+    return;
+  try {
+    await api("/library/trash", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ path: item.path }),
+    });
+    await loadLibrary();
+    renderPhotoGrid();
+    toast(`${item.name} moved to the Trash`);
+  } catch (error) {
+    toast(`Could not delete: ${error.message}`);
+  }
 }
 
 function addImageLayer(item, at) {

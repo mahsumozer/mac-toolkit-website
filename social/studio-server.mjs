@@ -1202,6 +1202,40 @@ async function listOut() {
   return items.sort((a, b) => b.at - a.at);
 }
 
+// Deleted, but recoverable. This shelf mixes the user's own drops with the
+// repo's real marketing screenshots (social-media-video/shot-*.png), and an
+// unlink there would quietly cost the repo an asset. Finder's own delete is
+// tried first because only that records an original path for Put Back; a plain
+// move into ~/.Trash is the fallback when Finder automation is not permitted.
+async function moveToTrash(abs) {
+  try {
+    await run("osascript", ["-e", `tell application "Finder" to delete POSIX file ${JSON.stringify(abs)}`]);
+    return { method: "finder", name: basename(abs) };
+  } catch {}
+
+  const trash = join(process.env.HOME || "", ".Trash");
+  let target = join(trash, basename(abs));
+  const ext = extname(abs);
+  const stem = basename(abs, ext);
+  for (let n = 2; n < 500; n++) {
+    try {
+      await fs.access(target);
+      target = join(trash, `${stem} ${n}${ext}`);
+    } catch {
+      break;
+    }
+  }
+  try {
+    await fs.rename(abs, target);
+  } catch (error) {
+    // ~/.Trash on another volume: rename cannot cross devices.
+    if (error.code !== "EXDEV") throw error;
+    await fs.copyFile(abs, target);
+    await fs.unlink(abs);
+  }
+  return { method: "moved", name: basename(target) };
+}
+
 /* ------------------------------------------------------------ file serving */
 
 function serveFile(req, res, path) {
@@ -1381,6 +1415,15 @@ async function route(req, res, url) {
     // A flat render from before projects existed keeps its caption beside it.
     if (stat.isFile()) await fs.rm(abs.replace(/\.\w+$/, ".txt"), { force: true });
     return json(res, 200, { ok: true, deleted: basename(abs) });
+  }
+
+  if (path === "/library/trash" && req.method === "POST") {
+    const { path: target } = await readJson(req);
+    const abs = resolve(target || "");
+    if (!underRoot(abs)) return json(res, 403, { error: "path outside the media library" });
+    const stat = await fs.stat(abs).catch(() => null);
+    if (!stat || !stat.isFile()) return json(res, 404, { error: "not a file" });
+    return json(res, 200, { ok: true, ...(await moveToTrash(abs)) });
   }
 
   if (path === "/reveal" && req.method === "POST") {
