@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Mac Kit · Content Studio</title>
+    <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="social.css" />
+    <link rel="stylesheet" href="studio.css" />
+  </head>
+  <body class="hub-body">
+    <div class="toast-region" id="toast-region" aria-live="polite"></div>
+
+    <header class="hub-header">
+      <a class="brand" href="../index.html">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+        </span>
+        <span>Mac Kit</span>
+      </a>
+      <span class="hub-title">Content Studio</span>
+      <nav class="hub-nav">
+        <a class="hub-nav-link" href="index.html">Queue</a>
+        <a class="hub-nav-link is-current" href="studio.html">Studio</a>
+      </nav>
+      <span class="server-pill" id="server-pill" data-state="checking">Checking server…</span>
+    </header>
+
+    <main class="hub-main studio-main">
+      <div class="tabs" role="tablist">
+        <button class="tab is-active" data-tab="image" role="tab" type="button">Image post</button>
+        <button class="tab" data-tab="video" role="tab" type="button">Video post</button>
+        <button class="tab" data-tab="output" role="tab" type="button">Output</button>
+      </div>
+
+      <!-- ============================================================ image -->
+      <section class="tab-panel is-active" data-panel="image">
+        <div class="studio-grid">
+          <div class="studio-controls">
+            <details class="block" open>
+              <summary>1 · Brief</summary>
+              <div class="block-body">
+                <label class="field">
+                  <span>Format</span>
+                  <select id="img-format"></select>
+                </label>
+                <p class="field-hint" id="img-format-brief"></p>
+                <label class="field">
+                  <span>Audience</span>
+                  <select id="img-persona"><option value="">Any Mac user</option></select>
+                </label>
+                <label class="field">
+                  <span>Topic <em>(optional)</em></span>
+                  <input id="img-topic" type="text" placeholder="e.g. converting files without uploading them" />
+                </label>
+                <div class="field-row">
+                  <label class="field">
+                    <span>Slides</span>
+                    <input id="img-count" type="number" min="3" max="12" value="6" />
+                  </label>
+                  <label class="field">
+                    <span>Tone note <em>(optional)</em></span>
+                    <input id="img-tone" type="text" placeholder="dry, first person" />
+                  </label>
+                </div>
+                <div class="btn-row">
+                  <button class="button button-dark button-small" id="img-generate" type="button">Write with AI</button>
+                  <button class="button button-ghost button-small" id="img-offline" type="button">Use templates</button>
+                </div>
+              </div>
+            </details>
+
+            <details class="block" open>
+              <summary>2 · Slides</summary>
+              <div class="block-body">
+                <ol class="slide-strip" id="slide-strip"></ol>
+                <div class="btn-row">
+                  <button class="button button-ghost button-small" id="slide-add" type="button">Add slide</button>
+                  <button class="button button-ghost button-small" id="slide-remove" type="button">Remove</button>
+                  <button class="button button-ghost button-small" id="slide-up" type="button">←</button>
+                  <button class="button button-ghost button-small" id="slide-down" type="button">→</button>
+                </div>
+                <label class="field">
+                  <span>Headline</span>
+                  <textarea id="slide-headline" rows="2"></textarea>
+                </label>
+                <label class="field">
+                  <span>Body</span>
+                  <textarea id="slide-body" rows="3"></textarea>
+                </label>
+                <label class="field">
+                  <span>Text position <output id="slide-texty-out"></output></span>
+                  <input id="slide-texty" type="range" min="0.15" max="0.85" step="0.01" value="0.5" />
+                </label>
+              </div>
+            </details>
+
+            <details class="block" open>
+              <summary>3 · Background</summary>
+              <div class="block-body">
+                <div class="seg" id="bg-source">
+                  <button class="seg-btn is-active" data-src="library" type="button">Library</button>
+                  <button class="seg-btn" data-src="stock" type="button">Stock</button>
+                  <button class="seg-btn" data-src="shots" type="button">App shots</button>
+                  <button class="seg-btn" data-src="none" type="button">None</button>
+                </div>
+                <div class="field-row" id="stock-search-row" hidden>
+                  <label class="field field-grow">
+                    <span>Search</span>
+                    <input id="stock-query" type="text" placeholder="desk laptop coffee" />
+                  </label>
+                  <label class="field">
+                    <span>Source</span>
+                    <select id="stock-provider">
+                      <option value="">Auto</option>
+                      <option value="pexels">Pexels</option>
+                      <option value="commons">Wikimedia</option>
+                      <option value="openverse">Openverse</option>
+                    </select>
+                  </label>
+                  <button class="button button-dark button-small" id="stock-go" type="button">Find</button>
+                </div>
+                <p class="field-hint" id="bg-hint"></p>
+                <div class="thumb-grid" id="bg-grid"></div>
+                <label class="drop-zone" id="photo-drop">
+                  <input type="file" id="photo-input" accept="image/*" multiple hidden />
+                  <span>Drop photos here to add them to the library</span>
+                </label>
+              </div>
+            </details>
+
+            <details class="block">
+              <summary>4 · Look</summary>
+              <div class="block-body">
+                <div class="field-row">
+                  <label class="field">
+                    <span>Canvas</span>
+                    <select id="look-size"></select>
+                  </label>
+                  <label class="field">
+                    <span>Text style</span>
+                    <select id="look-style"></select>
+                  </label>
+                </div>
+                <div class="field-row">
+                  <label class="field">
+                    <span>Headline size <output id="look-hsize-out"></output></span>
+                    <input id="look-hsize" type="range" min="44" max="110" step="2" value="72" />
+                  </label>
+                  <label class="field">
+                    <span>Body size <output id="look-bsize-out"></output></span>
+                    <input id="look-bsize" type="range" min="36" max="96" step="2" value="62" />
+                  </label>
+                </div>
+                <div class="field-row">
+                  <label class="field">
+                    <span>Darken <output id="look-scrim-out"></output></span>
+                    <input id="look-scrim" type="range" min="0" max="0.7" step="0.02" value="0.18" />
+                  </label>
+                  <label class="field">
+                    <span>Handle <em>(optional)</em></span>
+                    <input id="look-handle" type="text" placeholder="usemackit.com" />
+                  </label>
+                </div>
+                <label class="check"><input type="checkbox" id="look-apply-all" checked /> Apply look to every slide</label>
+              </div>
+            </details>
+
+            <details class="block" open>
+              <summary>5 · Caption &amp; export</summary>
+              <div class="block-body">
+                <label class="field">
+                  <span>Caption</span>
+                  <textarea id="img-caption" rows="3"></textarea>
+                </label>
+                <label class="field">
+                  <span>Hashtags</span>
+                  <input id="img-hashtags" type="text" placeholder="macos macapps productivity" />
+                </label>
+                <div class="btn-row">
+                  <button class="button button-accent button-small" id="img-export" type="button">Export post</button>
+                  <button class="button button-ghost button-small" id="img-download" type="button">Download current slide</button>
+                </div>
+                <p class="field-hint" id="img-export-note"></p>
+              </div>
+            </details>
+          </div>
+
+          <div class="studio-preview">
+            <div class="preview-head">
+              <span id="preview-label">Slide 1</span>
+              <div class="btn-row">
+                <button class="button button-ghost button-small" id="preview-prev" type="button">←</button>
+                <button class="button button-ghost button-small" id="preview-next" type="button">→</button>
+              </div>
+            </div>
+            <div class="canvas-wrap">
+              <canvas id="preview-canvas"></canvas>
+              <p class="stage-empty" id="preview-empty">Write the slides, or add one by hand</p>
+            </div>
+            <div class="blitz">
+              <span class="blitz-title">Blitz review</span>
+              <p>Keep or cut each slide, then export what survived. <kbd>J</kbd> keep · <kbd>K</kbd> cut · <kbd>←</kbd> <kbd>→</kbd> move.</p>
+              <div class="btn-row">
+                <button class="button button-dark button-small" id="blitz-keep" type="button">Keep</button>
+                <button class="button button-ghost button-small" id="blitz-cut" type="button">Cut</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ video -->
+      <section class="tab-panel" data-panel="video">
+        <div class="studio-grid">
+          <div class="studio-controls">
+            <details class="block" open>
+              <summary>1 · Find footage</summary>
+              <div class="block-body">
+                <label class="field">
+                  <span>What is the video about?</span>
+                  <input id="foot-prompt" type="text" placeholder="clipboard history — needs something hypnotic behind it" />
+                </label>
+                <div class="btn-row">
+                  <button class="button button-dark button-small" id="foot-suggest" type="button">Suggest searches</button>
+                </div>
+                <div class="chip-row" id="foot-queries"></div>
+                <div class="field-row">
+                  <label class="field field-grow">
+                    <span>Search</span>
+                    <input id="foot-query" type="text" placeholder="subway surfers gameplay no copyright vertical" />
+                  </label>
+                  <label class="field">
+                    <span>Source</span>
+                    <select id="foot-source">
+                      <option value="youtube">YouTube</option>
+                      <option value="pexels">Pexels stock</option>
+                    </select>
+                  </label>
+                  <button class="button button-dark button-small" id="foot-go" type="button">Find</button>
+                </div>
+                <div class="field-row">
+                  <label class="field">
+                    <span>Grab from</span>
+                    <input id="foot-from" type="text" value="01:00" placeholder="mm:ss" />
+                  </label>
+                  <label class="field">
+                    <span>Seconds</span>
+                    <input id="foot-len" type="number" min="5" max="600" step="5" value="35" />
+                  </label>
+                </div>
+                <p class="field-hint">Downloads just that slice — a 30-minute gameplay video is not worth keeping whole.</p>
+                <p class="field-hint" id="foot-hint">
+                  YouTube results are ranked by view count. Clips you download land in
+                  <code>studio/library/videos/</code>, are logged in <code>sources.json</code>, and become pickable below.
+                </p>
+                <div class="foot-grid" id="foot-grid"></div>
+                <div class="progress" id="foot-progress" hidden>
+                  <div class="progress-bar"><span id="foot-progress-fill"></span></div>
+                  <p class="field-hint" id="foot-progress-note"></p>
+                </div>
+              </div>
+            </details>
+
+            <details class="block" open>
+              <summary>2 · Clips</summary>
+              <div class="block-body">
+                <p class="field-hint">
+                  Drag anything here onto the canvas. The first clip fills the frame; the
+                  rest land where you let go. Clicking drops it in the middle.
+                </p>
+                <div class="field">
+                  <span>App recordings</span>
+                  <div class="clip-grid" id="vid-app-grid"></div>
+                </div>
+                <div class="field">
+                  <span>Background clips</span>
+                  <div class="clip-grid" id="vid-bg-grid"></div>
+                </div>
+                <div class="field">
+                  <span>Images &amp; screenshots</span>
+                  <div class="clip-grid clip-grid-photos" id="vid-photo-grid"></div>
+                  <div class="field-row">
+                    <label class="field">
+                      <span>Hold for <output id="vid-still-out">3s</output></span>
+                      <input id="vid-still" type="range" min="0.5" max="20" step="0.5" value="3" />
+                    </label>
+                  </div>
+                  <p class="field-hint" id="vid-photo-hint">
+                    Drag a still onto the canvas, or click it. It lands at the playhead and holds
+                    for that long — drag its bar afterwards to move or stretch it.
+                  </p>
+                </div>
+                <div class="field">
+                  <span>GIFs &amp; stickers</span>
+                  <div class="field-row">
+                    <label class="field field-grow">
+                      <span>Search Giphy</span>
+                      <input id="gif-query" type="text" placeholder="shocked, thinking, explosion" />
+                    </label>
+                    <label class="field">
+                      <span>Kind</span>
+                      <select id="gif-kind">
+                        <option value="stickers">Stickers (transparent)</option>
+                        <option value="gifs">GIFs (with background)</option>
+                      </select>
+                    </label>
+                    <button class="button button-dark button-small" id="gif-go" type="button">Find</button>
+                  </div>
+                  <p class="field-hint" id="gif-hint"></p>
+                  <div class="clip-grid clip-grid-gifs" id="gif-results"></div>
+                  <p class="field-hint">Saved GIFs — drag one onto the canvas:</p>
+                  <div class="clip-grid clip-grid-gifs" id="gif-library"></div>
+                  <div class="progress" id="gif-progress" hidden>
+                    <div class="progress-bar"><span id="gif-progress-fill"></span></div>
+                    <p class="field-hint" id="gif-progress-note"></p>
+                  </div>
+                </div>
+                <label class="drop-zone" id="video-drop">
+                  <input type="file" id="video-input" accept="video/*,audio/*,image/*" multiple hidden />
+                  <span>Drop clips, images or music here</span>
+                </label>
+              </div>
+            </details>
+
+            <details class="block" open>
+              <summary>3 · Script</summary>
+              <div class="block-body">
+                <label class="field">
+                  <span>Script format</span>
+                  <select id="vid-format"></select>
+                </label>
+                <p class="field-hint" id="vid-format-brief"></p>
+                <label class="field">
+                  <span>Topic <em>(optional)</em></span>
+                  <input id="vid-topic" type="text" placeholder="e.g. clipboard history" />
+                </label>
+                <div class="btn-row">
+                  <button class="button button-dark button-small" id="vid-generate" type="button">Write with AI</button>
+                  <button class="button button-ghost button-small" id="vid-offline" type="button">Use templates</button>
+                </div>
+                <label class="field">
+                  <span>Hook <em>(first 2.4 seconds)</em></span>
+                  <input id="vid-hook" type="text" />
+                </label>
+                <label class="field">
+                  <span>Caption lines <em>(one per line)</em></span>
+                  <textarea id="vid-lines" rows="7"></textarea>
+                </label>
+                <div class="btn-row">
+                  <button class="button button-dark button-small" id="vid-captions" type="button">Put captions on canvas</button>
+                  <button class="button button-dark button-small" id="vid-voiceover" type="button">Speak the script</button>
+                </div>
+                <p class="field-hint">
+                  The read lands on the timeline at the playhead as its own track — trim its
+                  edges, drag it, mute it. The voice comes from Captions &amp; audio below.
+                </p>
+                <div class="progress" id="vid-vo-progress" hidden>
+                  <div class="progress-bar"><span></span></div>
+                  <p class="field-hint" id="vid-vo-note"></p>
+                </div>
+              </div>
+            </details>
+
+            <details class="block" open>
+              <summary>4 · Canvas</summary>
+              <div class="block-body">
+                <ul class="layer-list" id="layer-list"></ul>
+                <div class="btn-row">
+                  <button class="button button-ghost button-small" id="layer-add-text" type="button">Add text</button>
+                  <button class="button button-ghost button-small" id="layer-up" type="button">Bring forward</button>
+                  <button class="button button-ghost button-small" id="layer-down" type="button">Send back</button>
+                  <button class="button button-ghost button-small" id="layer-delete" type="button">Delete</button>
+                </div>
+                <p class="field-hint" id="layer-empty">Nothing selected. Click a layer on the canvas, or a row in the list above, to change its size and position.</p>
+                <div id="layer-inspector" hidden>
+                  <div class="btn-row">
+                    <button class="button button-ghost button-small" id="insp-fill" type="button">Fill frame</button>
+                    <button class="button button-ghost button-small" id="insp-center" type="button">Centre</button>
+                    <button class="button button-ghost button-small" id="insp-half-top" type="button">Top half</button>
+                    <button class="button button-ghost button-small" id="insp-half-bottom" type="button">Bottom half</button>
+                  </div>
+                  <label class="field" id="insp-text-field">
+                    <span>Text</span>
+                    <textarea id="insp-text" rows="2"></textarea>
+                  </label>
+                  <div class="field-row" id="insp-text-style">
+                    <label class="field">
+                      <span>Style</span>
+                      <select id="insp-style"></select>
+                    </label>
+                    <label class="field">
+                      <span>Size <output id="insp-fontsize-out"></output></span>
+                      <input id="insp-fontsize" type="range" min="24" max="140" step="2" />
+                    </label>
+                  </div>
+                  <div class="field-row">
+                    <label class="field"><span>X</span><input id="insp-x" type="number" step="1" /></label>
+                    <label class="field"><span>Y</span><input id="insp-y" type="number" step="1" /></label>
+                    <label class="field"><span>W</span><input id="insp-w" type="number" step="1" /></label>
+                    <label class="field" id="insp-h-field"><span>H</span><input id="insp-h" type="number" step="1" /></label>
+                  </div>
+                  <div class="field-row" id="insp-clip-row">
+                    <label class="field">
+                      <span>Fit</span>
+                      <select id="insp-fit">
+                        <option value="cover">Cover</option>
+                        <option value="contain">Contain</option>
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span>Blur <output id="insp-blur-out"></output></span>
+                      <input id="insp-blur" type="range" min="0" max="80" step="2" />
+                    </label>
+                    <label class="field">
+                      <span>Volume <output id="insp-volume-out"></output></span>
+                      <input id="insp-volume" type="range" min="0" max="1" step="0.05" />
+                    </label>
+                  </div>
+                  <div class="field-row">
+                    <label class="field">
+                      <span>Starts <output id="insp-start-out"></output></span>
+                      <input id="insp-start" type="range" min="0" max="60" step="0.1" />
+                    </label>
+                    <label class="field">
+                      <span>Ends <output id="insp-end-out"></output></span>
+                      <input id="insp-end" type="range" min="0" max="60" step="0.1" />
+                    </label>
+                    <label class="field" id="insp-trim-field">
+                      <span>Clip starts at <output id="insp-trim-out"></output></span>
+                      <input id="insp-trim" type="range" min="0" max="300" step="1" />
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </details>
+
+            <details class="block">
+              <summary>5 · Captions &amp; audio</summary>
+              <div class="block-body">
+                <div class="field-row">
+                  <label class="field">
+                    <span>Words per card <output id="vid-wpc-out">3</output></span>
+                    <input id="vid-wpc" type="range" min="1" max="8" step="1" value="3" />
+                  </label>
+                  <label class="field">
+                    <span>Caption size <output id="vid-fs-out">68</output></span>
+                    <input id="vid-fs" type="range" min="40" max="110" step="2" value="68" />
+                  </label>
+                </div>
+                <div class="field-row">
+                  <label class="field">
+                    <span>Caption height <output id="vid-cy-out">0.70</output></span>
+                    <input id="vid-cy" type="range" min="0.15" max="0.85" step="0.01" value="0.70" />
+                  </label>
+                  <label class="field">
+                    <span>Caption style</span>
+                    <select id="vid-style"></select>
+                  </label>
+                </div>
+                <label class="field">
+                  <span>Length <output id="vid-dur-out">20s</output></span>
+                  <input id="vid-dur" type="range" min="4" max="90" step="1" value="20" />
+                </label>
+                <div class="field-row">
+                  <label class="field field-grow">
+                    <span>Voice</span>
+                    <select id="vid-voice"></select>
+                  </label>
+                  <button class="button button-ghost button-small" id="vid-voice-preview" type="button">Hear it</button>
+                </div>
+                <div class="field-row">
+                  <label class="field field-grow">
+                    <span>Music</span>
+                    <select id="vid-music"><option value="">None</option></select>
+                  </label>
+                  <button class="button button-ghost button-small" id="vid-music-preview" type="button">Play</button>
+                </div>
+                <div class="field-row">
+                  <label class="field">
+                    <span>Music level <output id="vid-musicvol-out">0.18</output></span>
+                    <input id="vid-musicvol" type="range" min="0" max="1" step="0.02" value="0.18" />
+                  </label>
+                </div>
+              </div>
+            </details>
+
+            <details class="block" open>
+              <summary>6 · Caption &amp; render</summary>
+              <div class="block-body">
+                <label class="field">
+                  <span>Caption</span>
+                  <textarea id="vid-caption" rows="3"></textarea>
+                </label>
+                <label class="field">
+                  <span>Hashtags</span>
+                  <input id="vid-hashtags" type="text" placeholder="macos macapps productivity" />
+                </label>
+                <div class="btn-row">
+                  <button class="button button-accent button-small" id="vid-render" type="button">Render video</button>
+                  <label class="button button-ghost button-small" for="vid-open-input">Open a project…</label>
+                  <input id="vid-open-input" type="file" accept="application/json,.json" hidden />
+                </div>
+                <p class="field-hint">
+                  Every render writes its own folder with the video, the caption and a
+                  <code>project.json</code>. Open one from here or from the Output tab, and
+                  rendering again saves a new copy rather than replacing it.
+                </p>
+                <div class="progress" id="vid-progress" hidden>
+                  <div class="progress-bar"><span id="vid-progress-fill"></span></div>
+                  <p class="field-hint" id="vid-progress-note"></p>
+                </div>
+                <pre class="cmd" id="vid-cmd" hidden></pre>
+              </div>
+            </details>
+          </div>
+
+          <div class="studio-preview">
+            <div class="preview-head">
+              <span id="vid-preview-label">Canvas</span>
+              <div class="btn-row">
+                <button class="button button-ghost button-small" id="stage-mode-edit" type="button">Edit</button>
+                <button class="button button-ghost button-small" id="stage-mode-result" type="button" disabled>Render</button>
+              </div>
+            </div>
+            <div class="canvas-wrap canvas-wrap-video" id="stage-edit">
+              <canvas id="stage-canvas"></canvas>
+              <p class="stage-empty" id="stage-empty">Drag a clip here</p>
+            </div>
+            <div class="canvas-wrap canvas-wrap-video" id="stage-result" hidden>
+              <video id="vid-player" controls playsinline></video>
+            </div>
+            <div class="transport">
+              <button class="button button-dark button-small" id="stage-play" type="button">Play</button>
+              <input id="stage-scrub" type="range" min="0" max="20" step="0.05" value="0" />
+              <span class="transport-time" id="stage-time">0.0s</span>
+            </div>
+            <p class="field-hint">
+              Drag a layer to move it, drag any orange corner to resize, arrow keys to
+              nudge (shift for 10px), Delete to remove. The preview is silent — audio is
+              mixed at render.
+            </p>
+          </div>
+        </div>
+
+        <section class="timeline" aria-label="Timeline">
+          <div class="timeline-head">
+            <span class="timeline-title">Timeline</span>
+            <span class="timeline-time" id="tl-time">0.0s</span>
+            <div class="btn-row">
+              <button class="button button-dark button-small" id="tl-play" type="button">Play</button>
+              <button class="button button-ghost button-small" id="tl-split" type="button">Split at playhead</button>
+              <button class="button button-ghost button-small" id="tl-duplicate" type="button">Duplicate</button>
+              <button class="button button-ghost button-small" id="tl-add-text" type="button">Add text</button>
+              <button class="button button-ghost button-small" id="tl-delete" type="button">Delete</button>
+            </div>
+            <label class="tl-field">
+              <span>Length</span>
+              <input id="tl-duration" type="number" min="2" max="300" step="1" />
+            </label>
+            <label class="tl-field tl-field-zoom">
+              <span>Zoom</span>
+              <input id="tl-zoom" type="range" min="6" max="140" step="2" value="40" />
+            </label>
+          </div>
+          <div class="timeline-body">
+            <div class="tl-gutter-scroll" id="tl-gutter-scroll">
+              <div class="tl-gutter" id="tl-gutter"></div>
+            </div>
+            <div class="tl-scroll" id="tl-scroll">
+              <div class="tl-canvas" id="tl-canvas">
+                <div class="tl-ruler" id="tl-ruler"></div>
+                <div class="tl-lanes" id="tl-lanes"></div>
+                <div class="tl-playhead" id="tl-playhead"></div>
+              </div>
+            </div>
+          </div>
+          <p class="field-hint">
+            Drag a bar to move it in time, drag either end to trim it — trimming a clip's
+            head moves its in-point with it, so the frames stay put. Click the ruler to
+            scrub, <kbd>S</kbd> splits the selected layer at the playhead,
+            <kbd>Space</kbd> plays.
+          </p>
+        </section>
+      </section>
+
+      <!-- =========================================================== output -->
+      <section class="tab-panel" data-panel="output">
+        <div class="posts-head">
+          <h2>Rendered posts</h2>
+          <div class="posts-head-actions">
+            <button class="button button-ghost button-small" id="out-refresh" type="button">Refresh</button>
+          </div>
+        </div>
+        <div class="out-list" id="out-list"></div>
+      </section>
+    </main>
+
+    <footer class="hub-footer">
+      <p>
+        Studio server: <code>node social/studio-server.mjs</code> · hub: <code>npm run hub</code> ·
+        media library: <code>social/studio/library/</code> · output: <code>social/studio/out/</code>
+      </p>
+    </footer>
+
+    <div class="lightbox" id="lightbox" hidden>
+      <button class="lightbox-close" id="lightbox-close" type="button" aria-label="Close">✕</button>
+      <button class="lightbox-nav is-prev" id="lightbox-prev" type="button" aria-label="Previous" hidden>‹</button>
+      <div class="lightbox-stage" id="lightbox-stage"></div>
+      <button class="lightbox-nav is-next" id="lightbox-next" type="button" aria-label="Next" hidden>›</button>
+      <div class="lightbox-dots" id="lightbox-dots" hidden></div>
+      <p class="lightbox-caption" id="lightbox-caption"></p>
+    </div>
+
+    <script src="config.js"></script>
+    <script type="module" src="studio.js"></script>
+  </body>
+</html>

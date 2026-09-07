@@ -27,7 +27,20 @@ node_modules/
 new-videos/*
 
 /social-media/*
+# The hub itself stays local (it holds OAuth client ids and a generated queue),
+# but the Content Studio's source is real code and belongs in the repo. Its
+# keys, media library and renders do not.
 /social/*
+!/social/STUDIO.md
+!/social/studio.html
+!/social/studio.js
+!/social/studio.css
+!/social/studio-server.mjs
+!/social/studio.config.example.json
+!/social/studio/
+/social/studio/*
+!/social/studio/*.js
+!/social/studio/formats.json
 /marketing-video-15-agustos/*
 /marketing-video-2/*
 /marketing-video-3/*

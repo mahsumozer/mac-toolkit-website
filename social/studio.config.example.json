@@ -1,0 +1,11 @@
+{
+  "_comment": "Copy to studio.config.json and fill in what you have. Every key is optional \u2014 without one the studio falls back to something local: template copy instead of a model, Wikimedia Commons instead of Pexels, macOS `say` instead of ElevenLabs. Environment variables (DEEPSEEK_API_KEY, ANTHROPIC_API_KEY, PEXELS_API_KEY, ELEVENLABS_API_KEY) work too and take second place to this file.",
+  "_copyProvider": "Which model writes the copy: \"deepseek\", \"anthropic\", or omit to use whichever key is set (DeepSeek first if both).",
+  "copyProvider": "",
+  "deepseekApiKey": "",
+  "deepseekModel": "deepseek-v4-pro",
+  "anthropicApiKey": "",
+  "model": "claude-opus-5",
+  "pexelsApiKey": "",
+  "elevenLabsApiKey": ""
+}

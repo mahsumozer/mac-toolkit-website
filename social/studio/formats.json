@@ -1,0 +1,321 @@
+{
+  "note": "Post formats and the offline copy bank. `features` is the only list the copy generator may draw claims from — it mirrors the app's sidebar (src/components/Sidebar.tsx), so adding a tool here without adding it to the app puts a false claim on a post.",
+  "features": [
+    "Screenshot — full screen, area or window capture, plus screen recording, with an editor for annotation before you share",
+    "Mirror — put a live camera preview on screen, with a studio light panel for lighting",
+    "Clipboard — searchable clipboard history you can pin and paste back",
+    "Sticky Notes — floating notes that stay above other windows, with export",
+    "System Monitor — CPU, memory, disk, network and battery readings in the menu bar",
+    "Keep Awake — stop the Mac sleeping for a set time or until you turn it off",
+    "New File — create a new file of any type in the current Finder folder",
+    "Convert — rename and convert image, audio and video files locally, no upload",
+    "Color Picker — pick any colour on screen and copy it as HEX, RGB or HSL",
+    "Pomodoro — focus timer with a floating widget",
+    "Screen Draw — draw straight onto the screen over any app",
+    "Clean Mode — lock the keyboard and trackpad so you can wipe them",
+    "Macros — record and replay keystroke and click sequences, per active app",
+    "Quick Action — a radial shortcut ring that opens any tool from anywhere"
+  ],
+  "positioning": {
+    "oneLiner": "Fourteen everyday Mac tools in one menu bar app",
+    "price": "7-day trial, no credit card, then $9.99 once",
+    "proofs": [
+      "runs locally, nothing is uploaded",
+      "one menu bar icon instead of fourteen",
+      "no subscription",
+      "Apple Silicon, M1 and later"
+    ]
+  },
+  "scenes": [
+    {
+      "id": "desk",
+      "label": "One desk through the day",
+      "query": "laptop desk"
+    },
+    {
+      "id": "workspace",
+      "label": "A workspace",
+      "query": "desk workspace"
+    },
+    {
+      "id": "cafe",
+      "label": "A café table",
+      "query": "cafe table"
+    },
+    {
+      "id": "coffee",
+      "label": "Coffee beside the laptop",
+      "query": "coffee laptop"
+    },
+    {
+      "id": "window",
+      "label": "An office by the window",
+      "query": "office window"
+    },
+    {
+      "id": "macbook",
+      "label": "A MacBook on a table",
+      "query": "macbook table"
+    },
+    {
+      "id": "home",
+      "label": "A home office",
+      "query": "home office"
+    },
+    {
+      "id": "keys",
+      "label": "Close on the keyboard",
+      "query": "keyboard closeup"
+    }
+  ],
+  "sceneFallback": "laptop desk",
+  "imageFormats": [
+    {
+      "id": "listicle",
+      "label": "Numbered listicle",
+      "brief": "A numbered countdown of small habits or annoyances. Slide 1 is the promise, each middle slide is one numbered item, the last slide names the app.",
+      "slides": 6,
+      "template": {
+        "first": {
+          "headline": "{count} things I stopped doing on my Mac",
+          "body": "Small stuff that was costing me minutes every day."
+        },
+        "middle": {
+          "headline": "{n}. {feature_short}",
+          "body": "{feature_pain}"
+        },
+        "last": {
+          "headline": "All of it is one app",
+          "body": "Mac Kit. {price}"
+        }
+      }
+    },
+    {
+      "id": "problem-solution",
+      "label": "Problem → fix",
+      "brief": "Each slide states one concrete annoyance in the reader's own words, then the one-line fix. No numbers, no build-up.",
+      "slides": 5,
+      "template": {
+        "first": {
+          "headline": "Things my Mac made harder than they needed to be",
+          "body": "And what I do instead now."
+        },
+        "middle": {
+          "headline": "{feature_pain}",
+          "body": "{feature_fix}"
+        },
+        "last": {
+          "headline": "One app, one price",
+          "body": "Mac Kit. {price}"
+        }
+      }
+    },
+    {
+      "id": "pov",
+      "label": "POV",
+      "brief": "Written in second person as a moment the reader recognises. Present tense, no product name until the last slide.",
+      "slides": 5,
+      "template": {
+        "first": {
+          "headline": "POV: you finally cleaned up your menu bar",
+          "body": "Fourteen icons became one."
+        },
+        "middle": {
+          "headline": "{feature_short}",
+          "body": "{feature_fix}"
+        },
+        "last": {
+          "headline": "It's called Mac Kit",
+          "body": "{price}"
+        }
+      }
+    },
+    {
+      "id": "before-after",
+      "label": "Before → after",
+      "brief": "Two-beat slides: the old way on one slide, the new way on the next. Ends on the price.",
+      "slides": 6,
+      "template": {
+        "first": {
+          "headline": "Before vs after",
+          "body": "Same tasks, fewer steps."
+        },
+        "middle": {
+          "headline": "Before: {feature_pain}",
+          "body": "After: {feature_fix}"
+        },
+        "last": {
+          "headline": "One menu bar app",
+          "body": "Mac Kit. {price}"
+        }
+      }
+    },
+    {
+      "id": "hot-take",
+      "label": "Hot take",
+      "brief": "One opinion held plainly, then the evidence. Argumentative but never rude, and every claim is a real feature.",
+      "slides": 5,
+      "template": {
+        "first": {
+          "headline": "Paying monthly for a screenshot tool is silly",
+          "body": "Here is what $9.99 once gets you instead."
+        },
+        "middle": {
+          "headline": "{feature_short}",
+          "body": "{feature_fix}"
+        },
+        "last": {
+          "headline": "Bought once, yours",
+          "body": "Mac Kit. {price}"
+        }
+      }
+    }
+  ],
+  "videoFormats": [
+    {
+      "id": "split-brainrot",
+      "label": "Split screen",
+      "layout": "split",
+      "brief": "App recording on top, a looping background clip underneath. Captions in the middle. Fast lines, one idea each.",
+      "lines": 8
+    },
+    {
+      "id": "pip-reaction",
+      "label": "Picture in picture",
+      "layout": "pip",
+      "brief": "The background clip fills the frame with the app recording floating over it. Reads as a reaction or a commentary edit.",
+      "lines": 7
+    },
+    {
+      "id": "screen-only",
+      "label": "Screen only",
+      "layout": "screen",
+      "brief": "Just the app recording, filling the frame over a blurred copy of itself. For demos where the workflow is the whole point.",
+      "lines": 6
+    },
+    {
+      "id": "hook-cut",
+      "label": "Hook then demo",
+      "layout": "screen",
+      "brief": "A hard hook for the first two seconds, then a silent demo carried by captions.",
+      "lines": 5
+    },
+    {
+      "id": "three-up",
+      "label": "Three up",
+      "layout": "stack",
+      "brief": "Background clip, app recording and a second cut of the background stacked in thirds. Busy on purpose.",
+      "lines": 8
+    }
+  ],
+  "hooks": [
+    "Fourteen menu bar apps became one",
+    "I stopped paying four subscriptions this month",
+    "Things I do on my Mac that take one shortcut now",
+    "Nobody told me macOS could not do this",
+    "My menu bar was a disaster",
+    "Stop uploading your files to convert them",
+    "Everything here runs offline",
+    "The Mac app I would not uninstall",
+    "$9.99 once, no subscription",
+    "Small Mac habits that save real minutes"
+  ],
+  "painFixes": {
+    "Screenshot": {
+      "short": "Screenshots that annotate themselves",
+      "pain": "Capture, open an editor, draw an arrow, save, delete the file later",
+      "fix": "Capture and annotate in the same window, then copy it out"
+    },
+    "Mirror": {
+      "short": "A camera preview before the call",
+      "pain": "Opening Photo Booth to check the framing before a meeting",
+      "fix": "A live preview on screen, with a studio light panel behind it"
+    },
+    "Clipboard": {
+      "short": "Clipboard history you can search",
+      "pain": "Copying a hex code, switching apps, then losing it",
+      "fix": "Searchable history, pin the things you keep pasting"
+    },
+    "Sticky Notes": {
+      "short": "Notes that stay on top",
+      "pain": "A scratch note buried under six windows",
+      "fix": "Floating notes above everything, exported when you are done"
+    },
+    "System Monitor": {
+      "short": "System readings in the menu bar",
+      "pain": "Opening Activity Monitor to find out why the fans are loud",
+      "fix": "CPU, memory, disk, network and battery, always visible"
+    },
+    "Keep Awake": {
+      "short": "The Mac stays awake",
+      "pain": "The screen sleeping in the middle of a long export",
+      "fix": "Keep it awake for a set time, or until you switch it off"
+    },
+    "New File": {
+      "short": "New file, right where you are",
+      "pain": "Opening an app just to create an empty file in a folder",
+      "fix": "Create any file type in the current Finder folder"
+    },
+    "Convert": {
+      "short": "Convert files without uploading them",
+      "pain": "Dragging a work file onto a random website to change its format",
+      "fix": "Rename and convert images, audio and video locally"
+    },
+    "Color Picker": {
+      "short": "Colour codes without leaving the screen",
+      "pain": "Screenshot, upload, inspect, copy",
+      "fix": "Pick the colour and copy it as HEX, RGB or HSL"
+    },
+    "Pomodoro": {
+      "short": "A focus timer you can see",
+      "pain": "A timer in a tab you closed an hour ago",
+      "fix": "A floating widget that stays in the corner"
+    },
+    "Screen Draw": {
+      "short": "Draw on the screen itself",
+      "pain": "Explaining where to click over a call with words",
+      "fix": "Draw straight onto the screen over any app"
+    },
+    "Clean Mode": {
+      "short": "Wipe the keyboard safely",
+      "pain": "Typing nonsense into a document while cleaning the keys",
+      "fix": "Lock the keyboard and trackpad until you unlock them"
+    },
+    "Macros": {
+      "short": "Repeat what you keep repeating",
+      "pain": "The same six clicks every single morning",
+      "fix": "Record the sequence once, replay it per app"
+    },
+    "Quick Action": {
+      "short": "Every tool one gesture away",
+      "pain": "Hunting through the menu bar for the right icon",
+      "fix": "A radial ring that opens any tool from anywhere"
+    }
+  },
+  "captionTemplates": [
+    "{hook}\n\nMac Kit — {price}\n",
+    "{hook}\n\nEverything runs locally. {price}\n",
+    "{hook}\n\nOne menu bar app instead of fourteen. {price}\n"
+  ],
+  "hashtagSets": [
+    [
+      "macos",
+      "macapps",
+      "productivity",
+      "mac",
+      "apple"
+    ],
+    [
+      "macos",
+      "mactips",
+      "macbook",
+      "productivity"
+    ],
+    [
+      "macapps",
+      "indiedev",
+      "buildinpublic",
+      "macos"
+    ]
+  ]
+}
