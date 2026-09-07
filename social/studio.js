@@ -1983,8 +1983,14 @@ function wireVideoTab() {
   $("#tl-duplicate").addEventListener("click", duplicateSelected);
   $("#tl-add-text").addEventListener("click", addTextAtPlayhead);
   $("#tl-delete").addEventListener("click", () => {
-    if (!editor.selectedId) return toast("Select a layer first");
-    editor.removeLayer(editor.selectedId);
+    const ids = timeline.selection();
+    if (!ids.length) return toast("Tick some layers, or select one");
+    // Only a bulk removal is worth a confirm; deleting the one layer you have
+    // selected is a click you can undo by adding it again.
+    if (ids.length > 1 && !window.confirm(`Delete ${ids.length} layers from the canvas?`)) return;
+    for (const id of ids) editor.removeLayer(id);
+    timeline.clearChecks();
+    toast(ids.length > 1 ? `${ids.length} layers deleted` : "Layer deleted");
   });
   // The lanes are sized from the visible width, which is not known until the
   // panel is on screen and changes with the window.
@@ -2248,11 +2254,37 @@ function fillSelect(select, items, { value, label, empty }) {
   }
 }
 
+// The rail is built from whatever blocks the open tab actually has, so it can
+// never list a step that is not there. Clicking one opens that block and scrolls
+// to it; the others are left exactly as they were.
+function renderStepRail() {
+  const rail = $("#step-rail");
+  if (!rail) return;
+  rail.innerHTML = "";
+  const panel = document.querySelector(".tab-panel.is-active");
+  if (!panel) return;
+
+  for (const block of panel.querySelectorAll("details.block")) {
+    const summary = block.querySelector("summary");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "step-rail-item";
+    button.textContent = (summary ? summary.textContent : "Step").trim();
+    button.addEventListener("click", () => {
+      block.open = true;
+      block.scrollIntoView({ behavior: "smooth", block: "start" });
+      for (const other of rail.children) other.classList.toggle("is-active", other === button);
+    });
+    rail.appendChild(button);
+  }
+}
+
 function showTab(name) {
   const tab = $$(".tab").find((t) => t.dataset.tab === name);
   if (!tab) return;
   $$(".tab").forEach((t) => t.classList.toggle("is-active", t === tab));
   $$(".tab-panel").forEach((panel) => panel.classList.toggle("is-active", panel.dataset.panel === name));
+  renderStepRail();
   if (location.hash.slice(1) !== name) history.replaceState(null, "", `#${name}`);
   if (name === "output") loadOutput();
   // The timeline sizes itself from its visible width, which is zero while the

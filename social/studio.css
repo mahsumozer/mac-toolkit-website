@@ -62,6 +62,69 @@
 .studio-main {
   --tab-row: 44px;
   --tab-gap: 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 22px;
+}
+
+.studio-body {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The steps are a <details> stack, which means the one you want is often two
+   screens down. The rail is the index into it: every block in the open tab,
+   always in view, in the order the work happens. */
+.step-rail {
+  flex: 0 0 176px;
+  position: sticky;
+  /* Below the page header (63px) plus the main's own padding. */
+  top: 79px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.step-rail:empty {
+  display: none;
+}
+
+.step-rail-item {
+  appearance: none;
+  text-align: left;
+  border: 0;
+  border-left: 2px solid transparent;
+  background: none;
+  padding: 8px 10px;
+  border-radius: 0 8px 8px 0;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.16s var(--ease), background 0.16s var(--ease), border-color 0.16s var(--ease);
+}
+
+.step-rail-item:hover {
+  color: var(--ink);
+  background: var(--paper-2);
+}
+
+.step-rail-item.is-active {
+  color: var(--ink);
+  border-left-color: var(--accent);
+  background: var(--paper-2);
+}
+
+/* Scrolling a block to the top has to clear the sticky page header. */
+.block {
+  scroll-margin-top: 79px;
+}
+
+@media (max-width: 1240px) {
+  .step-rail {
+    display: none;
+  }
 }
 
 .tabs {
@@ -1100,6 +1163,11 @@ kbd {
    agree on how tall a row is. */
 .timeline {
   --tl-row: 30px;
+  /* How many layer rows are visible before the list scrolls. Without a cap the
+     timeline grew a row at a time and pushed the canvas off the screen. */
+  --tl-rows: 3;
+  /* Set from JS to the real horizontal scrollbar height, 0 when overlaid. */
+  --tl-hbar: 0px;
   --tl-ruler: 24px;
   /* Pinned to the foot of the window, so the bars stay reachable while the
      controls above them are scrolled. It is the last child of the panel, so at
@@ -1178,7 +1246,7 @@ kbd {
 
 .tl-gutter-scroll {
   overflow: hidden;
-  max-height: 300px;
+  max-height: calc(var(--tl-ruler) + var(--tl-row) * var(--tl-rows) + var(--tl-hbar));
   border-right: 1px solid var(--line);
   background: rgba(5, 5, 5, 0.02);
 }
@@ -1247,7 +1315,9 @@ kbd {
 
 .tl-scroll {
   overflow: auto;
-  max-height: 300px;
+  /* The lanes own the vertical scrollbar; the gutter has none of its own and is
+     moved by this one, so the two columns stay level. */
+  max-height: calc(var(--tl-ruler) + var(--tl-row) * var(--tl-rows) + var(--tl-hbar));
 }
 
 .tl-canvas {
@@ -1401,9 +1471,8 @@ kbd {
     box-shadow: none;
   }
 
-  .tl-gutter-scroll,
-  .tl-scroll {
-    max-height: 200px;
+  .timeline {
+    --tl-rows: 2;
   }
 }
 
