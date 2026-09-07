@@ -4887,7 +4887,9 @@ body.show-mac-handoff .mac-handoff:focus-within {
   .download-section,
   .site-footer {
     display: grid;
-    grid-template-columns: 1fr;
+    /* minmax(0, …) rather than 1fr: a bare 1fr cannot shrink below its widest
+       item and drags the whole page sideways. */
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .pricing-plans {
@@ -4938,6 +4940,65 @@ body.show-mac-handoff .mac-handoff:focus-within {
 }
 
 @media (max-width: 560px) {
+  /* The panel's floating pieces are sized for a desktop; on a phone they have
+     to fold into the screen instead of running off it. */
+  .draw-bar {
+    /* Pinned to the screen, not to the hero: on a phone the hero runs past the
+       fold and the toolbar has to stay under the thumb. */
+    position: fixed;
+    bottom: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2px;
+    width: max-content;
+    max-width: calc(100vw - 20px);
+    border-radius: 14px;
+  }
+
+  .draw-group {
+    margin-left: 2px;
+    padding-left: 5px;
+  }
+
+  .draw-button {
+    width: 28px;
+    height: 28px;
+  }
+
+  .draw-swatch,
+  .draw-size {
+    width: 22px;
+    height: 22px;
+  }
+
+  #mock-add-menu {
+    width: min(340px, calc(100vw - 26px));
+  }
+
+  /* Clear of the mock menu bar and the panel, which fill the top of a phone. */
+  .clean-veil {
+    padding-top: min(58vh, 540px);
+  }
+
+  /* The corner already carries the handoff button on a phone, so the messages
+     and the shots it stacks start above it. */
+  .toast-region {
+    right: 14px;
+    bottom: 74px;
+  }
+
+  .mirror-frame {
+    width: min(300px, 70vw);
+  }
+
+  .shot-thumb {
+    width: 140px;
+  }
+
+  .sticky-note {
+    width: 172px;
+  }
+
   .button {
     width: 100%;
   }
@@ -5532,4 +5593,23 @@ body.show-mac-handoff .mac-handoff:focus-within {
 
 .pricing-trial:hover svg {
   transform: translateX(3px);
+}
+
+@media (hover: none) {
+  /* Without a pointer there is no hover to reveal them, so the controls that
+     appear on it are simply there. */
+  .mirror-bar,
+  .mirror-grip {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+
+  .mirror-grip {
+    transform: none;
+  }
+
+  .shot-thumb-save {
+    opacity: 1;
+    transform: none;
+  }
 }

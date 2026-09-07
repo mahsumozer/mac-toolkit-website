@@ -1532,6 +1532,8 @@
     hero.appendChild(veil);
 
     let locked = null;
+    // A phone has no Esc key, so on a touch screen the veil itself unlocks.
+    const byTouch = () => window.matchMedia("(hover: none)").matches;
 
     function stop() {
       if (!locked) return;
@@ -1552,14 +1554,15 @@
       unlock.hidden = !keyboard;
       locks.hidden = true;
       state.hidden = false;
-      veilText.textContent = keyboard ? "Keyboard locked — wipe away" : "Trackpad locked — press Esc to unlock";
+      const release = byTouch() ? "tap to unlock" : "press Esc to unlock";
+      veilText.textContent = keyboard ? "Keyboard locked — wipe away" : `Trackpad locked — ${release}`;
       veil.classList.add("is-on");
       // Only the trackpad lock takes the pointer; a keyboard lock leaves the
       // mouse working, as it does in the app.
       veil.classList.toggle("is-blocking", !keyboard);
       panel.classList.toggle("is-input-locked", !keyboard);
       holdWidget("clean-mode");
-      showToast(keyboard ? "Keyboard locked." : "Trackpad locked. Press Esc to unlock.");
+      showToast(keyboard ? "Keyboard locked." : `Trackpad locked. ${byTouch() ? "Tap the screen" : "Press Esc"} to unlock.`);
     }
 
     card.querySelectorAll("[data-clean]").forEach((button) => {
@@ -1569,9 +1572,12 @@
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") stop();
     });
-    // A click at the veil is the locked trackpad being tried; say so.
+    // A click at the veil is the locked trackpad being tried; say so — or, with
+    // no keyboard to press Esc on, let it go.
     veil.addEventListener("click", () => {
-      if (locked === "trackpad") showToast("Trackpad is locked. Press Esc to unlock.");
+      if (locked !== "trackpad") return;
+      if (byTouch()) stop();
+      else showToast("Trackpad is locked. Press Esc to unlock.");
     });
   }
 
