@@ -4991,6 +4991,16 @@ body.show-mac-handoff .mac-handoff:focus-within {
     padding-top: min(58vh, 540px);
   }
 
+  /* The mock sits right under the site header on a phone: the desktop's breathing
+     room above it only pushes the panel off the first screen. */
+  .hero {
+    padding-top: 96px;
+  }
+
+  .desktop-strip {
+    margin-top: 8px;
+  }
+
   /* The corner button already offers the visitor the link, so the hero does not
      carry the same form a second time. */
   body.show-mac-handoff .mac-handoff {
