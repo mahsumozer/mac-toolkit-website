@@ -35,6 +35,10 @@ export class Timeline {
     // because sync() runs on every animation frame while the preview plays.
     this.structure = "";
     this.rulerKey = "";
+    // Ticked rows, for acting on several layers at once. Kept here rather than
+    // on the editor because it is a timeline affordance: the editor's single
+    // selection still drives the canvas chrome and the inspector.
+    this.checked = new Set();
 
     els.zoom.addEventListener("input", () => {
       this.userZoom = true;
@@ -51,6 +55,21 @@ export class Timeline {
 
   get duration() {
     return this.editor.comp.duration || 20;
+  }
+
+  // The ticked layers that still exist, in stack order. Falls back to the single
+  // selection so the toolbar buttons work before anything is ticked.
+  selection() {
+    const ids = this.editor.layers.filter((l) => this.checked.has(l.id)).map((l) => l.id);
+    if (ids.length) return ids;
+    return this.editor.selectedId ? [this.editor.selectedId] : [];
+  }
+
+  clearChecks() {
+    if (!this.checked.size) return;
+    this.checked.clear();
+    this.structure = "";
+    this.sync();
   }
 
   // Top of the list is the top of the stack, the same way the layer list reads.
@@ -88,6 +107,26 @@ export class Timeline {
 
     const spacer = document.createElement("div");
     spacer.className = "tl-gutter-spacer";
+    if (rows.length) {
+      const all = document.createElement("input");
+      all.type = "checkbox";
+      all.className = "tl-check tl-check-all";
+      all.title = "Select every layer";
+      all.setAttribute("aria-label", "Select every layer");
+      const ticked = rows.filter((l) => this.checked.has(l.id)).length;
+      all.checked = ticked === rows.length;
+      // Neither all nor none: the box shows the in-between state rather than
+      // pretending the selection is empty.
+      all.indeterminate = ticked > 0 && ticked < rows.length;
+      all.addEventListener("change", () => {
+        if (all.checked) for (const layer of rows) this.checked.add(layer.id);
+        else this.checked.clear();
+        this.structure = "";
+        this.sync();
+        this.onChange();
+      });
+      spacer.appendChild(all);
+    }
     gutter.appendChild(spacer);
 
     if (!rows.length) {
@@ -99,10 +138,26 @@ export class Timeline {
     }
 
     for (const layer of rows) {
-      const label = document.createElement("button");
-      label.type = "button";
-      label.className = `tl-label${layer.id === this.editor.selectedId ? " is-active" : ""}${layer.visible ? "" : " is-hidden"}`;
+      const label = document.createElement("div");
+      label.className = `tl-label${layer.id === this.editor.selectedId ? " is-active" : ""}${layer.visible ? "" : " is-hidden"}${this.checked.has(layer.id) ? " is-checked" : ""}`;
       label.dataset.id = layer.id;
+
+      const tick = document.createElement("input");
+      tick.type = "checkbox";
+      tick.className = "tl-check";
+      tick.checked = this.checked.has(layer.id);
+      tick.title = "Select for bulk actions";
+      tick.setAttribute("aria-label", `Select ${layer.type === "text" ? layer.text : layer.name}`);
+      tick.addEventListener("click", (event) => event.stopPropagation());
+      tick.addEventListener("change", () => {
+        if (tick.checked) this.checked.add(layer.id);
+        else this.checked.delete(layer.id);
+        this.structure = "";
+        this.sync();
+        this.onChange();
+      });
+      label.appendChild(tick);
+
       const eye = document.createElement("span");
       eye.className = "tl-label-eye";
       eye.textContent = layer.visible ? "◉" : "○";
@@ -155,6 +210,11 @@ export class Timeline {
     if (bar !== this._scrollbar) {
       this._scrollbar = bar;
       this.els.gutter.style.paddingBottom = `${bar}px`;
+      // The height cap is written in rows, and a horizontal scrollbar eats into
+      // it — three rows became two and a half. Measured rather than assumed,
+      // because it is zero on a machine with overlay scrollbars.
+      const root = this.els.scroll.closest(".timeline");
+      if (root) root.style.setProperty("--tl-hbar", `${bar}px`);
     }
 
     for (const bar of this.els.lanes.querySelectorAll(".tl-bar")) {
