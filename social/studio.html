@@ -34,11 +34,30 @@
       <div class="studio-body">
       <div class="tabs">
         <div class="tab-list" role="tablist">
+          <button class="tab tab-ai" data-tab="ai" role="tab" type="button">AI mode</button>
           <button class="tab is-active" data-tab="image" role="tab" type="button">Image post</button>
           <button class="tab" data-tab="video" role="tab" type="button">Video post</button>
           <button class="tab" data-tab="output" role="tab" type="button">Output</button>
         </div>
       </div>
+
+      <!-- =============================================================== ai -->
+      <section class="tab-panel" data-panel="ai">
+        <div class="ai-shell">
+          <div class="ai-chat" id="ai-chat"></div>
+          <div class="ai-compose" id="ai-compose">
+            <div class="ai-options" id="ai-options"></div>
+            <div class="ai-input-row" id="ai-input-row" hidden>
+              <input id="ai-input" type="text" placeholder="Type your answer…" />
+              <button class="button button-dark button-small" id="ai-send" type="button">Send</button>
+            </div>
+            <div class="btn-row" id="ai-actions" hidden>
+              <button class="button button-accent button-small" id="ai-create" type="button">Create</button>
+              <button class="button button-ghost button-small" id="ai-restart" type="button">Start over</button>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <!-- ============================================================ image -->
       <section class="tab-panel is-active" data-panel="image">

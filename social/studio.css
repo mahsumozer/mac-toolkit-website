@@ -1888,3 +1888,155 @@ kbd {
 .tl-label {
   user-select: none;
 }
+
+/* ------------------------------------------------------------------ ai mode */
+
+.tab-ai {
+  color: var(--accent);
+}
+
+.tab-ai.is-active {
+  color: var(--ink);
+}
+
+.ai-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 760px;
+  margin: 0 auto;
+  /* Fills what is left of the window so the log scrolls inside the panel
+     rather than pushing the composer off the bottom of the page. */
+  height: calc(100vh - 190px);
+  min-height: 420px;
+}
+
+.ai-chat {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 2px;
+}
+
+.ai-msg {
+  max-width: 78%;
+  padding: 10px 13px;
+  border-radius: 14px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.ai-msg.is-assistant {
+  align-self: flex-start;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+}
+
+.ai-msg.is-user {
+  align-self: flex-end;
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* Tool activity is a log line, not a voice in the conversation. */
+.ai-msg.is-tool {
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 5px 10px;
+  border: 0;
+  border-left: 2px solid var(--line);
+  border-radius: 0;
+  background: none;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+}
+
+.ai-msg.is-tool.is-done {
+  border-left-color: var(--ok);
+  color: var(--ok);
+}
+
+.ai-msg.is-tool.is-error {
+  border-left-color: var(--bad);
+  color: var(--bad);
+}
+
+.ai-compose {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.ai-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.ai-option {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+  border-radius: 999px;
+  padding: 7px 13px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  transition: border-color 0.16s var(--ease), background 0.16s var(--ease);
+}
+
+.ai-option:hover {
+  border-color: var(--ink);
+  background: rgba(5, 5, 5, 0.04);
+}
+
+.ai-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.ai-input-row input {
+  flex: 1 1 auto;
+  font: inherit;
+  font-size: 13.5px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper-2);
+  color: var(--ink);
+}
+
+.ai-input-row input:focus {
+  outline: none;
+  border-color: var(--ink);
+}
+
+.ai-result {
+  align-self: flex-start;
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--paper-2);
+}
+
+.ai-result video,
+.ai-result img {
+  display: block;
+  width: 260px;
+  background: #101010;
+}
+
+.ai-result p {
+  margin: 0;
+  padding: 9px 12px;
+  font-size: 12.5px;
+  color: var(--muted);
+}

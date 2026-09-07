@@ -19,6 +19,7 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve, extname, basename, relative, sep } from "node:path";
 import { randomUUID, createHash } from "node:crypto";
+import { runAgent, toolSchemas, buildBrief } from "./studio/agent.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SITE = resolve(HERE, "..");
@@ -1129,6 +1130,116 @@ async function uniqueOutDir(slug) {
   throw new Error(`Too many renders named ${slug}`);
 }
 
+/* ------------------------------------------------------------------ ai mode */
+
+// One completion, shaped for the loop in studio/agent.mjs. Tool use needs real
+// room: the plan arrives as a single call carrying the whole script.
+async function agentCall(messages, tools) {
+  if (COPY_PROVIDER !== "deepseek") throw new Error("AI mode needs the DeepSeek key — add deepseekApiKey to social/studio.config.json");
+  const res = await fetch("https://api.deepseek.com/chat/completions", {
+    method: "POST",
+    headers: { authorization: `Bearer ${DEEPSEEK_KEY}`, "content-type": "application/json" },
+    body: JSON.stringify({ model: DEEPSEEK_MODEL, messages, tools, max_tokens: 8000 }),
+  });
+  if (!res.ok) throw new Error(`DeepSeek ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  const data = await res.json();
+  const choice = (data.choices || [])[0];
+  if (!choice) throw new Error("DeepSeek returned no choices");
+  return choice.message;
+}
+
+// The library as the model sees it: paths and the few facts that decide whether
+// a clip is usable, without the URLs and byte counts it has no use for.
+function libraryForAgent(lib) {
+  const brief = (items, extra = () => ({})) =>
+    items.slice(0, 40).map((i) => ({ name: i.name, path: i.path, ...extra(i) }));
+  const size = (i) => ({ size: i.width && i.height ? `${i.width}x${i.height}` : undefined, seconds: i.duration ? Math.round(i.duration) : undefined });
+  return {
+    backgroundClips: brief(lib.videos, size),
+    appRecordings: brief(lib.appClips, size),
+    stills: brief([...lib.photos, ...lib.appShots]),
+    gifs: brief(lib.gifs, size),
+    music: brief(lib.music),
+    voiceovers: brief(lib.voice, (i) => ({ seconds: i.duration ? Math.round(i.duration) : undefined })),
+  };
+}
+
+function agentTools(job) {
+  // Search results are held between calls so download_gif can take an id rather
+  // than the model having to echo a URL back correctly.
+  const seen = new Map();
+  const push = (event) => job.messages.push({ at: Date.now(), ...event });
+
+  return {
+    async list_library() {
+      return libraryForAgent(await library());
+    },
+
+    async search_footage({ query, sort }) {
+      const results = await searchYouTube(query, { limit: 8, sort: sort || "views" });
+      for (const r of results) seen.set(r.id, r);
+      return results.map((r) => ({ id: r.id, title: r.title, url: r.url, seconds: r.duration, views: r.views, channel: r.channel }));
+    },
+
+    async download_footage({ url, title, section }) {
+      job.stage = `Downloading ${String(title).slice(0, 40)}`;
+      const item = { url, title, section, provider: "youtube", query: "ai mode" };
+      const file = await fetchFootage(item, job);
+      push({ role: "tool-result", tool: "download_footage", text: `${file.name} (${Math.round(file.size / 1e6)} MB)` });
+      return { path: file.path, name: file.name, size: file.width && file.height ? `${file.width}x${file.height}` : undefined, seconds: Math.round(file.duration || 0) };
+    },
+
+    async search_gif({ query, kind }) {
+      const results = await searchGiphy(query, { kind: kind || "stickers", limit: 12 });
+      for (const r of results) seen.set(r.id, r);
+      return results.map((r) => ({ id: r.id, title: r.title, size: `${r.width}x${r.height}` }));
+    },
+
+    async download_gif({ id }) {
+      const item = seen.get(id);
+      if (!item) throw new Error(`No such gif id: ${id}. Call search_gif first and use an id from its results.`);
+      job.stage = "Saving sticker";
+      const file = await fetchGif({ ...item, query: "ai mode" }, job);
+      push({ role: "tool-result", tool: "download_gif", text: file.name });
+      return { path: file.path, name: file.name };
+    },
+
+    async make_voiceover({ text, voice }) {
+      job.stage = "Speaking the script";
+      const file = await makeVoiceover({ text, voice, name: text.slice(0, 40) }, job);
+      push({ role: "tool-result", tool: "make_voiceover", text: `${file.duration.toFixed(1)}s` });
+      return { path: file.path, seconds: Number(file.duration.toFixed(2)) };
+    },
+  };
+}
+
+async function runAiMode(payload, job) {
+  job.messages = [];
+  job.stage = "Thinking";
+
+  const formats = JSON.parse(await fs.readFile(join(HERE, "studio", "formats.json"), "utf8"));
+  const brief = buildBrief({
+    answers: payload.answers || {},
+    features: formats.features,
+    product: payload.product || { name: "Mac Kit", url: "https://usemackit.com/", priceLine: formats.positioning.price },
+    voices: payload.voices || [],
+  });
+
+  const result = await runAgent({
+    call: agentCall,
+    tools: toolSchemas({ hasGiphy: Boolean(GIPHY_KEY) }),
+    toolImpls: agentTools(job),
+    brief,
+    onEvent: (event) => {
+      job.messages.push({ at: Date.now(), ...event });
+      if (event.role === "tool") job.stage = event.tool.replace(/_/g, " ");
+    },
+  });
+
+  job.stage = "Plan ready";
+  return result;
+}
+
 /* -------------------------------------------------------------- save posts */
 
 async function savePost(payload) {
@@ -1388,6 +1499,11 @@ async function route(req, res, url) {
     const item = await readJson(req);
     if (!/^https:\/\//.test(item.url || "")) return json(res, 400, { error: "missing or non-https url" });
     return json(res, 202, { jobId: startJob(item.title || "gif", (job) => fetchGif(item, job)) });
+  }
+
+  if (path === "/ai/run" && req.method === "POST") {
+    const payload = await readJson(req);
+    return json(res, 202, { jobId: startJob("ai-mode", (job) => runAiMode(payload, job)) });
   }
 
   if (path === "/voiceover" && req.method === "POST") {

@@ -58,6 +58,35 @@ Defaults: `deepseek-v4-pro` and `claude-opus-5`, both overridable
 (`deepseekModel`, `model`). DeepSeek's cheaper sibling is `deepseek-v4-flash`,
 and its off-peak rates (01:00–04:00 and 06:00–10:00 UTC) are half the peak ones.
 
+## AI mode
+
+The leftmost tab. It asks five or six fixed questions — what we are making, what
+about, what goes behind it, a sticker or not, a voiceover or not, how long — and
+**Create** hands the answers to the model, which builds the post end to end.
+
+The questions are asked by the page, not by the model. Fixed answers are faster
+to give than a conversation, and they leave the model's turns for the work.
+
+The split matters. Everything needing a key, a network call or a subprocess —
+searching YouTube and Giphy, downloading, speaking a script — is a **tool** the
+model calls on the server (`studio/agent.mjs`, `POST /ai/run`). Everything
+needing a canvas — text laid out into PNGs, a clip's real crop and rect — stays
+in the browser, because that is the only place the preview and the render are
+guaranteed to agree. So the loop ends by calling `finish` with a *plan*: which
+files, what script, what timings. The page executes that plan through the same
+functions a person's clicks go through, which is why the result lands in Output
+looking like anything else, with its `project.json` beside it.
+
+Progress arrives as chat lines: each tool call, each download, then the model's
+own note about what it chose. Needs the DeepSeek key; `deepseek-v4-pro` supports
+OpenAI-shaped tool calls.
+
+One trap this uncovered, which also bites a fast human: serialising a render
+reads each layer's intrinsic size to work out its crop, and a layer added a
+moment earlier has not measured itself yet. Those layers were silently dropped —
+the first AI render was captions over black. `editor.whenReady()` now waits for
+them before the freeze.
+
 ## Image posts
 
 The format is the one the reference posts use: a photo, and bold centred type in

@@ -244,6 +244,33 @@ export class Editor {
     return film.frames[film.frames.length - 1];
   }
 
+  /**
+   * Resolves once every visible layer can report a source size, or after
+   * `timeout`.
+   *
+   * Serialising reads each layer's intrinsic dimensions to work out its crop,
+   * and a layer that cannot answer is dropped from the render. A person is slow
+   * enough that this is rarely hit; a script that adds layers and renders in the
+   * same breath hits it every time, and the result is a video of captions over
+   * black.
+   */
+  async whenReady(timeout = 15000) {
+    const pending = () =>
+      this.layers.filter((layer) => {
+        if (!layer.visible || layer.type === "text" || layer.type === "audio") return false;
+        const size = this.sourceSize(layer);
+        return !size.w || !size.h;
+      });
+
+    const deadline = Date.now() + timeout;
+    while (Date.now() < deadline) {
+      const waiting = pending();
+      if (!waiting.length) return { ready: true, waiting: [] };
+      await new Promise((resolve) => setTimeout(resolve, 120));
+    }
+    return { ready: false, waiting: pending().map((l) => l.name) };
+  }
+
   sourceSize(layer) {
     const el = this.media.get(layer.src);
     if (!el) return { w: 0, h: 0 };

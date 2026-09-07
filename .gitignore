@@ -41,6 +41,7 @@ new-videos/*
 !/social/studio/
 /social/studio/*
 !/social/studio/*.js
+!/social/studio/*.mjs
 !/social/studio/formats.json
 /marketing-video-15-agustos/*
 /marketing-video-2/*

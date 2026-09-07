@@ -1904,6 +1904,12 @@ async function renderVideo() {
   $("#vid-progress-note").textContent = "Freezing the canvas…";
 
   try {
+    // A layer added a moment ago has not measured itself yet, and an unmeasured
+    // layer is silently left out of the render.
+    $("#vid-progress-note").textContent = "Waiting for the clips to load…";
+    const { ready, waiting } = await editor.whenReady();
+    if (!ready) toast(`Still loading after 15s: ${waiting.join(", ")}`);
+
     const { layers, missing } = await serializeComposition();
     if (missing.length) toast(`Still loading, skipped: ${missing.join(", ")}`);
     if (!layers.length) throw new Error("nothing to render");
@@ -2093,6 +2099,328 @@ function wireVideoTab() {
   $("#vid-still").addEventListener("input", holdOut);
   holdOut();
   showStage("edit");
+}
+
+/* ------------------------------------------------------------------ ai mode */
+
+// The studio, driven by the model instead of by clicking. The questions are
+// asked here rather than by the model: five fixed answers are faster to give
+// than a conversation, and they leave the model free to spend its turns on the
+// work. It researches and downloads on the server, hands back a plan, and the
+// plan is executed through the same functions a person's clicks go through —
+// which is why the result lands in Output looking like anything else.
+
+const AI_QUESTIONS = [
+  {
+    id: "kind",
+    ask: "What are we making?",
+    options: [
+      { label: "A video", value: "video" },
+      { label: "An image carousel", value: "image" },
+    ],
+  },
+  {
+    id: "topic",
+    ask: "What is it about? One line is plenty — a feature, an annoyance, a moment.",
+    free: "e.g. copying a hex code and losing it",
+  },
+  {
+    id: "background",
+    ask: "What should be behind it?",
+    when: (a) => a.kind === "video",
+    options: [
+      { label: "Whatever is already downloaded", value: "reuse something already in the library" },
+      { label: "Gameplay", value: "find gameplay footage, vertical if possible" },
+      { label: "Something satisfying", value: "find satisfying loop footage" },
+      { label: "Calm b-roll", value: "find calm b-roll: drone, rain, a train window" },
+    ],
+    free: "or describe it",
+  },
+  {
+    id: "sticker",
+    ask: "A GIF or sticker on top?",
+    when: (a) => a.kind === "video",
+    options: [
+      { label: "No", value: "no" },
+      { label: "You choose", value: "yes — pick a sticker that fits the tone" },
+    ],
+    free: "or say what to search for",
+  },
+  {
+    id: "voice",
+    ask: "Read it out loud?",
+    when: (a) => a.kind === "video",
+    options: [
+      { label: "No, captions only", value: "no voiceover" },
+      { label: "Yes", value: "yes, speak the script" },
+    ],
+  },
+  {
+    id: "length",
+    ask: "How long?",
+    when: (a) => a.kind === "video",
+    options: [
+      { label: "15s", value: "about 15 seconds" },
+      { label: "20s", value: "about 20 seconds" },
+      { label: "30s", value: "about 30 seconds" },
+    ],
+  },
+  {
+    id: "format",
+    ask: "Which shape should the carousel take?",
+    when: (a) => a.kind === "image",
+    options: [
+      { label: "Numbered list", value: "a numbered listicle" },
+      { label: "Problem → fix", value: "each slide an annoyance then the fix" },
+      { label: "POV", value: "second person, POV" },
+      { label: "Hot take", value: "one opinion held plainly, then the evidence" },
+    ],
+  },
+];
+
+const ai = { step: 0, answers: {}, running: false };
+
+function aiSay(text, who = "assistant") {
+  const el = document.createElement("div");
+  el.className = `ai-msg is-${who}`;
+  el.textContent = text;
+  $("#ai-chat").appendChild(el);
+  $("#ai-chat").scrollTop = $("#ai-chat").scrollHeight;
+  return el;
+}
+
+function aiLog(text, state = "") {
+  const el = document.createElement("div");
+  el.className = `ai-msg is-tool ${state}`.trim();
+  el.textContent = text;
+  $("#ai-chat").appendChild(el);
+  $("#ai-chat").scrollTop = $("#ai-chat").scrollHeight;
+  return el;
+}
+
+function aiQuestions() {
+  return AI_QUESTIONS.filter((q) => !q.when || q.when(ai.answers));
+}
+
+function aiAsk() {
+  const options = $("#ai-options");
+  const inputRow = $("#ai-input-row");
+  options.innerHTML = "";
+  inputRow.hidden = true;
+  $("#ai-actions").hidden = true;
+
+  const list = aiQuestions();
+  const question = list[ai.step];
+  if (!question) {
+    // Every answer is on screen above; the button is the only thing left.
+    $("#ai-actions").hidden = false;
+    aiSay("That is everything. Hit Create and I will go and build it.");
+    return;
+  }
+
+  aiSay(question.ask);
+  for (const option of question.options || []) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "ai-option";
+    button.textContent = option.label;
+    button.addEventListener("click", () => aiAnswer(question, option.value, option.label));
+    options.appendChild(button);
+  }
+  if (question.free !== undefined) {
+    inputRow.hidden = false;
+    $("#ai-input").placeholder = question.free || "Type your answer…";
+    $("#ai-input").value = "";
+    $("#ai-input").focus();
+  }
+}
+
+function aiAnswer(question, value, label) {
+  ai.answers[question.id] = value;
+  aiSay(label || value, "user");
+  ai.step++;
+  aiAsk();
+}
+
+function aiRestart() {
+  ai.step = 0;
+  ai.answers = {};
+  ai.running = false;
+  $("#ai-chat").innerHTML = "";
+  aiSay("Tell me what you want and I will find the footage, write it, and render it.");
+  aiAsk();
+}
+
+/* ------------------------------------------------------------ executing a plan */
+
+// Library entries carry the width, height and duration that placement needs;
+// the plan only carries paths, so look each one up before using it.
+function libraryItemByPath(path) {
+  const all = [
+    ...state.library.videos,
+    ...state.library.appClips,
+    ...state.library.photos,
+    ...state.library.appShots,
+    ...state.library.gifs,
+    ...state.library.voice,
+    ...state.library.music,
+  ];
+  return all.find((item) => item.path === path) || null;
+}
+
+// The four layouts the presets used to build, as plain geometry.
+const AI_LAYOUTS = {
+  split: { app: { x: 0, y: 0, w: COMP_W, h: 960, fit: "cover" }, bg: { x: 0, y: 960, w: COMP_W, h: 960, fit: "cover" } },
+  pip: { bg: { x: 0, y: 0, w: COMP_W, h: COMP_H, fit: "cover" }, app: { x: 80, y: 620, w: 920, h: 560, fit: "contain" } },
+  screen: { bg: { x: 0, y: 0, w: COMP_W, h: COMP_H, fit: "cover", blur: 40 }, app: { x: 0, y: 400, w: COMP_W, h: 1120, fit: "contain" } },
+  stack: { bg: { x: 0, y: 0, w: COMP_W, h: 640, fit: "cover" }, app: { x: 0, y: 640, w: COMP_W, h: 1280, fit: "cover" } },
+};
+
+async function aiBuildVideo(plan) {
+  const duration = Math.max(4, Math.min(Number(plan.duration) || 20, 120));
+  editor.setComposition({ duration, layers: [] });
+  setCompDuration(duration);
+
+  const layout = AI_LAYOUTS[plan.layout] || AI_LAYOUTS.split;
+  const place = (path, box, extra = {}) => {
+    const item = libraryItemByPath(path);
+    if (!item) {
+      aiLog(`skipped a layer: ${path} is not in the library`, "is-error");
+      return null;
+    }
+    return editor.addLayer(
+      newLayer({ type: "video", name: item.name, path: item.path, src: fileUrl(item), start: 0, end: duration, ...box, ...extra }),
+    );
+  };
+
+  // Background first so it sits underneath, whatever the layout.
+  if (plan.backgroundPath) place(plan.backgroundPath, layout.bg, { volume: 0.25 });
+  if (plan.appClipPath) place(plan.appClipPath, layout.app);
+
+  if (plan.gifPath) {
+    const item = libraryItemByPath(plan.gifPath);
+    if (item) editor.addLayer(gifLayer(item, { x: COMP_W / 2, y: COMP_H * 0.34 }));
+  }
+
+  if (plan.voicePath) {
+    const item = libraryItemByPath(plan.voicePath);
+    if (item) {
+      const spoken = Number(item.duration) || duration;
+      if (spoken + 0.4 > editor.comp.duration) setCompDuration(spoken + 0.4);
+      editor.addLayer(audioLayer({ name: item.name, path: item.path, src: fileUrl(item), duration: spoken }, { start: 0, end: spoken }));
+    }
+  }
+
+  // Captions go through the same path the button uses, so their timing and look
+  // match anything made by hand.
+  $("#vid-hook").value = plan.hook || "";
+  $("#vid-lines").value = (plan.lines || []).join("\n");
+  $("#vid-caption").value = plan.caption || "";
+  $("#vid-hashtags").value = (plan.hashtags || []).map((h) => h.replace(/^#/, "")).join(" ");
+  await putCaptionsOnCanvas();
+
+  aiLog(`${editor.layers.length} layers on the canvas`, "is-done");
+  await renderVideo();
+}
+
+async function aiBuildImage(plan) {
+  applyImageCopy({
+    slides: (plan.slides || []).map((s) => ({ headline: s.headline, body: s.body })),
+    scene: plan.scene || "",
+    caption: plan.caption || "",
+    hashtags: plan.hashtags || [],
+  });
+  if (!state.image.slides.length) throw new Error("the plan had no slides");
+  aiLog(`${state.image.slides.length} slides written`, "is-done");
+  await autoBackgrounds(plan.scene);
+  await exportImagePost();
+}
+
+async function aiCreate() {
+  if (ai.running) return;
+  ai.running = true;
+  $("#ai-create").disabled = true;
+  $("#ai-restart").disabled = true;
+  aiSay("On it. I will say what I am doing as I go.");
+
+  try {
+    const { jobId } = await api("/ai/run", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        answers: Object.fromEntries(aiQuestions().map((q) => [q.ask, ai.answers[q.id]])),
+        product: state.content ? state.content.product : undefined,
+        voices: [...$("#vid-voice").options].map((o) => o.value).filter(Boolean),
+      }),
+    });
+
+    let shown = 0;
+    const result = await pollJob(jobId, (job) => {
+      for (const message of (job.messages || []).slice(shown)) {
+        if (message.role === "tool") aiLog(`${message.tool} ${JSON.stringify(message.args || {}).slice(0, 90)}`);
+        else if (message.role === "tool-result") aiLog(`${message.tool} → ${message.text}`, "is-done");
+        else if (message.role === "tool-error") aiLog(`${message.tool} failed: ${message.text}`, "is-error");
+        else if (message.text) aiSay(message.text);
+      }
+      shown = (job.messages || []).length;
+    });
+
+    await loadLibrary();
+    const plan = result.plan;
+    aiLog("building the composition", "is-done");
+    if (plan.kind === "image") await aiBuildImage(plan);
+    else await aiBuildVideo(plan);
+    aiSay("Done — it is in the Output tab.");
+    aiShowResult(plan);
+  } catch (error) {
+    aiLog(String(error.message || error), "is-error");
+    aiSay("That did not finish. You can start over, or build it by hand in the other tabs — everything I downloaded is in your library.");
+  } finally {
+    ai.running = false;
+    $("#ai-create").disabled = false;
+    $("#ai-restart").disabled = false;
+  }
+}
+
+// The newest thing in the output folder is what was just made.
+async function aiShowResult() {
+  try {
+    const { items } = await api("/out");
+    const latest = items[0];
+    if (!latest) return;
+    const wrap = document.createElement("div");
+    wrap.className = "ai-result";
+    if (latest.kind === "video") {
+      const video = document.createElement("video");
+      video.src = fileUrl(latest);
+      video.controls = true;
+      video.playsInline = true;
+      wrap.appendChild(video);
+    } else if (latest.images && latest.images.length) {
+      const img = document.createElement("img");
+      img.src = fileUrl(latest.images[0]);
+      wrap.appendChild(img);
+    }
+    const caption = document.createElement("p");
+    caption.textContent = latest.name;
+    wrap.appendChild(caption);
+    $("#ai-chat").appendChild(wrap);
+    $("#ai-chat").scrollTop = $("#ai-chat").scrollHeight;
+  } catch {}
+}
+
+function wireAiTab() {
+  $("#ai-create").addEventListener("click", aiCreate);
+  $("#ai-restart").addEventListener("click", aiRestart);
+  $("#ai-send").addEventListener("click", () => {
+    const value = $("#ai-input").value.trim();
+    if (!value) return;
+    aiAnswer(aiQuestions()[ai.step], value, value);
+  });
+  $("#ai-input").addEventListener("keydown", (event) => {
+    if (event.key === "Enter") $("#ai-send").click();
+  });
+  aiRestart();
 }
 
 /* ------------------------------------------------------------------- output */
@@ -2539,6 +2867,7 @@ async function init() {
 
   wireImageTab();
   wireVideoTab();
+  wireAiTab();
   wireFootagePreview();
   showBackgroundSource("library");
   // No slides until you ask for some: the page used to open on six template
