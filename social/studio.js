@@ -1501,8 +1501,8 @@ function renderFootageResults(results) {
     const add = document.createElement("button");
     add.type = "button";
     add.className = "button button-dark button-small";
-    add.textContent = "Download";
-    add.addEventListener("click", () => downloadFootage(item, add));
+    add.textContent = "Watch & pick";
+    add.addEventListener("click", () => openFootagePreview(item));
 
     body.append(title, meta, add);
     card.append(img, body);
@@ -1524,6 +1524,142 @@ async function searchFootage(query) {
   } catch (error) {
     $("#foot-hint").textContent = `Search failed: ${error.message}`;
   }
+}
+
+/* ------------------------------------------------------- footage preview -- */
+
+// Choosing a slice by typing "01:00" at a video you have never seen is a guess.
+// This plays the candidate and lets you mark the in and out points off the
+// playhead, which is the only way to know the 35 seconds you are keeping are
+// the interesting 35 seconds.
+//
+// YouTube will not let a page read a plain iframe's clock, so the embed is
+// created through the IFrame Player API — the whole reason it is loaded. A
+// Pexels result is a direct file, so a <video> element answers on its own.
+
+const clock = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+const parseClock = (text) => {
+  const m = /^(\d{1,2}):(\d{2})$/.exec((text || "").trim());
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+};
+
+const preview = { item: null, kind: null, player: null, video: null };
+
+let ytReady = null;
+function youtubeApi() {
+  if (ytReady) return ytReady;
+  ytReady = new Promise((resolve, reject) => {
+    if (window.YT && window.YT.Player) return resolve(window.YT);
+    window.onYouTubeIframeAPIReady = () => resolve(window.YT);
+    const tag = document.createElement("script");
+    tag.src = "https://www.youtube.com/iframe_api";
+    tag.onerror = () => reject(new Error("Could not load the YouTube player"));
+    document.head.appendChild(tag);
+  });
+  return ytReady;
+}
+
+// Whatever is playing, in seconds.
+function previewTime() {
+  if (preview.kind === "youtube" && preview.player) return preview.player.getCurrentTime() || 0;
+  if (preview.video) return preview.video.currentTime || 0;
+  return 0;
+}
+
+function previewDuration() {
+  if (preview.kind === "youtube" && preview.player) return preview.player.getDuration() || 0;
+  if (preview.video) return preview.video.duration || 0;
+  return preview.item?.duration || 0;
+}
+
+function renderRangeNote() {
+  const from = parseClock($("#foot-from").value);
+  const len = Number($("#foot-len").value);
+  const note = $("#foot-range-note");
+  if (from === null || !len) {
+    note.textContent = "Set a start and a length.";
+    return;
+  }
+  const total = previewDuration();
+  const past = total && from + len > total + 1;
+  note.textContent = past
+    ? `${clock(from)} → ${clock(from + len)} runs past the end of the clip (${clock(total)}).`
+    : `Keeping ${clock(from)} → ${clock(from + len)} · ${len}s`;
+}
+
+function closeFootagePreview() {
+  if (preview.player && preview.player.destroy) preview.player.destroy();
+  preview.player = null;
+  preview.video = null;
+  preview.item = null;
+  $("#foot-stage").innerHTML = "";
+  $("#foot-preview").hidden = true;
+}
+
+async function openFootagePreview(item) {
+  closeFootagePreview();
+  preview.item = item;
+  preview.kind = item.provider === "youtube" ? "youtube" : "direct";
+  $("#foot-preview").hidden = false;
+  $("#foot-preview-title").textContent = item.title;
+  const stage = $("#foot-stage");
+
+  if (preview.kind === "youtube") {
+    stage.innerHTML = '<div id="foot-yt"></div>';
+    try {
+      const YT = await youtubeApi();
+      preview.player = new YT.Player("foot-yt", {
+        videoId: item.id,
+        playerVars: { rel: 0, modestbranding: 1, playsinline: 1 },
+        events: { onReady: renderRangeNote },
+      });
+    } catch (error) {
+      stage.innerHTML = `<p class="field-hint">${error.message}. Type the range by hand below.</p>`;
+    }
+  } else {
+    const video = document.createElement("video");
+    video.src = item.url;
+    video.controls = true;
+    video.preload = "metadata";
+    video.addEventListener("loadedmetadata", renderRangeNote);
+    stage.appendChild(video);
+    preview.video = video;
+  }
+  renderRangeNote();
+}
+
+function wireFootagePreview() {
+  $("#foot-preview-close").addEventListener("click", closeFootagePreview);
+
+  $("#foot-mark-in").addEventListener("click", () => {
+    $("#foot-from").value = clock(previewTime());
+    renderRangeNote();
+  });
+
+  // Marking the end sets the length rather than a second timestamp, because
+  // that is what yt-dlp and the rest of the page already work in.
+  $("#foot-mark-out").addEventListener("click", () => {
+    const from = parseClock($("#foot-from").value);
+    const at = previewTime();
+    if (from === null || at <= from) {
+      toast("Mark the start first, then play on and mark the end.");
+      return;
+    }
+    $("#foot-len").value = Math.max(1, Math.round(at - from));
+    renderRangeNote();
+  });
+
+  for (const id of ["#foot-from", "#foot-len"]) $(id).addEventListener("input", renderRangeNote);
+
+  // downloadFootage leaves its button reading "In library", which is right for
+  // a card that stands for one clip and wrong for the one shared button here.
+  $("#foot-grab").addEventListener("click", async (event) => {
+    if (!preview.item) return;
+    const button = event.currentTarget;
+    await downloadFootage(preview.item, button);
+    button.disabled = false;
+    button.textContent = "Download this slice";
+  });
 }
 
 // yt-dlp takes a section as *start-end; the page works in "from + length"
@@ -2345,6 +2481,7 @@ async function init() {
 
   wireImageTab();
   wireVideoTab();
+  wireFootagePreview();
   showBackgroundSource("library");
   // No slides until you ask for some: the page used to open on six template
   // cards nobody had written, which read as work already done.

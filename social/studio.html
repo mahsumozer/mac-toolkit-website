@@ -246,17 +246,29 @@
                   </label>
                   <button class="button button-dark button-small" id="foot-go" type="button">Find</button>
                 </div>
-                <div class="field-row">
-                  <label class="field">
-                    <span>Grab from</span>
-                    <input id="foot-from" type="text" value="01:00" placeholder="mm:ss" />
-                  </label>
-                  <label class="field">
-                    <span>Seconds</span>
-                    <input id="foot-len" type="number" min="5" max="600" step="5" value="35" />
-                  </label>
+                <p class="field-hint">Pick a result to watch it and mark the slice — a 30-minute gameplay video is not worth keeping whole.</p>
+
+                <div class="foot-preview" id="foot-preview" hidden>
+                  <div class="foot-preview-head">
+                    <span class="foot-preview-title" id="foot-preview-title"></span>
+                    <button class="button button-ghost button-small" id="foot-preview-close" type="button">Close</button>
+                  </div>
+                  <div class="foot-stage" id="foot-stage"></div>
+                  <div class="foot-marks">
+                    <button class="button button-ghost button-small" id="foot-mark-in" type="button">Start here</button>
+                    <button class="button button-ghost button-small" id="foot-mark-out" type="button">End here</button>
+                    <label class="field field-tight">
+                      <span>From</span>
+                      <input id="foot-from" type="text" value="01:00" placeholder="mm:ss" />
+                    </label>
+                    <label class="field field-tight">
+                      <span>Seconds</span>
+                      <input id="foot-len" type="number" min="5" max="600" step="1" value="35" />
+                    </label>
+                    <button class="button button-dark button-small" id="foot-grab" type="button">Download this slice</button>
+                  </div>
+                  <p class="field-hint" id="foot-range-note"></p>
                 </div>
-                <p class="field-hint">Downloads just that slice — a 30-minute gameplay video is not worth keeping whole.</p>
                 <p class="field-hint" id="foot-hint">
                   YouTube results are ranked by view count. Clips you download land in
                   <code>studio/library/videos/</code>, are logged in <code>sources.json</code>, and become pickable below.

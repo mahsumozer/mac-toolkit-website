@@ -58,7 +58,7 @@
   display: flex;
   gap: 6px;
   border-bottom: 1px solid var(--line);
-  margin-bottom: 22px;
+  margin-bottom: 12px;
 }
 
 .tab {
@@ -115,8 +115,12 @@
 }
 
 .studio-preview {
+  /* Anchors the overlaid preview head. */
   position: sticky;
-  top: 18px;
+  /* Clears the sticky page header rather than sliding under it: that header is
+     63px tall (16 + a 30px brand mark + 16 + its border) and sits at z-index 40,
+     so an 18px offset hid the top of the canvas behind it. */
+  top: 75px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -467,13 +471,33 @@
 
 /* ---------------------------------------------------------------- preview */
 
+/* Sits on the canvas rather than above it. As its own row it cost 47px of the
+   space between the page header and the frame, which on a 9:16 preview is the
+   difference between seeing the composition and scrolling to it. It covers only
+   the top edge, where nothing in a vertical post is ever placed. */
 .preview-head {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 3;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  padding: 8px 10px;
+  border-radius: 14px 14px 0 0;
   font-size: 13px;
   font-weight: 650;
+  color: #fff;
+  background: linear-gradient(180deg, rgba(5, 5, 5, 0.72), rgba(5, 5, 5, 0));
+  pointer-events: none;
+}
+
+/* Only the controls take the pointer, so a drag that starts under the bar still
+   reaches the layer beneath it. */
+.preview-head > * {
+  pointer-events: auto;
 }
 
 .canvas-wrap {
@@ -1613,4 +1637,71 @@ kbd {
    on the first letter of the message. */
 .timeline:has(.tl-empty) .tl-playhead {
   display: none;
+}
+
+
+/* ------------------------------------------------------- footage preview -- */
+
+.foot-preview {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper-2);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.foot-preview-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.foot-preview-title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 16:9, because that is what a YouTube embed is whatever the source was shot in. */
+.foot-stage {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #000;
+  display: grid;
+  place-items: center;
+}
+
+.foot-stage iframe,
+.foot-stage video {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+  object-fit: contain;
+}
+
+.foot-marks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.field-tight {
+  flex: 0 0 auto;
+  width: 96px;
+}
+
+/* The studio is a workbench, not a document: it wants the top of the window. */
+.studio-main {
+  padding-top: 16px;
 }
