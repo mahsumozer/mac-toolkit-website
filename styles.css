@@ -4122,7 +4122,7 @@ body.show-mac-handoff .mac-handoff:focus-within {
 }
 
 .download-section .pricing-plans-single {
-  width: min(100%, 330px);
+  width: min(100%, 290px);
 }
 
 .download-copy p {
@@ -4304,7 +4304,11 @@ body.show-mac-handoff .mac-handoff:focus-within {
   animation: cta-breathe 3s ease-in-out infinite;
 }
 
+/* The buy button turns itself inside out on hover: white face, black print,
+   and the border follows the print since it is drawn in currentColor. */
 .pricing-cta:hover {
+  color: var(--ink);
+  background: var(--white);
   animation: none;
 }
 
