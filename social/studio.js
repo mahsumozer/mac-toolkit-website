@@ -2125,11 +2125,22 @@ const AI_QUESTIONS = [
     free: "e.g. copying a hex code and losing it",
   },
   {
+    id: "appclip",
+    ask: "Which Mac Kit recording should be in it?",
+    when: (a) => a.kind === "video",
+    options: [
+      { label: "You choose", value: "pick whichever app recording suits the topic" },
+      { label: "Let me pick", pick: "appClips" },
+      { label: "None — background only", value: "no app recording, background and captions only" },
+    ],
+  },
+  {
     id: "background",
     ask: "What should be behind it?",
     when: (a) => a.kind === "video",
     options: [
       { label: "Whatever is already downloaded", value: "reuse something already in the library" },
+      { label: "Let me pick", pick: "videos" },
       { label: "Gameplay", value: "find gameplay footage, vertical if possible" },
       { label: "Something satisfying", value: "find satisfying loop footage" },
       { label: "Calm b-roll", value: "find calm b-roll: drone, rain, a train window" },
@@ -2198,6 +2209,54 @@ function aiLog(text, state = "") {
   return el;
 }
 
+// A grid of what is already in the library, in the conversation. Answering with
+// a filename would mean reading a list and typing it correctly; answering with a
+// thumbnail is one click, and the poster frames already exist.
+function aiPick(question, kind) {
+  const items = (kind === "appClips" ? state.library.appClips : state.library.videos) || [];
+  if (!items.length) {
+    aiSay(`Nothing in the library to pick from yet. I will choose instead.`);
+    aiAnswer(question, "pick whichever clip suits the topic", "You choose");
+    return;
+  }
+
+  const wrap = document.createElement("div");
+  wrap.className = "ai-msg is-assistant ai-pickgrid";
+  for (const item of items) {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "clip-card ai-pickcard";
+
+    const media = document.createElement("div");
+    media.className = "clip-media";
+    const poster = document.createElement("img");
+    poster.loading = "lazy";
+    poster.src = `${API}${item.poster || item.url}`;
+    poster.alt = "";
+    media.appendChild(poster);
+
+    const name = document.createElement("span");
+    name.className = "clip-name";
+    name.textContent = item.name;
+    const meta = document.createElement("span");
+    meta.className = "clip-meta";
+    meta.textContent = [item.width && `${item.width}×${item.height}`, fmtDuration(item.duration)].filter(Boolean).join(" · ");
+
+    card.append(media, name, meta);
+    card.addEventListener("click", () => {
+      // Disable the whole grid so a second click cannot answer twice.
+      for (const other of wrap.querySelectorAll("button")) other.disabled = true;
+      card.classList.add("is-active");
+      // The path is what the plan needs; the model is told about it too so its
+      // script can suit the footage rather than fight it.
+      aiAnswer(question, `use exactly this file and no other: ${item.path}`, item.name);
+    });
+    wrap.appendChild(card);
+  }
+  $("#ai-chat").appendChild(wrap);
+  $("#ai-chat").scrollTop = $("#ai-chat").scrollHeight;
+}
+
 function aiQuestions() {
   return AI_QUESTIONS.filter((q) => !q.when || q.when(ai.answers));
 }
@@ -2224,7 +2283,16 @@ function aiAsk() {
     button.type = "button";
     button.className = "ai-option";
     button.textContent = option.label;
-    button.addEventListener("click", () => aiAnswer(question, option.value, option.label));
+    button.addEventListener("click", () => {
+      if (option.pick) {
+        aiSay(option.label, "user");
+        $("#ai-options").innerHTML = "";
+        $("#ai-input-row").hidden = true;
+        aiPick(question, option.pick);
+        return;
+      }
+      aiAnswer(question, option.value, option.label);
+    });
     options.appendChild(button);
   }
   if (question.free !== undefined) {
@@ -2293,9 +2361,18 @@ async function aiBuildVideo(plan) {
     );
   };
 
+  // A file the user pointed at beats whatever the model chose: it was shown a
+  // grid and clicked one, which is not a preference to be reinterpreted.
+  const chosen = (answer) => {
+    const match = /use exactly this file and no other: (.+)$/.exec(answer || "");
+    return match ? match[1].trim() : null;
+  };
+  const backgroundPath = chosen(ai.answers.background) || plan.backgroundPath;
+  const appClipPath = chosen(ai.answers.appclip) || plan.appClipPath;
+
   // Background first so it sits underneath, whatever the layout.
-  if (plan.backgroundPath) place(plan.backgroundPath, layout.bg, { volume: 0.25 });
-  if (plan.appClipPath) place(plan.appClipPath, layout.app);
+  if (backgroundPath) place(backgroundPath, layout.bg, { volume: 0.25 });
+  if (appClipPath) place(appClipPath, layout.app);
 
   if (plan.gifPath) {
     const item = libraryItemByPath(plan.gifPath);
