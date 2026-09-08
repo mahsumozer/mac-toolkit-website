@@ -2072,3 +2072,12 @@ kbd {
 .ai-pickcard.is-active .clip-media {
   border-color: var(--accent);
 }
+
+/* The borrowed stage sits where every other tab's canvas sits. */
+.ai-stage {
+  min-width: 0;
+}
+
+.ai-stage:empty {
+  display: none;
+}

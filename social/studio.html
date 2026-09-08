@@ -43,6 +43,7 @@
 
       <!-- =============================================================== ai -->
       <section class="tab-panel" data-panel="ai">
+        <div class="studio-grid">
         <div class="ai-shell">
           <div class="ai-chat" id="ai-chat"></div>
           <div class="ai-compose" id="ai-compose">
@@ -56,6 +57,11 @@
               <button class="button button-ghost button-small" id="ai-restart" type="button">Start over</button>
             </div>
           </div>
+        </div>
+        <!-- The video stage is moved in here while AI mode is open: there is one
+             composition and one editor, so there is one canvas, and watching it
+             fill in beats waiting for a file to appear. -->
+        <div class="ai-stage" id="ai-stage-slot"></div>
         </div>
       </section>
 

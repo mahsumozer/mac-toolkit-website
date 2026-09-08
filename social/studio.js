@@ -2418,7 +2418,8 @@ async function aiCreate() {
   ai.running = true;
   $("#ai-create").disabled = true;
   $("#ai-restart").disabled = true;
-  aiSay("On it. I will say what I am doing as I go.");
+  aiSay("On it. Watch the canvas — I will say what I am doing as I go.");
+  showStage("edit");
 
   try {
     const { jobId } = await api("/ai/run", {
@@ -2710,17 +2711,31 @@ function renderStepRail() {
   }
 }
 
+// The stage is one element, so it cannot be in two panels at once. It lives in
+// the video tab and is borrowed by AI mode, which keeps a single canvas, a
+// single editor and a single composition — mirroring it into a second canvas
+// would mean two things that could disagree.
+function moveStage(toAi) {
+  const stage = $(".tab-panel[data-panel='video'] .studio-preview") || $("#ai-stage-slot .studio-preview");
+  if (!stage) return;
+  const home = $(".tab-panel[data-panel='video'] .studio-grid");
+  const slot = $("#ai-stage-slot");
+  const target = toAi ? slot : home;
+  if (target && stage.parentElement !== target) target.appendChild(stage);
+}
+
 function showTab(name) {
   const tab = $$(".tab").find((t) => t.dataset.tab === name);
   if (!tab) return;
   $$(".tab").forEach((t) => t.classList.toggle("is-active", t === tab));
   $$(".tab-panel").forEach((panel) => panel.classList.toggle("is-active", panel.dataset.panel === name));
+  moveStage(name === "ai");
   renderStepRail();
   if (location.hash.slice(1) !== name) history.replaceState(null, "", `#${name}`);
   if (name === "output") loadOutput();
   // The timeline sizes itself from its visible width, which is zero while the
   // panel is display:none — so it has to be laid out again on the way in.
-  if (name === "video" && timeline) timeline.sync();
+  if ((name === "video" || name === "ai") && timeline) timeline.sync();
 }
 
 function wireTabs() {
