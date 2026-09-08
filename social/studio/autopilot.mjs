@@ -23,6 +23,7 @@
 // are guaranteed to agree. Same split as AI mode, same reason.
 
 import { runAgent } from "./agent.mjs";
+import { opening as openingOf } from "./transcript.mjs";
 
 const MAX_PAGES = 5;
 const MAX_CHARS = 22000;
@@ -199,7 +200,7 @@ How to think:
 - The hook is the whole thing. It is the first line on screen, under seven words, and it has to work for someone who has never heard of this product. No "introducing", no "check out", no question that answers itself.
 - Video scripts: short lines, one idea each, read in under two seconds. Say what the product does, never what it "empowers" you to do.
 - Say what the post looks like in "picture", in one sentence, and make the concepts look different from each other: a photograph with a sticker over it, a screenshot on a moving backdrop, a gif filling the frame, a corner reaction. Not the same arrangement twice.
-- You are shown what is moving in this niche right now. Borrow the *shape* of one — its hook pattern, its format, how many beats it runs — and put the product's own truth inside it. Never borrow a claim, a number or a sentence: those come from the fact sheet and nowhere else. When a concept is built on one, put its address in "remixUrl" and say what you took in "remixNote"; the producer will cut its bed from that video. At least one concept should do this when anything is listed, and none should if nothing is.
+- You are shown what is moving in this niche right now, and for the fastest of them, the words they open with — which is the part that earned the view. Borrow the *shape* of one — its hook pattern, its opening move, its format, how many beats it runs — and put the product's own truth inside it. Never borrow a claim, a number or a sentence: those come from the fact sheet and nowhere else. When a concept is built on one, put its address in "remixUrl" and say what you took in "remixNote"; the producer will cut its bed from that video. At least one concept should do this when anything is listed, and none should if nothing is.
 - Carousels: the first card is the hook, the rest carry one point each, the last one says what to do next.
 - Every claim comes from the fact sheet. Nothing else exists.
 - Footage queries are two to four plain words that a stock or YouTube search will match — "laptop desk", "minecraft parkour". Never a product name, never an adjective.
@@ -256,7 +257,8 @@ function directorPrompt({ brand, count, mix, images, trends }) {
       .slice(0, 14)
       .map(
         (item) =>
-          `- ${item.velocity.toLocaleString()}/day · ${item.shape?.format || "no set format"}${item.shape?.beats ? ` (${item.shape.beats} beats)` : ""} · "${item.shape?.hook || item.title}"${item.isShort ? " · short" : ""} · ${item.url}`,
+          `- ${item.velocity.toLocaleString()}/day · ${item.shape?.format || "no set format"}${item.shape?.beats ? ` (${item.shape.beats} beats)` : ""} · "${item.shape?.hook || item.title}"${item.isShort ? " · short" : ""} · ${item.url}` +
+          (item.opening ? `\n    opens with: "${item.opening}"` : ""),
       )
       .join("\n") || "- nothing harvested for this niche",
     ``,
@@ -297,7 +299,8 @@ How to work:
 - Timing is yours too. A sticker that appears on the punchline and leaves is better than one that sits there for sixteen seconds; a second clip can cut in halfway.
 - Search queries are two to four plain words. Never a product name, a feature name or an adjective: stock and YouTube match every word, so "clean mode laptop desk" returns nothing at all.
 - Download one background clip. One is enough; a second is a minute of someone's life for nothing.
-- If the concept carries a remixUrl, that is the video whose shape it borrows: download a slice of it with download_footage and use it as the bed, rather than searching for something else. Only the pictures are borrowed — every word still comes from the fact sheet.
+- If the concept carries a remixUrl, that is the video whose shape it borrows: read it with read_video, pick the stretch where something is actually happening — not the intro, not the sponsor read, not the sign-off — and download that section as the bed. Only the pictures are borrowed; every word still comes from the fact sheet.
+- read_video works on anything you find with search_footage too. A minute spent reading beats a bed cut from a talking head staring at a title card.
 - For a carousel, check the scene with search_photos before you commit to it. Two plain words. If it returns nothing, try one other scene, then use whatever did return.
 - The script is already written for you. Tighten it if a line does not survive being read aloud, but do not rewrite the concept.
 - Every claim must come from the fact sheet. If the concept asks for something the product does not do, build the closest true thing and say so in your note.
@@ -351,6 +354,15 @@ export function producerTools({ hasGiphy }) {
           properties: { query: { type: "string" }, sort: { type: "string", enum: ["views", "relevance"] } },
           required: ["query"],
         },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "read_video",
+        description:
+          "Read what a YouTube video actually says, as timestamped lines. Call this on the concept's remixUrl before downloading: it is how you find the twenty seconds worth cutting instead of guessing a timecode, and it tells you where the sponsor read and the outro are so you can avoid them.",
+        parameters: { type: "object", properties: { url: { type: "string" } }, required: ["url"] },
       },
     },
     {
@@ -568,7 +580,7 @@ const trim = (value, max) => (typeof value === "string" && value.length > max ? 
  * tool-calling completion. `toolImpls` are the producer's hands. `onEvent` gets
  * chat-shaped progress, so the page can show the run rather than a spinner.
  */
-export async function runAutopilot({ url, count = 3, mix, voices, voiceover = true, fetchPage, json, agentCall, toolImpls, hasGiphy, trends, onEvent, onPhase }) {
+export async function runAutopilot({ url, count = 3, mix, voices, voiceover = true, fetchPage, json, agentCall, toolImpls, hasGiphy, trends, readVideo, onEvent, onPhase }) {
   const say = (text, extra = {}) => onEvent({ role: "assistant", text, ...extra });
   const log = (text, extra = {}) => onEvent({ role: "tool-result", tool: extra.tool || "autopilot", text, ...extra });
 
@@ -624,6 +636,22 @@ export async function runAutopilot({ url, count = 3, mix, voices, voiceover = tr
           ? `${moving.length} trending records, fastest ${moving[0].velocity.toLocaleString()} views/day: "${moving[0].title}"`
           : "nothing trending found for this niche — the concepts will not borrow a shape",
       );
+      // The first fifteen seconds of the fastest few, because a title is a
+      // filename and the opening line is the thing that actually earned the
+      // view. Only the top handful: each is a fetch, and they are read at once.
+      if (readVideo && moving.length) {
+        const top = moving.slice(0, 4);
+        await Promise.all(
+          top.map(async (item) => {
+            try {
+              const transcript = await readVideo(item.url);
+              if (transcript.cues && transcript.cues.length) item.opening = openingOf(transcript.cues);
+            } catch {}
+          }),
+        );
+        const read = top.filter((item) => item.opening).length;
+        if (read) log(`read how ${read} of them open`);
+      }
     } catch (error) {
       log(`could not read the trends (${error.message}) — carrying on without them`, { role: "tool-error", tool: "trends" });
     }

@@ -40,6 +40,7 @@ fallback, so the studio is usable with none of them:
 | `geminiApiKey` | Voiceover — the default speaker | ElevenLabs if its key is set, otherwise macOS `say` |
 | `elevenLabsApiKey` | Voiceover, when there is no Gemini key | macOS `say`, offered as a voice list in the render panel |
 | `giphyApiKey` | GIF and sticker search | GIF search is disabled; everything else works |
+| `serpApiKey` | Transcripts for videos YouTube publishes no captions for | `yt-dlp`'s own caption fetch, which covers most videos |
 
 ### Which model writes the copy
 
@@ -139,6 +140,25 @@ enough on its own.
    best one, and the model is a far better editor of its own work than an author
    of it. If this pass fails the run carries on with the first drafts — a failed
    edit is not a failed run.
+
+### Reading the video before cutting it
+
+`studio/transcript.mjs` turns a YouTube address into timestamped lines. It is a
+port of the user's own transcript tool (`youtube-subtitles/transcript.py`) — its
+video-id parsing, its SerpApi call and its SRT writer are all here, and the
+original is untouched — with one source added in front: `yt-dlp`, which is
+already a dependency, needs no key and returns YouTube's own `json3` captions
+with a start and a duration per cue. SerpApi is the fallback for videos with no
+published captions, and only runs when `serpApiKey` is set. Auto-captions repeat
+the previous line as they scroll, so consecutive cues where one contains the
+other are collapsed. Everything is cached by video id.
+
+Two things use it. The trends pass reads how the fastest few videos *open*, since
+a title is a filename and the first fifteen seconds are what earned the view, and
+shows those openings to the director. And the producer has `read_video`: on a
+concept's `remixUrl` it reads the whole thing as one line per fifteen seconds, so
+it can cut the stretch where something happens instead of guessing a timecode and
+landing in the sponsor read.
 
 (The standing `studio/trends.json` is a different thing: `harvest-trends.mjs`
 builds it for Mac Kit's own studio from a fixed query list plus Reddit's top
@@ -540,6 +560,7 @@ social/
     agent.mjs                              AI mode's tool loop
     autopilot.mjs                          Autopilot's five passes and its producer
     trends.mjs                             velocity-ranked trends + the hook classifier
+    transcript.mjs                         what a video says, with timings (yt-dlp, then SerpApi)
     shot.mjs                               photographs a live page with headless Chrome
     editor.js                              the live draggable canvas
     library/photos|videos|music/           your footage

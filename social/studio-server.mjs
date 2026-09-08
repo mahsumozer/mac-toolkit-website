@@ -23,6 +23,7 @@ import { runAgent, toolSchemas, buildBrief } from "./studio/agent.mjs";
 import { runAutopilot } from "./studio/autopilot.mjs";
 import { screenshotSite } from "./studio/shot.mjs";
 import { trendingNow } from "./studio/trends.mjs";
+import { fetchTranscript, condense, opening } from "./studio/transcript.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SITE = resolve(HERE, "..");
@@ -56,6 +57,9 @@ const PEXELS_KEY = key("pexelsApiKey", "PEXELS_API_KEY");
 const ELEVEN_KEY = key("elevenLabsApiKey", "ELEVENLABS_API_KEY");
 const GIPHY_KEY = key("giphyApiKey", "GIPHY_API_KEY");
 const GEMINI_KEY = key("geminiApiKey", "GEMINI_API_KEY");
+// SerpApi is the fallback transcript source, ported from the user's own
+// youtube-subtitles tool; yt-dlp covers most videos without it.
+const SERPAPI_KEY = key("serpApiKey", "SERPAPI_API_KEY");
 
 // Wikimedia rejects generic or contactless User-Agents with a 429, so every
 // outbound request identifies the tool and where to complain about it.
@@ -702,9 +706,20 @@ async function synthesise(text, voice, outPath, style) {
   // Gemini is the default speaker when its key is set: an empty voice, which is
   // what everything that does not care sends, lands here rather than on `say`.
   if (GEMINI_KEY && (!voice || voice.startsWith("gemini:"))) {
-    const wav = outPath.replace(/\.\w+$/, "") + ".wav";
-    await fs.writeFile(wav, await geminiSpeak(text, voice ? voice.slice("gemini:".length) : GEMINI_DEFAULT_VOICE, style));
-    return wav;
+    try {
+      const wav = outPath.replace(/\.\w+$/, "") + ".wav";
+      await fs.writeFile(wav, await geminiSpeak(text, voice ? voice.slice("gemini:".length) : GEMINI_DEFAULT_VOICE, style));
+      return wav;
+    } catch (error) {
+      // A quota that ran out, or a bad minute at the API, should cost the post
+      // its nicest voice and nothing else — an autopilot run is minutes of
+      // downloads by the time it gets here.
+      console.warn(`  voice: Gemini failed (${String(error.message || error).slice(0, 120)}) — falling back to macOS say`);
+      // Cleared rather than pointed at ElevenLabs: that route needs a voice id
+      // nobody has chosen, while `say` with no name is the system default and
+      // always works.
+      voice = "";
+    }
   }
 
   if (ELEVEN_KEY && voice && voice.startsWith("eleven:")) {
@@ -1365,6 +1380,11 @@ async function fetchSitePage(target) {
   return buffer.subarray(0, 2 * 1024 * 1024).toString("utf8");
 }
 
+// What a video says, with timings. Cached by video id: the same trending upload
+// is read by every concept in a campaign and a fetch is a couple of seconds.
+const readVideo = (url) =>
+  fetchTranscript(url, { run, tmpDir: join(TMP, "subs"), cacheDir: join(TMP, "subs-cache"), serpApiKey: SERPAPI_KEY });
+
 function autopilotTools(job) {
   const photoResults = new Map();
   // `list_library` is deliberately dropped rather than left unused: an
@@ -1385,7 +1405,16 @@ function autopilotTools(job) {
       });
       const meta = await probeMeta(file, stat).catch(() => ({}));
       await recordSource(basename(file), { url: shotUrl, title: "page screenshot", provider: "site", query: "autopilot" });
-      const moved = shotUrl !== String(url).trim();
+      // Compared as URLs, not as strings: "https://x.com" and "https://x.com/"
+      // are the same page, and saying one replaced the other is a lie.
+      const asked = (() => {
+        try {
+          return new URL(String(url).trim()).toString();
+        } catch {
+          return String(url).trim();
+        }
+      })();
+      const moved = shotUrl !== asked;
       job.messages.push({
         at: Date.now(),
         role: "tool-result",
@@ -1430,6 +1459,31 @@ function autopilotTools(job) {
     // The carousel's blank-slide trap, made checkable: Commons ANDs every word,
     // so a scene the producer likes can quietly return nothing. Now it can look
     // before it commits.
+    // Reading before cutting. Without this the producer picks a section by
+    // guessing a timecode, which is how a bed came back from the middle of a
+    // sponsor read.
+    async read_video({ url }) {
+      job.stage = "Reading the video";
+      const transcript = await readVideo(url);
+      if (!transcript.cues.length) {
+        job.messages.push({ at: Date.now(), role: "tool-result", tool: "read_video", text: `no captions (${transcript.error || "none published"})` });
+        return { url, seconds: 0, transcript: [], note: transcript.error || "this video has no captions to read" };
+      }
+      job.messages.push({
+        at: Date.now(),
+        role: "tool-result",
+        tool: "read_video",
+        text: `${transcript.cues.length} lines over ${Math.round(transcript.seconds / 60)} min (${transcript.source})`,
+      });
+      return {
+        url,
+        seconds: transcript.seconds,
+        source: transcript.source,
+        opening: opening(transcript.cues),
+        transcript: condense(transcript.cues),
+      };
+    },
+
     async search_photos({ query }) {
       const results = await stockPhotos(query, "", "portrait").catch(() => []);
       // Held between calls so download_photo can take an id rather than the
@@ -1480,6 +1534,7 @@ async function runAutopilotJob(payload, job) {
     // Ranked by views per day and cached for half a day, because each query
     // costs two yt-dlp passes and a campaign is often re-run within an hour.
     trends: (queries) => trendingNow({ queries, run, cacheDir: join(TMP, "trends") }),
+    readVideo,
     json: (system, prompt) => {
       if (COPY_PROVIDER === "deepseek") return deepseekJson(system, prompt);
       if (COPY_PROVIDER === "anthropic") return claudeJson(`${system}\n\n${prompt}`, null);
