@@ -2114,6 +2114,7 @@ const AI_QUESTIONS = [
   {
     id: "kind",
     ask: "What are we making?",
+    note: "A video is 1080×1920 with burnt-in captions. A carousel is 4:5 cards you swipe through.",
     options: [
       { label: "A video", value: "video" },
       { label: "An image carousel", value: "image" },
@@ -2121,54 +2122,60 @@ const AI_QUESTIONS = [
   },
   {
     id: "topic",
-    ask: "What is it about? One line is plenty — a feature, an annoyance, a moment.",
-    free: "e.g. copying a hex code and losing it",
+    ask: "What is it about?",
+    note: "One line. I write the whole script from this, so a specific annoyance beats a feature name — “losing a copied hex code” gives me more than “clipboard”.",
+    free: "e.g. you copy a hex code, copy something else, and it's gone",
   },
   {
     id: "appclip",
     ask: "Which Mac Kit recording should be in it?",
-    when: (a) => a.kind === "video",
+    note: "The screen recordings already on your disk — the app actually doing the thing. Nothing is downloaded for this.",
     options: [
       { label: "You choose", value: "pick whichever app recording suits the topic" },
       { label: "Let me pick", pick: "appClips" },
       { label: "None — background only", value: "no app recording, background and captions only" },
     ],
+    free: "or describe it, e.g. the one showing the menu bar panel",
   },
   {
     id: "background",
-    ask: "What should be behind it?",
+    ask: "What plays behind it?",
+    note: "The moving wallpaper under the recording — gameplay, a satisfying loop, b-roll. I search YouTube ranked by views and download a ~35 second slice into your library, or reuse something already there. Type a search if you know what you want.",
     when: (a) => a.kind === "video",
     options: [
-      { label: "Whatever is already downloaded", value: "reuse something already in the library" },
+      { label: "Reuse what I already have", value: "reuse something already in the library, do not download" },
       { label: "Let me pick", pick: "videos" },
-      { label: "Gameplay", value: "find gameplay footage, vertical if possible" },
-      { label: "Something satisfying", value: "find satisfying loop footage" },
-      { label: "Calm b-roll", value: "find calm b-roll: drone, rain, a train window" },
+      { label: "Gameplay", value: "search YouTube for gameplay footage, vertical if possible, and download a slice" },
+      { label: "Something satisfying", value: "search YouTube for a satisfying loop and download a slice" },
+      { label: "Calm b-roll", value: "search YouTube for calm b-roll — drone, rain, a train window — and download a slice" },
     ],
-    free: "or describe it",
+    free: "or type a search, e.g. minecraft parkour gameplay",
   },
   {
     id: "sticker",
     ask: "A GIF or sticker on top?",
+    note: "From Giphy. Stickers are cut out with a transparent background so they sit over the video; plain GIFs come with their own rectangle.",
     when: (a) => a.kind === "video",
     options: [
-      { label: "No", value: "no" },
-      { label: "You choose", value: "yes — pick a sticker that fits the tone" },
+      { label: "No", value: "no sticker" },
+      { label: "You choose", value: "yes — search Giphy for a sticker that fits the tone" },
     ],
-    free: "or say what to search for",
+    free: "or type what to search, e.g. shocked",
   },
   {
     id: "voice",
     ask: "Read it out loud?",
+    note: "A macOS voice speaks the script and it lands on the timeline as its own track, so you can trim it afterwards. Without it the video is silent and carried by captions.",
     when: (a) => a.kind === "video",
     options: [
       { label: "No, captions only", value: "no voiceover" },
-      { label: "Yes", value: "yes, speak the script" },
+      { label: "Yes", value: "yes, speak the script with make_voiceover" },
     ],
   },
   {
     id: "length",
     ask: "How long?",
+    note: "The captions are spread across whatever you pick. Shorter holds attention; longer fits more of the story.",
     when: (a) => a.kind === "video",
     options: [
       { label: "15s", value: "about 15 seconds" },
@@ -2179,6 +2186,7 @@ const AI_QUESTIONS = [
   {
     id: "format",
     ask: "Which shape should the carousel take?",
+    note: "The backgrounds come from one stock photo search, so the cards read as one place rather than six unrelated photos.",
     when: (a) => a.kind === "image",
     options: [
       { label: "Numbered list", value: "a numbered listicle" },
@@ -2191,10 +2199,18 @@ const AI_QUESTIONS = [
 
 const ai = { step: 0, answers: {}, running: false };
 
-function aiSay(text, who = "assistant") {
+function aiSay(text, who = "assistant", note) {
   const el = document.createElement("div");
   el.className = `ai-msg is-${who}`;
   el.textContent = text;
+  // What the studio will actually do with the answer. Without it the questions
+  // are guesses: "what plays behind it" says nothing about where it comes from.
+  if (note) {
+    const hint = document.createElement("span");
+    hint.className = "ai-note";
+    hint.textContent = note;
+    el.appendChild(hint);
+  }
   $("#ai-chat").appendChild(el);
   $("#ai-chat").scrollTop = $("#ai-chat").scrollHeight;
   return el;
@@ -2212,7 +2228,7 @@ function aiLog(text, state = "") {
 // A grid of what is already in the library, in the conversation. Answering with
 // a filename would mean reading a list and typing it correctly; answering with a
 // thumbnail is one click, and the poster frames already exist.
-function aiPick(question, kind) {
+function aiPick(question, kind, bubble) {
   const items = (kind === "appClips" ? state.library.appClips : state.library.videos) || [];
   if (!items.length) {
     aiSay(`Nothing in the library to pick from yet. I will choose instead.`);
@@ -2221,7 +2237,33 @@ function aiPick(question, kind) {
   }
 
   const wrap = document.createElement("div");
-  wrap.className = "ai-msg is-assistant ai-pickgrid";
+  wrap.className = "ai-msg is-assistant ai-pickwrap";
+
+  const bar = document.createElement("div");
+  bar.className = "ai-pickbar";
+  const title = document.createElement("span");
+  title.textContent = `${items.length} in your library`;
+  const cancel = document.createElement("button");
+  cancel.type = "button";
+  cancel.className = "ai-pickcancel";
+  cancel.title = "Never mind";
+  cancel.setAttribute("aria-label", "Cancel picking");
+  cancel.textContent = "✕";
+  cancel.addEventListener("click", () => {
+    // Take the grid and the "Let me pick" back out of the transcript, so the
+    // conversation reads as though the detour never happened.
+    wrap.remove();
+    if (bubble) bubble.remove();
+    aiControls(question);
+    if (question.free !== undefined) $("#ai-input").focus();
+  });
+  bar.append(title, cancel);
+  wrap.appendChild(bar);
+
+  const grid = document.createElement("div");
+  grid.className = "ai-pickgrid";
+  wrap.appendChild(grid);
+
   for (const item of items) {
     const card = document.createElement("button");
     card.type = "button";
@@ -2245,13 +2287,14 @@ function aiPick(question, kind) {
     card.append(media, name, meta);
     card.addEventListener("click", () => {
       // Disable the whole grid so a second click cannot answer twice.
-      for (const other of wrap.querySelectorAll("button")) other.disabled = true;
+      for (const other of grid.querySelectorAll("button")) other.disabled = true;
+      cancel.remove();
       card.classList.add("is-active");
       // The path is what the plan needs; the model is told about it too so its
       // script can suit the footage rather than fight it.
       aiAnswer(question, `use exactly this file and no other: ${item.path}`, item.name);
     });
-    wrap.appendChild(card);
+    grid.appendChild(card);
   }
   $("#ai-chat").appendChild(wrap);
   $("#ai-chat").scrollTop = $("#ai-chat").scrollHeight;
@@ -2261,23 +2304,13 @@ function aiQuestions() {
   return AI_QUESTIONS.filter((q) => !q.when || q.when(ai.answers));
 }
 
-function aiAsk() {
+// The chips and the text box for one question. Split out of aiAsk so cancelling
+// a picker can put them back without asking the question a second time.
+function aiControls(question) {
   const options = $("#ai-options");
   const inputRow = $("#ai-input-row");
   options.innerHTML = "";
-  inputRow.hidden = true;
-  $("#ai-actions").hidden = true;
 
-  const list = aiQuestions();
-  const question = list[ai.step];
-  if (!question) {
-    // Every answer is on screen above; the button is the only thing left.
-    $("#ai-actions").hidden = false;
-    aiSay("That is everything. Hit Create and I will go and build it.");
-    return;
-  }
-
-  aiSay(question.ask);
   for (const option of question.options || []) {
     const button = document.createElement("button");
     button.type = "button";
@@ -2285,23 +2318,44 @@ function aiAsk() {
     button.textContent = option.label;
     button.addEventListener("click", () => {
       if (option.pick) {
-        aiSay(option.label, "user");
-        $("#ai-options").innerHTML = "";
-        $("#ai-input-row").hidden = true;
-        aiPick(question, option.pick);
+        const bubble = aiSay(option.label, "user");
+        options.innerHTML = "";
+        aiPick(question, option.pick, bubble);
         return;
       }
       aiAnswer(question, option.value, option.label);
     });
     options.appendChild(button);
   }
-  if (question.free !== undefined) {
-    inputRow.hidden = false;
+
+  // The text box stays available even while a picker is open: choosing from the
+  // library and describing what you want are two ways to answer the same
+  // question, and which one you feel like is your business.
+  inputRow.hidden = question.free === undefined;
+  if (!inputRow.hidden) {
     $("#ai-input").placeholder = question.free || "Type your answer…";
     $("#ai-input").value = "";
-    $("#ai-input").focus();
   }
 }
+
+function aiAsk() {
+  $("#ai-options").innerHTML = "";
+  $("#ai-input-row").hidden = true;
+  $("#ai-actions").hidden = true;
+
+  const question = aiQuestions()[ai.step];
+  if (!question) {
+    // Every answer is on screen above; the button is the only thing left.
+    $("#ai-actions").hidden = false;
+    aiSay("That is everything. Hit Create and I will go and build it.");
+    return;
+  }
+
+  aiSay(question.ask, "assistant", question.note);
+  aiControls(question);
+  if (question.free !== undefined) $("#ai-input").focus();
+}
+
 
 function aiAnswer(question, value, label) {
   ai.answers[question.id] = value;
