@@ -2133,6 +2133,7 @@ const AI_QUESTIONS = [
     options: [
       { label: "You choose", value: "pick whichever app recording suits the topic" },
       { label: "Let me pick", pick: "appClips" },
+      { label: "From my computer", upload: "videos" },
       { label: "None — background only", value: "no app recording, background and captions only" },
     ],
     free: "or describe it, e.g. the one showing the menu bar panel",
@@ -2148,6 +2149,8 @@ const AI_QUESTIONS = [
       { label: "Gameplay", value: "search YouTube for gameplay footage, vertical if possible, and download a slice" },
       { label: "Something satisfying", value: "search YouTube for a satisfying loop and download a slice" },
       { label: "Calm b-roll", value: "search YouTube for calm b-roll — drone, rain, a train window — and download a slice" },
+      { label: "From my computer", upload: "videos" },
+      { label: "Nothing — plain black", value: "no background clip at all; the app recording and captions on black" },
     ],
     free: "or type a search, e.g. minecraft parkour gameplay",
   },
@@ -2292,12 +2295,43 @@ function aiPick(question, kind, bubble) {
       card.classList.add("is-active");
       // The path is what the plan needs; the model is told about it too so its
       // script can suit the footage rather than fight it.
-      aiAnswer(question, `use exactly this file and no other: ${item.path}`, item.name);
+      aiSay(item.name, "user");
+      aiAnswer(question, `use exactly this file and no other: ${item.path}`, null);
     });
     grid.appendChild(card);
   }
   $("#ai-chat").appendChild(wrap);
   $("#ai-chat").scrollTop = $("#ai-chat").scrollHeight;
+}
+
+// A file from the user's own disk, through the same upload the drop zones use.
+// It lands in the library, so it is available to every other tab afterwards and
+// not just to this one answer.
+function aiUpload(question, dir) {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = dir === "videos" ? "video/*" : "image/*";
+  input.addEventListener("change", async () => {
+    const file = input.files[0];
+    if (!file) return;
+    aiSay(file.name, "user");
+    const line = aiLog(`uploading ${file.name}…`);
+    try {
+      const saved = await fetch(`${API}/upload?dir=${dir}&name=${encodeURIComponent(file.name)}`, {
+        method: "POST",
+        body: file,
+      }).then((r) => r.json());
+      await loadLibrary();
+      line.textContent = `${file.name} → ${dir}`;
+      line.className = "ai-msg is-tool is-done";
+      aiAnswer(question, `use exactly this file and no other: ${saved.path}`, null);
+    } catch (error) {
+      line.textContent = `upload failed: ${error.message}`;
+      line.className = "ai-msg is-tool is-error";
+      aiControls(question);
+    }
+  });
+  input.click();
 }
 
 function aiQuestions() {
@@ -2321,6 +2355,10 @@ function aiControls(question) {
         const bubble = aiSay(option.label, "user");
         options.innerHTML = "";
         aiPick(question, option.pick, bubble);
+        return;
+      }
+      if (option.upload) {
+        aiUpload(question, option.upload);
         return;
       }
       aiAnswer(question, option.value, option.label);
@@ -2359,7 +2397,9 @@ function aiAsk() {
 
 function aiAnswer(question, value, label) {
   ai.answers[question.id] = value;
-  aiSay(label || value, "user");
+  // `null` means the answer is already on screen — an uploaded filename, a card
+  // clicked in the picker — and repeating it would read as a stutter.
+  if (label !== null) aiSay(label || value, "user");
   ai.step++;
   aiAsk();
 }
@@ -2421,12 +2461,19 @@ async function aiBuildVideo(plan) {
     const match = /use exactly this file and no other: (.+)$/.exec(answer || "");
     return match ? match[1].trim() : null;
   };
-  const backgroundPath = chosen(ai.answers.background) || plan.backgroundPath;
-  const appClipPath = chosen(ai.answers.appclip) || plan.appClipPath;
+  // "None" has to win over the plan too. The model is told, but a plan that
+  // still names a file would quietly put back the thing that was declined.
+  const declined = (answer) => /^no (background clip at all|app recording)/.test(answer || "");
+  const backgroundPath = declined(ai.answers.background) ? null : chosen(ai.answers.background) || plan.backgroundPath;
+  const appClipPath = declined(ai.answers.appclip) ? null : chosen(ai.answers.appclip) || plan.appClipPath;
+
+  // With nothing behind it, a split or a picture-in-picture is half a frame of
+  // black; the recording should just fill what there is.
+  const shape = backgroundPath ? layout : AI_LAYOUTS.screen;
 
   // Background first so it sits underneath, whatever the layout.
-  if (backgroundPath) place(backgroundPath, layout.bg, { volume: 0.25 });
-  if (appClipPath) place(appClipPath, layout.app);
+  if (backgroundPath) place(backgroundPath, shape.bg, { volume: 0.25 });
+  if (appClipPath) place(appClipPath, shape.app);
 
   if (plan.gifPath) {
     const item = libraryItemByPath(plan.gifPath);
