@@ -316,7 +316,12 @@ async function run(event) {
     const { jobId } = await api("/supercut/run", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ topic, script, videoCount: Number($("#cut-count").value) || 10 }),
+      body: JSON.stringify({
+        topic,
+        script,
+        videoCount: Number($("#cut-count").value) || 12,
+        cutCost: Number($("#cut-feel").value) || 1,
+      }),
     });
 
     let shown = 0;

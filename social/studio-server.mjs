@@ -24,7 +24,7 @@ import { runAutopilot } from "./studio/autopilot.mjs";
 import { screenshotSite } from "./studio/shot.mjs";
 import { trendingNow } from "./studio/trends.mjs";
 import { fetchTranscript, condense, opening } from "./studio/transcript.mjs";
-import { tokenize, indexSource, buildCut } from "./studio/supercut.mjs";
+import { tokenize, indexSource, buildCut, searchPhrases } from "./studio/supercut.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SITE = resolve(HERE, "..");
@@ -1610,7 +1610,7 @@ async function readAll(videos, job) {
       try {
         const transcript = await readVideo(video.url);
         if (transcript.words && transcript.words.length) {
-          sources.push(indexSource(video, transcript.words));
+          sources.push(indexSource(video, transcript.words, { onTopic: video.onTopic !== false }));
           if (job) job.progress = Math.min(0.5, sources.length / Math.max(videos.length, 1) / 2);
         }
       } catch {}
@@ -1631,13 +1631,20 @@ async function runSupercut(payload, job) {
 
   job.stage = "Finding videos";
   const pool = new Map();
-  const gather = async (query, limit) => {
+  const gather = async (query, limit, onTopic = true) => {
     const results = await searchYouTube(query, { limit, sort: "views", maxDuration: 2400 }).catch(() => []);
-    for (const result of results) if (!pool.has(result.id)) pool.set(result.id, { url: result.url, title: result.title, channel: result.channel });
+    for (const result of results) {
+      if (!pool.has(result.id)) pool.set(result.id, { url: result.url, title: result.title, channel: result.channel, onTopic });
+    }
     return results.length;
   };
-  await gather(topic, Number(payload.videoCount) || 10);
-  say(`${pool.size} videos about "${topic}"`);
+  await gather(topic, Number(payload.videoCount) || 12);
+  // Videos found because someone says the phrase, not because they are about the
+  // subject. This is what lets the solver take four words in one go instead of
+  // stitching four singles.
+  const phrases = searchPhrases(script);
+  for (const phrase of phrases) await gather(`"${phrase}"`, 4, false);
+  say(`${pool.size} videos — "${topic}" plus ${phrases.length} phrase searches (${phrases.map((p) => `"${p}"`).join(", ")})`);
 
   job.stage = "Reading them";
   let sources = await readAll([...pool.values()], job);
@@ -1646,7 +1653,8 @@ async function runSupercut(payload, job) {
 
   job.stage = "Matching the script";
   const tokens = tokenize(script);
-  let cut = buildCut(tokens, sources);
+  const cutCost = Number(payload.cutCost) || 1;
+  let cut = buildCut(tokens, sources, { cutCost });
 
   // A word nobody in the first pool says gets hunted on its own. This is what
   // turns "we could not find pomodoro" into a clip of someone saying pomodoro.
@@ -1655,7 +1663,7 @@ async function runSupercut(payload, job) {
     job.stage = `Hunting "${word}"`;
     const before = pool.size;
     await gather(`${topic} ${word}`, 4);
-    await gather(word, 3);
+    await gather(word, 3, false);
     const fresh = [...pool.values()].filter((video) => !sources.some((source) => source.video.url === video.url));
     if (!fresh.length) continue;
     const extra = await readAll(fresh, null);
@@ -1663,7 +1671,7 @@ async function runSupercut(payload, job) {
     hunted.push(word);
     say(`hunted "${word}" through ${pool.size - before} more videos`);
   }
-  if (hunted.length) cut = buildCut(tokens, sources);
+  if (hunted.length) cut = buildCut(tokens, sources, { cutCost });
 
   job.stage = "Cutting";
   const clips = cut.segments.filter((segment) => segment.kind === "clip");

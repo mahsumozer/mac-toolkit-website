@@ -293,10 +293,23 @@ macbook tips  +  "pomodoro timer, clipboard history, all in one menu bar app"
 
 ### How the matching works
 
-`studio/supercut.mjs` is the matcher and it is greedy, longest-first: a run of
-words taken whole from one mouth sounds like a sentence, while three single words
-from three videos sounds like a ransom note. Only when no run of two or more
-exists anywhere does it fall back to a lone word.
+`studio/supercut.mjs` costs every possible run and takes the cheapest path
+through the whole script. Greedy longest-first is the obvious way and it is
+wrong: "all in" exists, so a greedy pass takes it and never discovers that one
+video says "all in one menu" whole. A cut costs the same whatever its length,
+which is what makes the solver prefer three long clips to six short ones, and a
+gap costs more than any cut, so a word is only left out when nobody says it.
+
+The **Cuts** control is that cost: *fewer, longer takes* holds out for whole
+phrases, *chop it up* is the stuttering ransom-note look on purpose.
+
+Two things feed the solver enough material to find long runs. The subject search
+gives videos that are *about* the thing; then each clause of the script is
+searched as a quoted phrase, which gives videos chosen because someone says those
+words. Phrase-search results are marked off-topic and carry a penalty, so a
+Windows tutorial can supply "clipboard history" when nothing else does but loses
+to any Mac video that says the same words — which is exactly what it did on the
+verified run.
 
 Cutting on the *word* rather than the caption line is possible because YouTube's
 automatic captions carry a `tOffsetMs` per word inside each cue — `wordsFromJson3`
