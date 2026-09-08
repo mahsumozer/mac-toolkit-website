@@ -82,7 +82,7 @@ const state = {
     caption: "",
     hashtags: [],
   },
-  video: { jobId: null, timer: null },
+  video: { jobId: null, timer: null, derivedFrom: null, renderedLabel: null },
 };
 
 const blankSlide = () => ({ headline: "", body: "", background: null, textY: 0.5, keep: true });
@@ -1411,11 +1411,19 @@ function wireInspector() {
 
 /* ------------------------------------------------------------------- staging */
 
+// Canvas / Result is a *view* switch, not an action: rendering happens from the
+// Render button in the form (and from AI mode's Create). Both views are kept so
+// a finished file can be watched and then gone back from to keep editing.
 function showStage(mode) {
   $("#stage-edit").hidden = mode !== "edit";
   $("#stage-result").hidden = mode !== "result";
-  $("#stage-mode-edit").classList.toggle("is-current", mode === "edit");
-  $("#stage-mode-result").classList.toggle("is-current", mode === "result");
+  for (const [id, on] of [["#stage-mode-edit", mode === "edit"], ["#stage-mode-result", mode === "result"]]) {
+    const button = $(id);
+    button.classList.toggle("is-current", on);
+    button.setAttribute("aria-pressed", String(on));
+  }
+  const rendered = state.video.renderedLabel;
+  $("#vid-preview-label").textContent = mode === "result" && rendered ? rendered : "Canvas";
   if (mode === "result") editor.pause();
 }
 
@@ -1943,8 +1951,8 @@ async function renderVideo() {
     player.src = `${API}${result.url}`;
     player.load();
     $("#stage-mode-result").disabled = false;
+    state.video.renderedLabel = `Rendered · ${result.duration.toFixed(1)}s`;
     showStage("result");
-    $("#vid-preview-label").textContent = `Rendered · ${result.duration.toFixed(1)}s`;
     // Everything rendered from here on is a further version of this one.
     state.video.derivedFrom = result.slug || null;
     toast(`Rendered to ${result.slug || "out"}/ — the project is saved beside it`);

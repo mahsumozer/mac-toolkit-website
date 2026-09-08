@@ -25,6 +25,7 @@
       <nav class="hub-nav">
         <a class="hub-nav-link" href="index.html">Queue</a>
         <a class="hub-nav-link is-current" href="studio.html">Studio</a>
+        <a class="hub-nav-link" href="auto.html">Autopilot</a>
       </nav>
       <span class="server-pill" id="server-pill" data-state="checking">Checking server…</span>
     </header>
@@ -567,8 +568,8 @@
             <div class="preview-head">
               <span id="vid-preview-label">Canvas</span>
               <div class="btn-row">
-                <button class="button button-ghost button-small" id="stage-mode-edit" type="button">Edit</button>
-                <button class="button button-ghost button-small" id="stage-mode-result" type="button" disabled>Render</button>
+                <button class="button button-ghost button-small" id="stage-mode-edit" type="button" aria-pressed="true" title="Show the editable canvas">Canvas</button>
+                <button class="button button-ghost button-small" id="stage-mode-result" type="button" aria-pressed="false" title="Show the rendered file" disabled>Result</button>
               </div>
             </div>
             <div class="canvas-wrap canvas-wrap-video" id="stage-edit">
