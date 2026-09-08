@@ -123,13 +123,27 @@ enough on its own.
 3. **Direct.** A creative director writes N concepts, each a different angle —
    a demo, an annoyance, a number, a confession — with a hook, a script or a
    card list, and visual direction (footage query, scene, sticker, layout).
-4. **Critique.** A second read scores every hook out of ten on three things
+4. **Trends.** What is moving in that niche right now, harvested per run from
+   queries derived off the fact sheet — `studio/trends.mjs`, `trendingNow()`.
+   Ranked by *velocity*, views per day, because a video that took three years to
+   reach a million is not a trend and one that took three days is. A trend
+   contributes a **shape** — hook pattern, format, beat count — and never a
+   claim; claims still come only from the fact sheet. Each record keeps its link
+   back to whoever made it, and a concept built on one carries `remixUrl`, whose
+   video the producer cuts its bed from. Results are cached for twelve hours,
+   since each query costs two `yt-dlp` passes (about ten seconds each).
+5. **Critique.** A second read scores every hook out of ten on three things
    only: does it name something specific in the first four words, is every word
    supported by the fact sheet, and would the line already be on ten other
    accounts. Anything under 8 is rewritten. A first-draft hook is rarely the
    best one, and the model is a far better editor of its own work than an author
    of it. If this pass fails the run carries on with the first drafts — a failed
    edit is not a failed run.
+
+(The standing `studio/trends.json` is a different thing: `harvest-trends.mjs`
+builds it for Mac Kit's own studio from a fixed query list plus Reddit's top
+feeds, and both it and Autopilot now classify hooks with the same rules in
+`studio/trends.mjs`.)
 
 Then one **producer** agent per concept, the same tool-calling loop AI mode uses
 (`runAgent` in `studio/agent.mjs`, which now takes its system prompt as an
@@ -524,7 +538,8 @@ social/
     render-image.js                        canvas renderer (slides + text layers)
     composition.js                         the layer model both sides read
     agent.mjs                              AI mode's tool loop
-    autopilot.mjs                          Autopilot's four passes and its producer
+    autopilot.mjs                          Autopilot's five passes and its producer
+    trends.mjs                             velocity-ranked trends + the hook classifier
     shot.mjs                               photographs a live page with headless Chrome
     editor.js                              the live draggable canvas
     library/photos|videos|music/           your footage

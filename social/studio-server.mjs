@@ -22,6 +22,7 @@ import { randomUUID, createHash } from "node:crypto";
 import { runAgent, toolSchemas, buildBrief } from "./studio/agent.mjs";
 import { runAutopilot } from "./studio/autopilot.mjs";
 import { screenshotSite } from "./studio/shot.mjs";
+import { trendingNow } from "./studio/trends.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SITE = resolve(HERE, "..");
@@ -1476,6 +1477,9 @@ async function runAutopilotJob(payload, job) {
     voiceover: payload.voiceover !== false,
     hasGiphy: Boolean(GIPHY_KEY),
     fetchPage: fetchSitePage,
+    // Ranked by views per day and cached for half a day, because each query
+    // costs two yt-dlp passes and a campaign is often re-run within an hour.
+    trends: (queries) => trendingNow({ queries, run, cacheDir: join(TMP, "trends") }),
     json: (system, prompt) => {
       if (COPY_PROVIDER === "deepseek") return deepseekJson(system, prompt);
       if (COPY_PROVIDER === "anthropic") return claudeJson(`${system}\n\n${prompt}`, null);

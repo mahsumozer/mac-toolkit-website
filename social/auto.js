@@ -209,11 +209,13 @@ function captionCards(lines) {
   for (const line of lines) {
     const words = String(line).trim().split(/\s+/).filter(Boolean);
     if (!words.length) continue;
-    if (words.length <= 8) {
+    // Six words is about what fits on two lines at caption size; a nine-word
+    // line came out as four lines lying across the seam between two layers.
+    if (words.length <= 6) {
       cards.push(words.join(" "));
       continue;
     }
-    const chunks = Math.ceil(words.length / 6);
+    const chunks = Math.ceil(words.length / 5);
     const per = Math.ceil(words.length / chunks);
     for (let i = 0; i < words.length; i += per) cards.push(words.slice(i, i + per).join(" "));
   }

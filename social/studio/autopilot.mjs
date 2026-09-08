@@ -199,6 +199,7 @@ How to think:
 - The hook is the whole thing. It is the first line on screen, under seven words, and it has to work for someone who has never heard of this product. No "introducing", no "check out", no question that answers itself.
 - Video scripts: short lines, one idea each, read in under two seconds. Say what the product does, never what it "empowers" you to do.
 - Say what the post looks like in "picture", in one sentence, and make the concepts look different from each other: a photograph with a sticker over it, a screenshot on a moving backdrop, a gif filling the frame, a corner reaction. Not the same arrangement twice.
+- You are shown what is moving in this niche right now. Borrow the *shape* of one — its hook pattern, its format, how many beats it runs — and put the product's own truth inside it. Never borrow a claim, a number or a sentence: those come from the fact sheet and nowhere else. When a concept is built on one, put its address in "remixUrl" and say what you took in "remixNote"; the producer will cut its bed from that video. At least one concept should do this when anything is listed, and none should if nothing is.
 - Carousels: the first card is the hook, the rest carry one point each, the last one says what to do next.
 - Every claim comes from the fact sheet. Nothing else exists.
 - Footage queries are two to four plain words that a stock or YouTube search will match — "laptop desk", "minecraft parkour". Never a product name, never an adjective.
@@ -206,7 +207,7 @@ How to think:
 - No hype words, no exclamation marks, no emoji.
 - Return only a json object.`;
 
-function directorPrompt({ brand, count, mix, images }) {
+function directorPrompt({ brand, count, mix, images, trends }) {
   const shape = {
     concepts: [
       {
@@ -218,6 +219,8 @@ function directorPrompt({ brand, count, mix, images }) {
         lines: ["I copy a colour, then copy something else.", "The first one is gone.", "Clipboard history keeps the last hundred, searchable."],
         footageQuery: "satisfying soap cutting",
         stickerQuery: "annoyed",
+        remixUrl: "https://www.youtube.com/watch?v=xxxxxxxxxxx",
+        remixNote: "borrowed the '{n} things I stopped doing' skeleton and its four-beat pace",
         wantsVoiceover: true,
         picture: "the app's own screenshot standing on the lower half, the clip filling the frame behind it, a sticker landing on the last line",
         duration: 18,
@@ -247,6 +250,15 @@ function directorPrompt({ brand, count, mix, images }) {
     ``,
     `Pictures on the product's own site — the only product footage there is:`,
     (images || []).slice(0, 20).map((url) => `- ${url}`).join("\n") || "- none found on the page",
+    ``,
+    `Moving in this niche right now, fastest first (views per day, not raw views — a video that took three years to reach a million is not a trend):`,
+    (trends || [])
+      .slice(0, 14)
+      .map(
+        (item) =>
+          `- ${item.velocity.toLocaleString()}/day · ${item.shape?.format || "no set format"}${item.shape?.beats ? ` (${item.shape.beats} beats)` : ""} · "${item.shape?.hook || item.title}"${item.isShort ? " · short" : ""} · ${item.url}`,
+      )
+      .join("\n") || "- nothing harvested for this niche",
     ``,
     `Give me ${count} concepts, ${mix}. Return json in exactly this shape:`,
     JSON.stringify(shape, null, 2),
@@ -285,6 +297,7 @@ How to work:
 - Timing is yours too. A sticker that appears on the punchline and leaves is better than one that sits there for sixteen seconds; a second clip can cut in halfway.
 - Search queries are two to four plain words. Never a product name, a feature name or an adjective: stock and YouTube match every word, so "clean mode laptop desk" returns nothing at all.
 - Download one background clip. One is enough; a second is a minute of someone's life for nothing.
+- If the concept carries a remixUrl, that is the video whose shape it borrows: download a slice of it with download_footage and use it as the bed, rather than searching for something else. Only the pictures are borrowed — every word still comes from the fact sheet.
 - For a carousel, check the scene with search_photos before you commit to it. Two plain words. If it returns nothing, try one other scene, then use whatever did return.
 - The script is already written for you. Tighten it if a line does not survive being read aloud, but do not rewrite the concept.
 - Every claim must come from the fact sheet. If the concept asks for something the product does not do, build the closest true thing and say so in your note.
@@ -555,7 +568,7 @@ const trim = (value, max) => (typeof value === "string" && value.length > max ? 
  * tool-calling completion. `toolImpls` are the producer's hands. `onEvent` gets
  * chat-shaped progress, so the page can show the run rather than a spinner.
  */
-export async function runAutopilot({ url, count = 3, mix, voices, voiceover = true, fetchPage, json, agentCall, toolImpls, hasGiphy, onEvent, onPhase }) {
+export async function runAutopilot({ url, count = 3, mix, voices, voiceover = true, fetchPage, json, agentCall, toolImpls, hasGiphy, trends, onEvent, onPhase }) {
   const say = (text, extra = {}) => onEvent({ role: "assistant", text, ...extra });
   const log = (text, extra = {}) => onEvent({ role: "tool-result", tool: extra.tool || "autopilot", text, ...extra });
 
@@ -590,11 +603,37 @@ export async function runAutopilot({ url, count = 3, mix, voices, voiceover = tr
   say(`${brand.name}: ${brand.oneLiner || brand.category || ""}`.trim(), { kind: "brand", brand });
   log(`${brand.features.length} features taken off the site${brand.priceLine ? `, ${brand.priceLine}` : ""}`);
 
+  /* trends */
+  // Queries come from the fact sheet, not from a fixed list: what is moving in
+  // one niche says nothing about another, and this page is pointed at whatever
+  // product someone pastes.
+  let moving = [];
+  if (trends) {
+    onPhase("Seeing what is moving");
+    const queries = [
+      ...(brand.keywords || []).slice(0, 3),
+      ...(brand.category ? [brand.category] : []),
+      ...(brand.audience || []).slice(0, 1).map((line) => String(line).split(/[,.]/)[0]),
+    ]
+      .map((query) => String(query || "").trim())
+      .filter((query) => query.length > 2 && query.split(/\s+/).length <= 5);
+    try {
+      moving = await trends([...new Set(queries)]);
+      log(
+        moving.length
+          ? `${moving.length} trending records, fastest ${moving[0].velocity.toLocaleString()} views/day: "${moving[0].title}"`
+          : "nothing trending found for this niche — the concepts will not borrow a shape",
+      );
+    } catch (error) {
+      log(`could not read the trends (${error.message}) — carrying on without them`, { role: "tool-error", tool: "trends" });
+    }
+  }
+
   /* direct */
   onPhase("Deciding what is worth making");
   const directed = await json(
     DIRECTOR_SYSTEM,
-    directorPrompt({ brand, count, mix: mix || `a mix of video and carousel, at least one of each if ${count} is more than one`, images }),
+    directorPrompt({ brand, count, mix: mix || `a mix of video and carousel, at least one of each if ${count} is more than one`, images, trends: moving }),
   );
   let concepts = (directed.concepts || []).slice(0, count);
   if (!concepts.length) throw new Error("The director came back with no concepts");
@@ -646,5 +685,5 @@ export async function runAutopilot({ url, count = 3, mix, voices, voiceover = tr
 
   if (!plans.length) throw new Error("Every concept failed to produce a plan");
   onPhase("Plans ready");
-  return { brand, concepts, plans, images };
+  return { brand, concepts, plans, images, trends: moving };
 }

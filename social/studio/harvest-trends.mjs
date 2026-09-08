@@ -27,6 +27,7 @@
 //             score.
 
 import { spawn } from "node:child_process";
+import { shapeOf } from "./trends.mjs";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -254,56 +255,6 @@ async function harvestReddit() {
 }
 
 /* -------------------------------------------------------------------- shape */
-
-// The classifier. Every id it can return already exists in formats.json, so a
-// trend never introduces a format the studio cannot render.
-const RULES = [
-  // A count at the front is the strongest signal there is, so it is tested
-  // before anything else can claim the title.
-  { format: "listicle", test: /^(?:the\s+)?(?:top\s+)?(\d{1,2})\b/i, beats: (m) => Number(m[1]) },
-  { format: "pov", test: /^\s*pov\b|^\s*when you\b|^\s*me when\b/i },
-  // "Bought a Mac? FIRST 10 THINGS TO DO" is a countdown too — the number just
-  // is not at the start. Only counts attached to a list noun qualify, so a
-  // model number like "M4 MacBook" cannot masquerade as a beat count.
-  {
-    format: "listicle",
-    test: /\b(\d{1,2})\s+(?:things|apps|tips|tricks|settings|features|shortcuts|reasons|ways|hacks|mistakes)\b/i,
-    beats: (m) => Number(m[1]),
-  },
-  { format: "before-after", test: /\b(?:before and after|before vs|vs\.?\s|instead of|used to)\b/i },
-  { format: "hot-take", test: /\b(?:nobody|no one|everyone|unpopular|hot take|actually|the truth about|is missing|why .* (?:is|are) (?:bad|wrong|useless))\b/i },
-  { format: "problem-solution", test: /\b(?:stop|don'?t|quit|never|delete|uninstall|fix|how to|switching|you (?:should|need to))\b/i },
-];
-
-// The pattern, not the sentence: digits become {n} so "7 mac tips" and
-// "12 mac tips" collapse to one reusable skeleton, and the trailing noise that
-// belongs to someone else's channel is cut.
-function hookPattern(title) {
-  return title
-    .replace(/[|#].*$/, "")
-    .replace(/\s*[\p{Extended_Pictographic}☀-➿]+\s*/gu, " ")
-    .replace(/\b\d{1,3}\b/g, "{n}")
-    .replace(/\s{2,}/g, " ")
-    .replace(/[!.?\s]+$/, "")
-    .trim();
-}
-
-// Only the hook corpus is classified. A Reddit record is a topic — what the
-// audience is arguing about this week — and forcing a post format onto it would
-// invent a structure nobody actually posted.
-function shapeOf(item) {
-  if (item.kind !== "hook") return { format: null, hook: hookPattern(item.title), beats: null };
-  for (const rule of RULES) {
-    const match = rule.test.exec(item.title);
-    if (!match) continue;
-    return {
-      format: rule.format,
-      hook: hookPattern(item.title),
-      beats: rule.beats ? rule.beats(match) : null,
-    };
-  }
-  return { format: null, hook: hookPattern(item.title), beats: null };
-}
 
 /* --------------------------------------------------------------------- main */
 
