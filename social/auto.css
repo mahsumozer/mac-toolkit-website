@@ -1,0 +1,403 @@
+/* Autopilot — its own page, layered on social.css (tokens, buttons, header)
+   and studio.css (nav, server pill). Nothing here restyles either. */
+
+.auto-main {
+  max-width: 1240px;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+
+/* ------------------------------------------------------------- the one input */
+
+.auto-launch {
+  padding: 34px 0 4px;
+  text-align: center;
+}
+
+.auto-h1 {
+  margin: 0;
+  font-size: 40px;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+  font-weight: 800;
+}
+
+.auto-sub {
+  margin: 12px auto 0;
+  max-width: 620px;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.auto-form {
+  margin: 26px auto 0;
+  max-width: 680px;
+}
+
+/* The address bar is the whole product, so it is sized like one: one field, one
+   button, nothing else on the row. */
+.auto-urlrow {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.auto-url {
+  flex: 1;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 500;
+  padding: 14px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.16s var(--ease), box-shadow 0.16s var(--ease);
+}
+
+.auto-url::placeholder {
+  color: rgba(109, 107, 102, 0.7);
+}
+
+.auto-url:focus {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px rgba(5, 5, 5, 0.06);
+}
+
+.auto-go {
+  padding-left: 30px;
+  padding-right: 30px;
+  font-weight: 700;
+}
+
+.auto-knobs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 14px;
+}
+
+.auto-knob {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.auto-knob select {
+  font: inherit;
+  color: var(--ink);
+  padding: 5px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+}
+
+.auto-knob-check {
+  gap: 6px;
+  cursor: pointer;
+}
+
+/* ---------------------------------------------------------------- the run */
+
+.auto-run {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 22px;
+  align-items: start;
+}
+
+.auto-feedcol {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* One line that always says where the run is, pinned above a log that scrolls
+   away from you. */
+.auto-phase {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+}
+
+.auto-phase-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  animation: auto-pulse 1.4s var(--ease) infinite;
+}
+
+@keyframes auto-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.7);
+  }
+}
+
+.auto-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  overflow-y: auto;
+  max-height: min(620px, 62vh);
+  padding: 4px 2px;
+}
+
+.auto-msg {
+  max-width: 82%;
+  padding: 10px 13px;
+  border-radius: 14px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  align-self: flex-start;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+}
+
+.auto-msg.is-done {
+  border-color: rgba(29, 122, 62, 0.35);
+}
+
+.auto-msg.is-error {
+  border-color: rgba(179, 38, 30, 0.35);
+  color: var(--bad);
+}
+
+/* Tool activity is a log line, not a voice in the conversation. */
+.auto-msg.is-tool {
+  max-width: 100%;
+  padding: 5px 10px;
+  border: 0;
+  border-left: 2px solid var(--line);
+  border-radius: 0;
+  background: none;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+}
+
+.auto-msg.is-tool.is-done {
+  border-left-color: var(--ok);
+  color: var(--ok);
+}
+
+.auto-msg.is-tool.is-error {
+  border-left-color: var(--bad);
+  color: var(--bad);
+}
+
+/* ---------------------------------------------------------------- the stage */
+
+.auto-stagecol {
+  position: sticky;
+  top: 84px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.auto-stage {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #101010;
+  border: 1px solid var(--line);
+  min-height: 340px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The canvas is 1080 wide and shown near 300 — the file is full size, the CSS
+   only decides how much of the screen it takes. */
+.auto-canvas {
+  width: 100%;
+  height: auto;
+  max-height: 66vh;
+  object-fit: contain;
+  display: block;
+}
+
+.auto-stage-empty {
+  margin: 0;
+  padding: 40px 20px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.55);
+  text-align: center;
+}
+
+.auto-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.auto-progress-track {
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(5, 5, 5, 0.09);
+  overflow: hidden;
+}
+
+.auto-progress-fill {
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  transition: width 0.3s var(--ease);
+}
+
+.auto-progress-note {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* -------------------------------------------------------------- the results */
+
+.auto-results-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.auto-results-head h2 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+}
+
+.auto-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 18px;
+}
+
+.auto-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+}
+
+.auto-card-media {
+  background: #101010;
+}
+
+.auto-card-media video,
+.auto-card-media > img {
+  display: block;
+  width: 100%;
+  max-height: 460px;
+  object-fit: contain;
+  background: #101010;
+}
+
+/* The other cards in a carousel, so a post is judged as the set it is. */
+.auto-card-strip {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  overflow-x: auto;
+}
+
+.auto-card-strip img {
+  width: 46px;
+  height: 58px;
+  object-fit: cover;
+  border-radius: 5px;
+  cursor: pointer;
+  opacity: 0.75;
+  transition: opacity 0.16s var(--ease);
+}
+
+.auto-card-strip img:hover {
+  opacity: 1;
+}
+
+.auto-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 14px;
+}
+
+.auto-card-body h3 {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+}
+
+.auto-card-meta {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* The caption is editable in place: it is the one thing that is always tweaked
+   on the way to the app, and retyping it elsewhere is how the hashtags get
+   lost. */
+.auto-card-caption {
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1.5;
+  resize: vertical;
+  padding: 9px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.auto-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.auto-card-actions .button {
+  text-decoration: none;
+}
+
+@media (max-width: 900px) {
+  .auto-run {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .auto-stagecol {
+    position: static;
+    order: -1;
+  }
+
+  .auto-h1 {
+    font-size: 30px;
+  }
+}

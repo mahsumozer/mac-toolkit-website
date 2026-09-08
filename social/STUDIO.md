@@ -20,6 +20,7 @@ by `/social/*` in `.gitignore`, same as the rest of the hub.
 npm run hub                     # :8787 — serves the repo root
 node social/studio-server.mjs   # :8789 — render + generation server
 open http://127.0.0.1:8787/social/studio.html
+open http://127.0.0.1:8787/social/auto.html    # Autopilot — a URL in, posts out
 ```
 
 The header pill turns green when the page can reach the server. Without the
@@ -28,15 +29,16 @@ server the page still loads but has no library, no stock search, no render.
 ## Keys (all optional)
 
 Copy `studio.config.example.json` to `studio.config.json` and fill in what you
-have; `DEEPSEEK_API_KEY`, `ANTHROPIC_API_KEY`, `PEXELS_API_KEY` and
-`ELEVENLABS_API_KEY` in the environment work too. Every key has a working
+have; `DEEPSEEK_API_KEY`, `ANTHROPIC_API_KEY`, `PEXELS_API_KEY`,
+`GEMINI_API_KEY` and `ELEVENLABS_API_KEY` in the environment work too. Every key has a working
 fallback, so the studio is usable with none of them:
 
 | Key | Used for | Without it |
 | --- | --- | --- |
 | `deepseekApiKey` / `anthropicApiKey` | The "Write with …" buttons — slide copy, video scripts, captions | The template writer in `studio/formats.json`, which assembles copy from a fixed feature bank |
 | `pexelsApiKey` | Stock backgrounds (free licence, no attribution) | Wikimedia Commons — reliable, but CC-licensed, so check the licence shown under each thumbnail |
-| `elevenLabsApiKey` | Voiceover | macOS `say`, offered as a voice list in the render panel |
+| `geminiApiKey` | Voiceover — the default speaker | ElevenLabs if its key is set, otherwise macOS `say` |
+| `elevenLabsApiKey` | Voiceover, when there is no Gemini key | macOS `say`, offered as a voice list in the render panel |
 | `giphyApiKey` | GIF and sticker search | GIF search is disabled; everything else works |
 
 ### Which model writes the copy
@@ -86,6 +88,162 @@ reads each layer's intrinsic size to work out its crop, and a layer added a
 moment earlier has not measured itself yet. Those layers were silently dropped —
 the first AI render was captions over black. `editor.whenReady()` now waits for
 them before the freeze.
+
+## Autopilot
+
+`auto.html`, its own page rather than a tab. AI mode asks six questions and
+builds one post; Autopilot asks nothing. You paste the address of a product —
+any product, not only this one — and it comes back with a set of finished posts,
+each with a Download button under it.
+
+```
+https://usemackit.com   →   3 posts, rendered, in social/studio/out/
+```
+
+The knobs under the field (how many, the mix, whether the scripts are spoken)
+have working defaults; the URL is the only thing that has to be typed.
+
+### The four passes
+
+The prompts and the loop live in `studio/autopilot.mjs`, the server half in
+`studio-server.mjs`, and each pass exists because the one before it is not
+enough on its own.
+
+1. **Recon.** The page is fetched and stripped to text, then up to four of its
+   own links whose path or label looks like features, pricing, product or a
+   tour. Only `http(s)`, and never an address on this machine or the private
+   network — this fetcher follows a URL a person typed, and one that will go
+   anywhere will eventually be pointed at a router's admin page.
+2. **Brand.** The model turns that text into a fact sheet: name, one-liner,
+   price line, audience, features, proofs, and an `avoid` list of claims the
+   site does *not* support. Everything after this draws only on the fact sheet,
+   which is what stops a post inventing a feature. For Mac Kit it replaces
+   `formats.json` → `features`, which had to be kept in step with the app's
+   sidebar by hand.
+3. **Direct.** A creative director writes N concepts, each a different angle —
+   a demo, an annoyance, a number, a confession — with a hook, a script or a
+   card list, and visual direction (footage query, scene, sticker, layout).
+4. **Critique.** A second read scores every hook out of ten on three things
+   only: does it name something specific in the first four words, is every word
+   supported by the fact sheet, and would the line already be on ten other
+   accounts. Anything under 8 is rewritten. A first-draft hook is rarely the
+   best one, and the model is a far better editor of its own work than an author
+   of it. If this pass fails the run carries on with the first drafts — a failed
+   edit is not a failed run.
+
+Then one **producer** agent per concept, the same tool-calling loop AI mode uses
+(`runAgent` in `studio/agent.mjs`, which now takes its system prompt as an
+argument). It searches and downloads footage, saves a sticker, speaks the script
+and ends by calling `finish` with a plan. It has one tool AI mode does not:
+`search_photos`, so a carousel's scene can be *checked* before it is committed
+to — Wikimedia ANDs every word, and a scene that returns nothing is six flat
+cards.
+
+### Everything is fetched, nothing is reused
+
+The library is not offered to Autopilot at all — `list_library` is the one tool
+its producer does not get. Every frame of a post is fetched during that post's
+own run: the background clip from YouTube, the sticker from Giphy, photographs
+from stock — `search_photos` then `download_photo`, so a video can stand on a
+still rather than always on footage — and the read from Gemini. That is deliberate, and it is what
+makes the page work for a product this machine has never seen: there is no
+screen recording of someone else's app lying in `library/`, and there never will
+be.
+
+The product itself comes off its own site, two ways. Recon collects the pictures
+on every page it reads — `og:image`, `twitter:image`, every `<img>` (the widest
+`srcset` candidate), minus icons, logos, favicons and SVG, which ffmpeg cannot
+read anyway — and the producer pulls the ones it wants through
+`download_site_image`. But a good landing page usually draws its product shots in
+HTML rather than shipping them as files: usemackit.com's only real picture is its
+`og:image`, and the other seventeen are competitors' icons from the comparison
+table. So the second tool, `screenshot_site`, photographs the live page itself at
+a size the producer picks, with an optional `scrollY` to reach a section further
+down. Both land in `library/photos/` with a line in `photos/sources.json` saying
+where they came from and that they are fine for a post about that product and
+nothing else.
+
+The page has to have loaded before the shutter. A producer that guessed a path —
+`/compare`, `/features` — got a photograph of Chrome's error screen sitting in a
+finished post, which is exactly what happened once. Chrome reports that two ways
+depending on the site: as a status on the document (`Network.responseReceived`)
+and as `net::ERR_HTTP_RESPONSE_CODE_FAILURE` back from `Page.navigate` itself.
+Both are read as the same fact, and either one falls back to the site's front
+page, with the tool saying so in its result. If the front page fails too it
+errors rather than returning a picture of nothing. The producer's brief also lists the page
+addresses recon actually read, and the tool says to use one of those.
+
+The screenshotter drives Chrome over the DevTools protocol rather than using
+`--screenshot`, for two reasons found the hard way. Chrome writes the file and
+then does not exit, so a plain spawn hangs the whole run; and the first visit to
+any real site brings a consent sheet across the picture — which is removed from
+the document before the shutter (fixed and sticky elements whose id, class or
+text reads as cookie/consent/privacy/newsletter), not cropped out afterwards. The
+`ws://` address Chrome prints is the *browser*, which has no Page domain: the tab
+is a separate target, found through `/json/list`.
+
+A downloaded screenshot goes on the canvas as a **still**, not a clip: it is
+contained inside the box its layout gave it rather than covering it, because a
+screenshot cropped to a video-shaped hole loses most of the screenshot. ffmpeg
+gets it as a `-loop 1` input so it lasts the whole post instead of showing one
+frame.
+
+### Where the work happens
+
+Same split as AI mode, same reason: everything needing a key, a socket or a
+subprocess is a tool on the server; everything needing a canvas stays in the
+browser, because that is the only place the preview and the render are
+guaranteed to agree. `auto.js` turns a plan into layers, captions and slides and
+calls the same `/render-video` and `/save-post` the studio does, so the output
+lands in `studio/out/` looking like anything else — including a `project.json`,
+so a post Autopilot made can be opened in the studio's editor afterwards.
+
+A plan is executed the moment its producer finishes rather than at the end of the
+run, so post one renders while post two is still downloading its footage. A queue
+keeps that to one at a time: the editor is a single canvas and two compositions
+cannot share it.
+
+### The picture is composed, not picked
+
+There are no layouts. The producer returns a **list of layers**, back to front,
+and each one names a source it downloaded and a place in the 1080×1920 frame:
+`full`, `top`, `bottom`, `middle`, `centre`, `phone` (a tall panel, the shape a
+phone screenshot is), `card` (a floating window, the shape a desktop screenshot
+is), the four corners, and three sticker boxes. Layers carry their own `start`
+and `end`, so a sticker can arrive on the punchline and leave.
+
+That is the difference between "a clip over a clip, again" and what the format
+actually allows: a photograph filling the frame with a cut-out bouncing over it,
+a screenshot standing on a blurred copy of itself, a gif as the whole
+background with the product in a corner, a second clip cutting in halfway. The
+director is asked for a one-line `picture` per concept and told not to make the
+same shape twice in a campaign.
+
+What the model leaves out is chosen rather than refused: a clip fills its box, a
+still or a sticker shows all of itself, the layer at the back gets a little
+sound and the rest get less — much less when someone is speaking. A still that
+does not fill its box gets a blurred copy of itself behind it instead of black
+bars. Captions read the layers to decide their own height: a layer occupying the
+bottom half pushes them up rather than sitting under them.
+
+A producer that answers in the older fixed-slot shape (`backgroundPath`,
+`appClipPath`, `gifPath`) still gets a post — those are mapped onto regions —
+rather than a page reporting that nothing happened.
+
+### Downloading
+
+Each finished card carries **Download video** (or **Download cards**, which zips
+the folder with `ditto`), an editable caption with **Copy caption**, and **Show
+in Finder**. The downloads go through `/download` and `/zip`, which set
+`Content-Disposition`: an `href` straight at an mp4 opens it in a tab instead of
+saving it.
+
+### What it costs
+
+A three-post run is a dozen or so model calls plus a YouTube download per video,
+so it takes minutes rather than seconds, and the feed on the left says which tool
+is running. It needs the DeepSeek key; with no model key the page says so and
+does nothing else.
 
 ## Image posts
 
@@ -248,6 +406,26 @@ comes from the picker in Captions & audio, where **Hear it** auditions it.
 
 Files land in `studio/library/voice/`.
 
+### Which voice speaks
+
+With `geminiApiKey` set, Gemini speaks everything — the **Speak the script**
+button, **Hear it**, AI mode and Autopilot — and an empty voice, which is what
+every caller that does not care sends, resolves to Gemini's `Charon`. Its thirty
+voices are listed in the picker with the one-word character its docs give each
+(`Sulafat — Warm`, `Fenrir — Excitable`), because a name alone says nothing about
+how it sounds. Without the key the order is ElevenLabs, then macOS `say`, exactly
+as before; the macOS voices stay in the list either way.
+
+The API answers with raw 24 kHz mono PCM, so the server writes a 44-byte RIFF
+header in front of it — ffmpeg will not read headerless PCM without being told
+its rate and layout, and a WAV is something everything downstream already
+understands.
+
+These models take **direction in plain language**, so a read can be asked for:
+Autopilot's producer has a `style` argument on `make_voiceover` ("Read this
+dryly, like you are telling a friend what you did at the weekend") and it is
+prefixed to the script as an instruction, not spoken.
+
 ### GIFs and stickers
 
 Search Giphy from the Clips block and save what you want; saved GIFs sit in
@@ -338,12 +516,16 @@ button.
 ```
 social/
   studio.html  studio.js  studio.css      the page
+  auto.html    auto.js    auto.css        Autopilot — a URL in, finished posts out
   studio-server.mjs                        the local server
   studio.config.json                       keys (create from the .example)
   studio/
     formats.json                           post formats + the offline copy bank
     render-image.js                        canvas renderer (slides + text layers)
     composition.js                         the layer model both sides read
+    agent.mjs                              AI mode's tool loop
+    autopilot.mjs                          Autopilot's four passes and its producer
+    shot.mjs                               photographs a live page with headless Chrome
     editor.js                              the live draggable canvas
     library/photos|videos|music/           your footage
     library/videos/sources.json            where each downloaded clip came from

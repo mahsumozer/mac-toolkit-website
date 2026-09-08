@@ -36,6 +36,9 @@ new-videos/*
 !/social/hub.mjs
 !/social/studio.js
 !/social/studio.css
+!/social/auto.html
+!/social/auto.js
+!/social/auto.css
 !/social/studio-server.mjs
 !/social/studio.config.example.json
 !/social/studio/

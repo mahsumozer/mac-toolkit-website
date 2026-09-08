@@ -20,6 +20,8 @@ import { fileURLToPath } from "node:url";
 import { dirname, join, resolve, extname, basename, relative, sep } from "node:path";
 import { randomUUID, createHash } from "node:crypto";
 import { runAgent, toolSchemas, buildBrief } from "./studio/agent.mjs";
+import { runAutopilot } from "./studio/autopilot.mjs";
+import { screenshotSite } from "./studio/shot.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SITE = resolve(HERE, "..");
@@ -52,12 +54,14 @@ const DEEPSEEK_KEY = key("deepseekApiKey", "DEEPSEEK_API_KEY");
 const PEXELS_KEY = key("pexelsApiKey", "PEXELS_API_KEY");
 const ELEVEN_KEY = key("elevenLabsApiKey", "ELEVENLABS_API_KEY");
 const GIPHY_KEY = key("giphyApiKey", "GIPHY_API_KEY");
+const GEMINI_KEY = key("geminiApiKey", "GEMINI_API_KEY");
 
 // Wikimedia rejects generic or contactless User-Agents with a 429, so every
 // outbound request identifies the tool and where to complain about it.
 const USER_AGENT = "MacKitStudio/1.0 (https://usemackit.com)";
 const MODEL = config.model || "claude-opus-5";
 const DEEPSEEK_MODEL = config.deepseekModel || "deepseek-v4-pro";
+const GEMINI_TTS_MODEL = config.geminiTtsModel || "gemini-3.1-flash-tts-preview";
 
 // `copyProvider` in the config picks between the providers that actually have a
 // key; naming one without its key falls through rather than being honoured,
@@ -304,6 +308,7 @@ async function library() {
     copyProvider: COPY_PROVIDER,
     copyModel: COPY_PROVIDER === "deepseek" ? DEEPSEEK_MODEL : COPY_PROVIDER === "anthropic" ? MODEL : null,
     keys: {
+      gemini: Boolean(GEMINI_KEY),
       anthropic: Boolean(ANTHROPIC_KEY),
       deepseek: Boolean(DEEPSEEK_KEY),
       giphy: Boolean(GIPHY_KEY),
@@ -590,8 +595,85 @@ async function generateCopy(payload) {
 // `say -v ?` prints one voice per line as: "Name       en_US    # sample line".
 // Only the English voices are offered — the rest read the script phonetically
 // in the wrong language.
+
+// Gemini's thirty voices, with the one-word character its docs give each. The
+// descriptor is not decoration: it is what a person picks from, and what the
+// producer in autopilot reads when it chooses one for a script.
+const GEMINI_VOICES = [
+  ["Charon", "Informative"], ["Kore", "Firm"], ["Puck", "Upbeat"], ["Zephyr", "Bright"],
+  ["Aoede", "Breezy"], ["Callirrhoe", "Easy-going"], ["Leda", "Youthful"], ["Fenrir", "Excitable"],
+  ["Orus", "Firm"], ["Autonoe", "Bright"], ["Enceladus", "Breathy"], ["Iapetus", "Clear"],
+  ["Umbriel", "Easy-going"], ["Algieba", "Smooth"], ["Despina", "Smooth"], ["Erinome", "Clear"],
+  ["Algenib", "Gravelly"], ["Rasalgethi", "Informative"], ["Laomedeia", "Upbeat"], ["Achernar", "Soft"],
+  ["Alnilam", "Firm"], ["Schedar", "Even"], ["Gacrux", "Mature"], ["Pulcherrima", "Forward"],
+  ["Achird", "Friendly"], ["Zubenelgenubi", "Casual"], ["Vindemiatrix", "Gentle"], ["Sadachbia", "Lively"],
+  ["Sadaltager", "Knowledgeable"], ["Sulafat", "Warm"],
+];
+const GEMINI_DEFAULT_VOICE = "Charon";
+
+// The API answers with raw 24 kHz mono PCM, which ffmpeg will not read without
+// being told the rate, the layout and the sample format. A 44-byte RIFF header
+// costs nothing and makes the file a normal WAV that everything downstream
+// already understands.
+function wavFromPcm(pcm, sampleRate = 24000, channels = 1, bitsPerSample = 16) {
+  const header = Buffer.alloc(44);
+  const byteRate = (sampleRate * channels * bitsPerSample) / 8;
+  header.write("RIFF", 0);
+  header.writeUInt32LE(36 + pcm.length, 4);
+  header.write("WAVE", 8);
+  header.write("fmt ", 12);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(channels, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(byteRate, 28);
+  header.writeUInt16LE((channels * bitsPerSample) / 8, 32);
+  header.writeUInt16LE(bitsPerSample, 34);
+  header.write("data", 36);
+  header.writeUInt32LE(pcm.length, 40);
+  return Buffer.concat([header, pcm]);
+}
+
+// Style is a sentence in front of the script rather than a parameter: these
+// models take direction in plain language ("Say this warmly, at an even pace"),
+// and the instruction is read as direction, not spoken.
+async function geminiSpeak(text, voiceName, style) {
+  const voice = GEMINI_VOICES.some(([name]) => name === voiceName) ? voiceName : GEMINI_DEFAULT_VOICE;
+  const input = style ? `${String(style).trim().replace(/[.:]*$/, "")}:\n\n${text}` : text;
+  const res = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
+    method: "POST",
+    headers: { "x-goog-api-key": GEMINI_KEY, "content-type": "application/json" },
+    body: JSON.stringify({
+      model: GEMINI_TTS_MODEL,
+      input,
+      response_format: { type: "audio" },
+      generation_config: { speech_config: [{ voice }] },
+    }),
+  });
+  if (!res.ok) throw new Error(`Gemini TTS ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  const data = await res.json();
+
+  // The audio is one part of one step, and the shape has moved once already, so
+  // it is searched for by kind rather than read out of a fixed path.
+  const parts = [];
+  for (const step of data.steps || []) for (const part of step.content || []) parts.push(part);
+  if (data.output_audio) parts.push(data.output_audio);
+  const audio = parts.find((part) => part && part.data && (part.type === "audio" || /audio/i.test(part.mime_type || "")));
+  if (!audio) throw new Error(`Gemini TTS returned no audio (status ${data.status || "unknown"})`);
+
+  const pcm = Buffer.from(audio.data, "base64");
+  return wavFromPcm(pcm, Number(audio.sample_rate) || 24000, Number(audio.channels) || 1);
+}
+
 async function listVoices() {
-  const voices = [{ id: "", label: "System default (say)" }];
+  // With a Gemini key the default is Gemini, so an empty voice — what every
+  // caller that never asked for one sends — gets the good one.
+  const voices = GEMINI_KEY
+    ? [
+        { id: "", label: `Default (Gemini · ${GEMINI_DEFAULT_VOICE})` },
+        ...GEMINI_VOICES.map(([name, character]) => ({ id: `gemini:${name}`, label: `${name} — ${character} (Gemini)` })),
+      ]
+    : [{ id: "", label: "System default (say)" }];
   try {
     const out = await run("say", ["-v", "?"]);
     for (const line of out.split("\n")) {
@@ -615,7 +697,15 @@ async function listVoices() {
   return voices;
 }
 
-async function synthesise(text, voice, outPath) {
+async function synthesise(text, voice, outPath, style) {
+  // Gemini is the default speaker when its key is set: an empty voice, which is
+  // what everything that does not care sends, lands here rather than on `say`.
+  if (GEMINI_KEY && (!voice || voice.startsWith("gemini:"))) {
+    const wav = outPath.replace(/\.\w+$/, "") + ".wav";
+    await fs.writeFile(wav, await geminiSpeak(text, voice ? voice.slice("gemini:".length) : GEMINI_DEFAULT_VOICE, style));
+    return wav;
+  }
+
   if (ELEVEN_KEY && voice && voice.startsWith("eleven:")) {
     const voiceId = voice.slice("eleven:".length);
     const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}`, {
@@ -641,7 +731,7 @@ async function synthesise(text, voice, outPath) {
 // The script as a file in the library, so it becomes a layer with a start, an
 // end and a trim like everything else — rather than something the renderer
 // conjures at the last moment and nobody can see or cut.
-async function makeVoiceover({ text, voice, name }, job) {
+async function makeVoiceover({ text, voice, name, style }, job) {
   const clean = String(text || "").trim();
   if (!clean) throw new Error("Nothing to say — write a hook or some caption lines first");
 
@@ -651,10 +741,10 @@ async function makeVoiceover({ text, voice, name }, job) {
   const target = join(dir, `${base}-${Date.now().toString(36).slice(-4)}.m4a`);
 
   job.stage = "Speaking";
-  const raw = await synthesise(clean, voice, join(TMP, `vo-${job.id}.mp3`));
+  const raw = await synthesise(clean, voice, join(TMP, `vo-${job.id}.mp3`), style);
   job.stage = "Encoding";
-  // `say` writes AIFF and ElevenLabs writes MP3; one remux gives the page a
-  // format it can play and ffmpeg a consistent input.
+  // `say` writes AIFF, ElevenLabs writes MP3 and Gemini writes WAV; one remux
+  // gives the page a format it can play and ffmpeg a consistent input.
   await run("ffmpeg", ["-y", "-i", raw, "-c:a", "aac", "-b:a", "160k", target]);
   await fs.rm(raw, { force: true });
 
@@ -837,7 +927,8 @@ async function fetchFootage(item, job) {
 // from now the only way to answer "where did this footage come from and may we
 // use it" is a record written at download time.
 async function recordSource(name, item) {
-  const file = join(LIB, item.provider === "giphy" ? "gifs" : "videos", "sources.json");
+  const folder = item.provider === "giphy" ? "gifs" : item.provider === "site" ? "photos" : "videos";
+  const file = join(LIB, folder, "sources.json");
   let manifest = {};
   try {
     manifest = JSON.parse(await fs.readFile(file, "utf8"));
@@ -854,7 +945,11 @@ async function recordSource(name, item) {
         ? "Pexels licence — free for commercial use, no attribution required"
         : item.provider === "giphy"
           ? "Giphy — check the source before commercial use; many uploads are third-party clips"
-          : "uploader states no-copyright / free to use — not verified",
+          : item.provider === "site"
+            ? "the product's own site — fine for a post about that product, nothing else"
+            : item.provider === "commons"
+              ? "Wikimedia Commons — mostly CC0/CC-BY; check the credit before commercial use"
+              : "uploader states no-copyright / free to use — not verified",
   };
   await fs.writeFile(file, JSON.stringify(manifest, null, 2) + "\n", "utf8");
 }
@@ -1164,7 +1259,7 @@ function libraryForAgent(lib) {
   };
 }
 
-function agentTools(job) {
+function agentTools(job, label = "ai mode") {
   // Search results are held between calls so download_gif can take an id rather
   // than the model having to echo a URL back correctly.
   const seen = new Map();
@@ -1183,7 +1278,7 @@ function agentTools(job) {
 
     async download_footage({ url, title, section }) {
       job.stage = `Downloading ${String(title).slice(0, 40)}`;
-      const item = { url, title, section, provider: "youtube", query: "ai mode" };
+      const item = { url, title, section, provider: "youtube", query: label };
       const file = await fetchFootage(item, job);
       push({ role: "tool-result", tool: "download_footage", text: `${file.name} (${Math.round(file.size / 1e6)} MB)` });
       return { path: file.path, name: file.name, size: file.width && file.height ? `${file.width}x${file.height}` : undefined, seconds: Math.round(file.duration || 0) };
@@ -1199,14 +1294,14 @@ function agentTools(job) {
       const item = seen.get(id);
       if (!item) throw new Error(`No such gif id: ${id}. Call search_gif first and use an id from its results.`);
       job.stage = "Saving sticker";
-      const file = await fetchGif({ ...item, query: "ai mode" }, job);
+      const file = await fetchGif({ ...item, query: label }, job);
       push({ role: "tool-result", tool: "download_gif", text: file.name });
       return { path: file.path, name: file.name };
     },
 
-    async make_voiceover({ text, voice }) {
+    async make_voiceover({ text, voice, style }) {
       job.stage = "Speaking the script";
-      const file = await makeVoiceover({ text, voice, name: text.slice(0, 40) }, job);
+      const file = await makeVoiceover({ text, voice, style, name: text.slice(0, 40) }, job);
       push({ role: "tool-result", tool: "make_voiceover", text: `${file.duration.toFixed(1)}s` });
       return { path: file.path, seconds: Number(file.duration.toFixed(2)) };
     },
@@ -1237,6 +1332,171 @@ async function runAiMode(payload, job) {
   });
 
   job.stage = "Plan ready";
+  return result;
+}
+
+/* ---------------------------------------------------------------- autopilot */
+
+// One URL in, a campaign out. The passes and every prompt live in
+// studio/autopilot.mjs; what lives here is what needs a socket or a subprocess —
+// reading the site, and the producer's hands.
+
+// The page hands this an address a person typed, so the fetcher is deliberately
+// narrow: http(s) only, and never this machine or the private network. A
+// fetcher that follows anything will eventually be pointed at a router's admin
+// page.
+const PRIVATE_HOST = /^(localhost$|127\.|0\.0\.0\.0|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|\[?::1\]?$)/i;
+
+async function fetchSitePage(target) {
+  const parsed = new URL(String(target).trim());
+  if (!/^https?:$/.test(parsed.protocol)) throw new Error("only http and https addresses can be read");
+  if (PRIVATE_HOST.test(parsed.hostname)) throw new Error("that address is on this machine or the local network");
+  const res = await fetch(parsed, {
+    headers: { "User-Agent": USER_AGENT, accept: "text/html,application/xhtml+xml" },
+    redirect: "follow",
+    signal: AbortSignal.timeout(20000),
+  });
+  if (!res.ok) throw new Error(`${parsed.hostname} answered ${res.status}`);
+  const type = res.headers.get("content-type") || "";
+  if (type && !/html|xml|text/i.test(type)) throw new Error(`${parsed.hostname} returned ${type}, not a page`);
+  const buffer = Buffer.from(await res.arrayBuffer());
+  // Two megabytes of markup is already far more than the model will read.
+  return buffer.subarray(0, 2 * 1024 * 1024).toString("utf8");
+}
+
+function autopilotTools(job) {
+  const photoResults = new Map();
+  // `list_library` is deliberately dropped rather than left unused: an
+  // autopilot post is made of things fetched during its own run, and a tool
+  // that hands the model a shelf of leftovers is an invitation to reuse them.
+  const { list_library, ...base } = agentTools(job, "autopilot");
+  return {
+    ...base,
+
+    async screenshot_site({ url, width, height, scrollY }) {
+      job.stage = "Photographing the site";
+      const { file, stat, shotUrl } = await screenshotSite(url, {
+        width: Number(width) || 1440,
+        height: Number(height) || 900,
+        scrollY: Number(scrollY) || 0,
+        outDir: join(LIB, "photos"),
+        profileDir: join(TMP, "shot-profile"),
+      });
+      const meta = await probeMeta(file, stat).catch(() => ({}));
+      await recordSource(basename(file), { url: shotUrl, title: "page screenshot", provider: "site", query: "autopilot" });
+      const moved = shotUrl !== String(url).trim();
+      job.messages.push({
+        at: Date.now(),
+        role: "tool-result",
+        tool: "screenshot_site",
+        text: `${basename(file)} ${meta.width || "?"}x${meta.height || "?"}${moved ? ` (that page 404'd — photographed ${shotUrl})` : ""}`,
+      });
+      return {
+        path: file,
+        name: basename(file),
+        photographed: shotUrl,
+        ...(moved ? { note: `${url} does not exist, so the site's home page was photographed instead` } : {}),
+        size: meta.width && meta.height ? `${meta.width}x${meta.height}` : undefined,
+      };
+    },
+
+    // The product's own site is the only place a screenshot of someone else's
+    // app can come from, so the pictures on the page are downloadable like any
+    // other source, with the same provenance record behind them.
+    async download_site_image({ url, name }) {
+      if (!/^https?:\/\//i.test(String(url || ""))) throw new Error("download_site_image needs an http(s) url from the brief");
+      job.stage = "Taking a picture off the site";
+      const res = await fetch(url, { headers: { "User-Agent": USER_AGENT }, redirect: "follow", signal: AbortSignal.timeout(20000) });
+      if (!res.ok) throw new Error(`${new URL(url).hostname} answered ${res.status}`);
+      const type = res.headers.get("content-type") || "";
+      if (!/^image\//i.test(type)) throw new Error(`that url is ${type || "not an image"}`);
+      if (/svg/i.test(type)) throw new Error("SVG cannot be rendered — pick a png, jpg or webp");
+      const buffer = Buffer.from(await res.arrayBuffer());
+      if (buffer.length > 25 * 1024 * 1024) throw new Error("that image is over 25 MB");
+
+      const ext = /png/i.test(type) ? ".png" : /webp/i.test(type) ? ".webp" : /gif/i.test(type) ? ".gif" : ".jpg";
+      const dir = join(LIB, "photos");
+      await fs.mkdir(dir, { recursive: true });
+      const base = slugify(name || basename(new URL(url).pathname) || "site-image");
+      const file = join(dir, `${base}-${createHash("sha1").update(url).digest("hex").slice(0, 6)}${ext}`);
+      await fs.writeFile(file, buffer);
+
+      const meta = await probeMeta(file, await fs.stat(file)).catch(() => ({}));
+      await recordSource(basename(file), { url, title: name || "", provider: "site", query: "autopilot", licence: "the product's own site" });
+      job.messages.push({ at: Date.now(), role: "tool-result", tool: "download_site_image", text: `${basename(file)} ${meta.width || "?"}x${meta.height || "?"}` });
+      return { path: file, name: basename(file), size: meta.width && meta.height ? `${meta.width}x${meta.height}` : undefined };
+    },
+    // The carousel's blank-slide trap, made checkable: Commons ANDs every word,
+    // so a scene the producer likes can quietly return nothing. Now it can look
+    // before it commits.
+    async search_photos({ query }) {
+      const results = await stockPhotos(query, "", "portrait").catch(() => []);
+      // Held between calls so download_photo can take an id rather than the
+      // model having to echo a long URL back correctly.
+      results.forEach((result, i) => photoResults.set(`p${i + 1}`, result));
+      job.messages.push({ at: Date.now(), role: "tool-result", tool: "search_photos", text: `${query} — ${results.length} photos` });
+      return {
+        query,
+        found: results.length,
+        results: results.slice(0, 8).map((result, i) => ({ id: `p${i + 1}`, credit: result.credit || result.title || "" })),
+      };
+    },
+
+    async download_photo({ id }) {
+      const item = photoResults.get(id);
+      if (!item) throw new Error(`No such photo id: ${id}. Call search_photos first and use an id from its results.`);
+      job.stage = "Saving a photograph";
+      const res = await fetch(item.full, { headers: { "User-Agent": USER_AGENT }, redirect: "follow", signal: AbortSignal.timeout(30000) });
+      if (!res.ok) throw new Error(`the photo host answered ${res.status}`);
+      const buffer = Buffer.from(await res.arrayBuffer());
+      const dir = join(LIB, "photos");
+      await fs.mkdir(dir, { recursive: true });
+      const type = res.headers.get("content-type") || "";
+      const ext = /png/i.test(type) ? ".png" : /webp/i.test(type) ? ".webp" : ".jpg";
+      const file = join(dir, `stock-${slugify(item.credit || "photo")}-${createHash("sha1").update(item.full).digest("hex").slice(0, 6)}${ext}`);
+      await fs.writeFile(file, buffer);
+      const meta = await probeMeta(file, await fs.stat(file)).catch(() => ({}));
+      await recordSource(basename(file), { url: item.full, title: item.credit || "", provider: PEXELS_KEY ? "pexels" : "commons", query: "autopilot" });
+      job.messages.push({ at: Date.now(), role: "tool-result", tool: "download_photo", text: `${basename(file)} ${meta.width || "?"}x${meta.height || "?"}` });
+      return { path: file, name: basename(file), size: meta.width && meta.height ? `${meta.width}x${meta.height}` : undefined, credit: item.credit || "" };
+    },
+  };
+}
+
+async function runAutopilotJob(payload, job) {
+  job.messages = [];
+  job.plans = [];
+  job.stage = "Reading the site";
+
+  const result = await runAutopilot({
+    url: payload.url,
+    count: Math.max(1, Math.min(Number(payload.count) || 3, 6)),
+    mix: payload.mix,
+    voices: payload.voices || [],
+    voiceover: payload.voiceover !== false,
+    hasGiphy: Boolean(GIPHY_KEY),
+    fetchPage: fetchSitePage,
+    json: (system, prompt) => {
+      if (COPY_PROVIDER === "deepseek") return deepseekJson(system, prompt);
+      if (COPY_PROVIDER === "anthropic") return claudeJson(`${system}\n\n${prompt}`, null);
+      throw new Error("Autopilot needs a model key — add deepseekApiKey to social/studio.config.json");
+    },
+    agentCall,
+    toolImpls: autopilotTools(job),
+    onEvent: (event) => {
+      job.messages.push({ at: Date.now(), ...event });
+      // A plan is carried on the message as well as returned at the end, so the
+      // page can start rendering post one while post two is still downloading.
+      if (event.role === "concept-done" && event.plan) job.plans.push(event.plan);
+      if (event.role === "tool") job.stage = event.tool.replace(/_/g, " ");
+    },
+    onPhase: (stage) => {
+      job.stage = stage;
+      job.messages.push({ at: Date.now(), role: "phase", text: stage });
+    },
+  });
+
+  job.stage = "Plans ready";
   return result;
 }
 
@@ -1501,6 +1761,46 @@ async function route(req, res, url) {
     return json(res, 202, { jobId: startJob(item.title || "gif", (job) => fetchGif(item, job)) });
   }
 
+  if (path === "/auto/run" && req.method === "POST") {
+    const payload = await readJson(req);
+    if (!payload || !String(payload.url || "").trim()) return json(res, 400, { error: "missing url" });
+    return json(res, 202, { jobId: startJob("autopilot", (job) => runAutopilotJob(payload, job)) });
+  }
+
+  // Saving a finished post is one click on the page, so the browser is told to
+  // save rather than play: a <video> href just opens in a tab otherwise.
+  if (path === "/download") {
+    const target = resolve(url.searchParams.get("p") || "");
+    if (!underRoot(target)) return json(res, 403, { error: "path outside the media library" });
+    const stat = await fs.stat(target).catch(() => null);
+    if (!stat || stat.isDirectory()) return json(res, 404, { error: "not a file" });
+    res.writeHead(200, {
+      "content-type": MIME[extname(target).toLowerCase()] || "application/octet-stream",
+      "content-length": stat.size,
+      "content-disposition": `attachment; filename="${basename(target).replace(/"/g, "")}"`,
+    });
+    return createReadStream(target).pipe(res);
+  }
+
+  // A carousel is six files; zipping is the difference between one click and
+  // six. `ditto` is macOS's own archiver, so no dependency and no `zip` quirks.
+  if (path === "/zip") {
+    const target = resolve(url.searchParams.get("p") || "");
+    if (!target.startsWith(OUT + sep)) return json(res, 403, { error: "only rendered output can be zipped" });
+    const stat = await fs.stat(target).catch(() => null);
+    if (!stat || !stat.isDirectory()) return json(res, 404, { error: "not a folder" });
+    await fs.mkdir(join(TMP, "zips"), { recursive: true });
+    const archive = join(TMP, "zips", `${basename(target)}.zip`);
+    await run("ditto", ["-c", "-k", "--sequesterRsrc", "--keepParent", target, archive]);
+    const zipped = await fs.stat(archive);
+    res.writeHead(200, {
+      "content-type": "application/zip",
+      "content-length": zipped.size,
+      "content-disposition": `attachment; filename="${basename(target)}.zip"`,
+    });
+    return createReadStream(archive).pipe(res);
+  }
+
   if (path === "/ai/run" && req.method === "POST") {
     const payload = await readJson(req);
     return json(res, 202, { jobId: startJob("ai-mode", (job) => runAiMode(payload, job)) });
@@ -1588,7 +1888,7 @@ server.listen(PORT, "127.0.0.1", () => {
   console.log(`Mac Kit Studio server → http://127.0.0.1:${PORT}`);
   console.log(`  copy         : ${COPY_PROVIDER === "none" ? "no key (offline templates will be used)" : `${COPY_PROVIDER} · ${COPY_PROVIDER === "deepseek" ? DEEPSEEK_MODEL : MODEL}`}`);
   console.log(`  Pexels       : ${PEXELS_KEY ? "ready" : "no key (Wikimedia Commons fallback)"}`);
-  console.log(`  ElevenLabs   : ${ELEVEN_KEY ? "ready" : "no key (macOS `say` will be used)"}`);
+  console.log(`  voice        : ${GEMINI_KEY ? `Gemini · ${GEMINI_TTS_MODEL}` : ELEVEN_KEY ? "ElevenLabs" : "macOS `say`"}`);
   console.log(`  Giphy        : ${GIPHY_KEY ? "ready" : "no key (GIF search disabled)"}`);
   console.log(`  library      : ${relative(SITE, LIB)}`);
 });

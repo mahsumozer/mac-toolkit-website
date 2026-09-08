@@ -198,9 +198,9 @@ export function buildBrief({ answers, features, product, voices }) {
  * updates as they happen, so the page can show its own progress rather than
  * staring at a spinner.
  */
-export async function runAgent({ call, toolImpls, tools, brief, onEvent }) {
+export async function runAgent({ call, toolImpls, tools, brief, onEvent, system = AGENT_SYSTEM }) {
   const messages = [
-    { role: "system", content: AGENT_SYSTEM },
+    { role: "system", content: system },
     { role: "user", content: brief },
   ];
 
