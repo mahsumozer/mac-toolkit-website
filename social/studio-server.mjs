@@ -24,6 +24,7 @@ import { runAutopilot } from "./studio/autopilot.mjs";
 import { screenshotSite } from "./studio/shot.mjs";
 import { trendingNow } from "./studio/trends.mjs";
 import { fetchTranscript, condense, opening } from "./studio/transcript.mjs";
+import { tokenize, indexSource, buildCut } from "./studio/supercut.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SITE = resolve(HERE, "..");
@@ -1559,6 +1560,136 @@ async function runAutopilotJob(payload, job) {
   return result;
 }
 
+/* ---------------------------------------------------------------- supercut */
+
+// A script, cut out of other people's videos: find where each word is actually
+// spoken, download those seconds, hand back the pieces in script order. The
+// matching is in studio/supercut.mjs; what lives here is the searching, the
+// reading and the cutting, all of which need a process.
+
+const CUTS = join(LIB, "videos", "cuts");
+
+// One clip, cut to the second. `--force-keyframes-at-cuts` re-encodes the edges
+// so the cut lands on the word rather than on the nearest keyframe, which can be
+// several seconds early — the whole point of cutting on a transcript.
+async function cutSection(item, job) {
+  await fs.mkdir(CUTS, { recursive: true });
+  const target = join(CUTS, `${slugify(`${item.text}-${Math.round(item.start)}`).slice(0, 40)}-${createHash("sha1").update(`${item.url}${item.start}`).digest("hex").slice(0, 6)}.mp4`);
+  try {
+    await fs.access(target);
+    return target;
+  } catch {}
+  await run("yt-dlp", [
+    "-f",
+    "bv*+ba/b",
+    "-S",
+    "res:1080,vcodec:h264,ext:mp4",
+    "--merge-output-format",
+    "mp4",
+    "--no-playlist",
+    "--no-warnings",
+    "--download-sections",
+    `*${item.start}-${item.end}`,
+    "--force-keyframes-at-cuts",
+    "-o",
+    target,
+    item.url,
+  ]);
+  await recordSource(basename(target), { url: item.url, title: item.title || "", provider: "youtube", query: "supercut", section: `${item.start}-${item.end}` });
+  return target;
+}
+
+// Transcripts for a list of videos, a few at a time. Every one is a yt-dlp call,
+// and forty at once is how a laptop stops answering.
+async function readAll(videos, job) {
+  const sources = [];
+  const queue = [...videos];
+  const workers = Array.from({ length: 4 }, async () => {
+    while (queue.length) {
+      const video = queue.shift();
+      try {
+        const transcript = await readVideo(video.url);
+        if (transcript.words && transcript.words.length) {
+          sources.push(indexSource(video, transcript.words));
+          if (job) job.progress = Math.min(0.5, sources.length / Math.max(videos.length, 1) / 2);
+        }
+      } catch {}
+    }
+  });
+  await Promise.all(workers);
+  return sources;
+}
+
+async function runSupercut(payload, job) {
+  job.messages = [];
+  const say = (text, extra = {}) => job.messages.push({ at: Date.now(), role: "tool-result", tool: "supercut", text, ...extra });
+
+  const topic = String(payload.topic || "").trim();
+  const script = String(payload.script || "").trim();
+  if (!topic) throw new Error("Pick a subject to cut from — 'macbook', 'coffee', 'formula one'");
+  if (!script) throw new Error("Write the line you want assembled");
+
+  job.stage = "Finding videos";
+  const pool = new Map();
+  const gather = async (query, limit) => {
+    const results = await searchYouTube(query, { limit, sort: "views", maxDuration: 2400 }).catch(() => []);
+    for (const result of results) if (!pool.has(result.id)) pool.set(result.id, { url: result.url, title: result.title, channel: result.channel });
+    return results.length;
+  };
+  await gather(topic, Number(payload.videoCount) || 10);
+  say(`${pool.size} videos about "${topic}"`);
+
+  job.stage = "Reading them";
+  let sources = await readAll([...pool.values()], job);
+  say(`${sources.length} of them have captions — ${sources.reduce((n, s) => n + s.words.length, 0).toLocaleString()} words to cut from`);
+  if (!sources.length) throw new Error("None of those videos have captions to cut from — try a broader subject");
+
+  job.stage = "Matching the script";
+  const tokens = tokenize(script);
+  let cut = buildCut(tokens, sources);
+
+  // A word nobody in the first pool says gets hunted on its own. This is what
+  // turns "we could not find pomodoro" into a clip of someone saying pomodoro.
+  const hunted = [];
+  for (const word of cut.missing.slice(0, 4)) {
+    job.stage = `Hunting "${word}"`;
+    const before = pool.size;
+    await gather(`${topic} ${word}`, 4);
+    await gather(word, 3);
+    const fresh = [...pool.values()].filter((video) => !sources.some((source) => source.video.url === video.url));
+    if (!fresh.length) continue;
+    const extra = await readAll(fresh, null);
+    sources = sources.concat(extra);
+    hunted.push(word);
+    say(`hunted "${word}" through ${pool.size - before} more videos`);
+  }
+  if (hunted.length) cut = buildCut(tokens, sources);
+
+  job.stage = "Cutting";
+  const clips = cut.segments.filter((segment) => segment.kind === "clip");
+  let done = 0;
+  for (const clip of clips) {
+    clip.path = await cutSection(clip, job).catch((error) => {
+      say(`could not cut "${clip.text}" (${String(error.message).slice(0, 80)})`, { role: "tool-error" });
+      return null;
+    });
+    done++;
+    job.progress = 0.5 + (0.5 * done) / clips.length;
+    job.stage = `Cutting ${done} of ${clips.length}`;
+  }
+
+  const cutClips = clips.filter((clip) => clip.path);
+  say(`${cutClips.length} clips from ${new Set(cutClips.map((c) => c.url)).size} videos, ${cut.stats.seconds}s of speech`);
+  job.stage = "Ready";
+  return {
+    topic,
+    script,
+    segments: cut.segments.filter((segment) => segment.kind !== "clip" || segment.path),
+    missing: cut.missing,
+    stats: cut.stats,
+  };
+}
+
 /* -------------------------------------------------------------- save posts */
 
 async function savePost(payload) {
@@ -1818,6 +1949,11 @@ async function route(req, res, url) {
     const item = await readJson(req);
     if (!/^https:\/\//.test(item.url || "")) return json(res, 400, { error: "missing or non-https url" });
     return json(res, 202, { jobId: startJob(item.title || "gif", (job) => fetchGif(item, job)) });
+  }
+
+  if (path === "/supercut/run" && req.method === "POST") {
+    const payload = await readJson(req);
+    return json(res, 202, { jobId: startJob("supercut", (job) => runSupercut(payload, job)) });
   }
 
   if (path === "/auto/run" && req.method === "POST") {

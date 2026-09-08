@@ -14,6 +14,7 @@
 import { renderSlide, toPngDataUrl, textLayerToPng, loadImage } from "./studio/render-image.js";
 import { newLayer, audioLayer, textLayer, timeTextLayers, fitLayer, COMP_W, COMP_H } from "./studio/composition.js";
 import { Editor } from "./studio/editor.js";
+import { freezeComposition } from "./studio/freeze.js";
 
 const API = (window.SOCIAL_CONFIG && window.SOCIAL_CONFIG.studioApiBase) || "http://127.0.0.1:8789";
 const $ = (sel) => document.querySelector(sel);
@@ -353,7 +354,7 @@ async function buildVideo(plan) {
   const { ready, waiting } = await editor.whenReady();
   if (!ready) log(`still loading after 15s: ${waiting.join(", ")}`, "is-error");
 
-  const { layers, missing } = await serializeComposition();
+  const { layers, missing } = await freezeComposition(editor);
   if (missing.length) log(`skipped, still loading: ${missing.join(", ")}`, "is-error");
   if (!layers.length) throw new Error("nothing to render");
 
@@ -398,46 +399,6 @@ async function buildVideo(plan) {
     hook: plan.hook || "",
     note: plan.note || "",
   };
-}
-
-// Freezes the canvas into something ffmpeg can rebuild: every clip carries the
-// crop and rect the editor drew, every text layer becomes the exact PNG it
-// painted. Identical in intent to the studio's own, and deliberately so — a
-// second way of describing a composition is a second way for the file to
-// disagree with the preview.
-async function serializeComposition() {
-  const layers = [];
-  const missing = [];
-  for (const layer of editor.layers) {
-    if (!layer.visible) continue;
-    if (layer.type === "text") {
-      layers.push({ type: "text", start: layer.start, end: layer.end, opacity: layer.opacity ?? 1, png: await textLayerToPng(layer) });
-      continue;
-    }
-    if (layer.type === "audio") {
-      layers.push({ type: "audio", path: layer.path, start: layer.start, end: layer.end, trim: layer.trim || 0, volume: layer.volume ?? 1 });
-      continue;
-    }
-    const size = editor.sourceSize(layer);
-    if (!size.w || !size.h) {
-      missing.push(layer.name);
-      continue;
-    }
-    const { crop, rect } = fitLayer(layer, size.w, size.h);
-    layers.push({
-      type: layer.type,
-      path: layer.path,
-      crop,
-      rect,
-      blur: layer.blur || 0,
-      opacity: layer.opacity ?? 1,
-      start: layer.start,
-      end: layer.end,
-      trim: layer.trim || 0,
-      volume: layer.volume || 0,
-    });
-  }
-  return { layers, missing };
 }
 
 /* -------------------------------------------------------------- image posts */

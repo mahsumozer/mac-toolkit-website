@@ -44,6 +44,44 @@ export function parseJson3(text) {
   return dedupe(cues);
 }
 
+/**
+ * Every word with the moment it is spoken.
+ *
+ * YouTube's automatic captions carry a `tOffsetMs` per segment inside each cue,
+ * which is the only reason a supercut can cut on the word rather than on the
+ * line. Manually uploaded captions usually have no offsets; those fall back to
+ * spreading the cue's words evenly across its own duration, which is wrong by a
+ * fraction of a second rather than by a line.
+ */
+export function wordsFromJson3(text) {
+  const data = JSON.parse(text);
+  const words = [];
+  for (const event of data.events || []) {
+    const segs = (event.segs || []).filter((seg) => (seg.utf8 || "").trim());
+    if (!segs.length) continue;
+    const base = (event.tStartMs || 0) / 1000;
+    const span = (event.dDurationMs || 0) / 1000;
+    const offsets = segs.map((seg) => seg.tOffsetMs);
+    const timed = offsets.some((offset) => typeof offset === "number");
+    segs.forEach((seg, i) => {
+      const at = timed
+        ? base + (typeof seg.tOffsetMs === "number" ? seg.tOffsetMs / 1000 : 0)
+        : base + (span ? (span * i) / segs.length : 0);
+      words.push({ t: Number(at.toFixed(3)), text: seg.utf8.trim() });
+    });
+  }
+  // Auto-captions roll: the same words arrive again in the next event. A word at
+  // the same second as the one before it is that repeat.
+  const out = [];
+  for (const word of words.sort((a, b) => a.t - b.t)) {
+    const last = out[out.length - 1];
+    if (last && last.text === word.text && Math.abs(last.t - word.t) < 0.35) continue;
+    out.push(word);
+  }
+  // Each word ends where the next begins; the last one gets a normal word's worth.
+  return out.map((word, i) => ({ ...word, end: Number((out[i + 1] ? Math.min(out[i + 1].t, word.t + 1.6) : word.t + 0.6).toFixed(3)) }));
+}
+
 export function parseVtt(text) {
   const cues = [];
   const blocks = String(text).replace(/\r/g, "").split("\n\n");
@@ -133,7 +171,8 @@ async function ytdlpTranscript(url, { run, tmpDir, lang = "en" }) {
   const pick = mine.find((name) => name.endsWith(".json3")) || mine.find((name) => name.endsWith(".vtt"));
   if (!pick) return { cues: [], title: "", source: "yt-dlp" };
   const body = await fs.readFile(join(tmpDir, pick), "utf8");
-  return { cues: pick.endsWith(".json3") ? parseJson3(body) : parseVtt(body), title: "", source: "yt-dlp" };
+  if (!pick.endsWith(".json3")) return { cues: parseVtt(body), words: [], title: "", source: "yt-dlp" };
+  return { cues: parseJson3(body), words: wordsFromJson3(body), title: "", source: "yt-dlp" };
 }
 
 /**
@@ -150,7 +189,7 @@ export async function fetchTranscript(url, { run, tmpDir, cacheDir, serpApiKey, 
     if (cached) return cached;
   }
 
-  let result = { cues: [], title: "", source: "none" };
+  let result = { cues: [], words: [], title: "", source: "none" };
   try {
     result = await ytdlpTranscript(url, { run, tmpDir: join(tmpDir, id), lang });
   } catch {}

@@ -1,0 +1,86 @@
+/* Supercut — the launcher is two fields instead of one, and the run shows the
+   script as the strip of clips it became. Everything else is auto.css. */
+
+.cut-form {
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cut-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.cut-field > span {
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--muted);
+  padding-left: 4px;
+}
+
+.cut-script {
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.5;
+  padding: 12px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+  color: var(--ink);
+  resize: vertical;
+  outline: none;
+}
+
+.cut-script:focus {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px rgba(5, 5, 5, 0.06);
+}
+
+/* The script, as the pieces it became: one chip per cut, in reading order, so
+   the joins and the holes are visible before anything is rendered. */
+.cut-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cut-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 6px 11px;
+  border-radius: 10px;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: default;
+}
+
+.cut-chip small {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.cut-chip.is-gap {
+  border-style: dashed;
+  color: var(--bad);
+  border-color: rgba(179, 38, 30, 0.45);
+}
+
+.cut-chip.is-playing {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+
+.cut-chip.is-playing small {
+  color: rgba(255, 255, 255, 0.7);
+}

@@ -279,6 +279,63 @@ so it takes minutes rather than seconds, and the feed on the left says which too
 is running. It needs the DeepSeek key; with no model key the page says so and
 does nothing else.
 
+## Supercut
+
+`cut.html`. A third page, and the only one that makes a video out of nothing but
+other people's mouths. Pick a subject, write a line, and it searches that corner
+of YouTube, reads the captions, finds the seconds where each of your words is
+actually spoken, cuts them out and puts them in your order.
+
+```
+macbook tips  +  "pomodoro timer, clipboard history, all in one menu bar app"
+   →  6 clips from 5 videos, 4.5 seconds
+```
+
+### How the matching works
+
+`studio/supercut.mjs` is the matcher and it is greedy, longest-first: a run of
+words taken whole from one mouth sounds like a sentence, while three single words
+from three videos sounds like a ransom note. Only when no run of two or more
+exists anywhere does it fall back to a lone word.
+
+Cutting on the *word* rather than the caption line is possible because YouTube's
+automatic captions carry a `tOffsetMs` per word inside each cue — `wordsFromJson3`
+in `studio/transcript.mjs` unpacks those. Manually uploaded captions usually have
+no offsets, so their words are spread evenly across the cue, which is wrong by a
+fraction of a second rather than by a line. Auto-captions also roll, repeating the
+previous words in the next event; a word at the same second as the one before it
+is that repeat and is dropped.
+
+A candidate is rejected when its span is longer than two seconds a word: that
+means the speaker paused mid-phrase, or the captions drifted, and the cut will
+sound wrong.
+
+### Hunting the missing words
+
+The first pool rarely says everything. Every word nobody said gets searched for on
+its own — `<subject> <word>`, then the bare word — and the pool grows before the
+match is rebuilt. That is what turns "we could not find pomodoro" into a clip of
+someone saying *pomodoro*: on the verified run it found it in "Best Pomodoro
+Timer Apps EVER!" at 4:48.
+
+What is still missing after the hunt is never dropped. It stays in the script as a
+gap, shown in the strip in red, and is either typed on screen or spoken by the
+studio's own voice, depending on the switch.
+
+### Cutting and laying out
+
+Each clip is one `yt-dlp --download-sections` with `--force-keyframes-at-cuts`,
+because without the re-encode the cut lands on the nearest keyframe, which can be
+seconds early — the whole point of cutting on a transcript. Clips are cached by
+url and start time, so re-running a script costs nothing for the words it already
+has.
+
+The page lays them end to end: each clip is a full-frame layer starting where the
+last one finished, with no trimming, because the file *is* the word. The word
+being spoken is drawn over it, and the strip above the log lights up chip by chip
+as the playhead crosses it. Render goes through the same `/render-video` as
+everything else, so the result lands in `studio/out/` with its `project.json`.
+
 ## Image posts
 
 The format is the one the reference posts use: a photo, and bold centred type in
@@ -551,6 +608,7 @@ button.
 social/
   studio.html  studio.js  studio.css      the page
   auto.html    auto.js    auto.css        Autopilot — a URL in, finished posts out
+  cut.html     cut.js     cut.css         Supercut — a line, cut out of other people's videos
   studio-server.mjs                        the local server
   studio.config.json                       keys (create from the .example)
   studio/
@@ -561,6 +619,8 @@ social/
     autopilot.mjs                          Autopilot's five passes and its producer
     trends.mjs                             velocity-ranked trends + the hook classifier
     transcript.mjs                         what a video says, with timings (yt-dlp, then SerpApi)
+    supercut.mjs                           finds a script's words inside those transcripts
+    freeze.js                              canvas -> render spec, shared by every page
     shot.mjs                               photographs a live page with headless Chrome
     editor.js                              the live draggable canvas
     library/photos|videos|music/           your footage
