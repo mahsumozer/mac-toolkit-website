@@ -411,10 +411,18 @@ this rarely has to fire; a Turkish run leans on it.
 ### What one run is allowed to do
 
 A run has a budget: **100 videos read**, shared by the first pool, the top-ups
-and the hunt. Without it a stubborn word — one that four search shapes keep not
+and the hunt. Without it a stubborn word — one the search shapes keep not
 finding — pulls two hundred uploads through the caption fetcher and the run stops
-being minutes. When the budget runs out the hunt stops and says so, and whatever
-is still missing becomes a gap.
+being minutes.
+
+When the budget runs out with words still missing the run does not end: it stops
+and **asks**, in the feed rather than in a dialog, because the alternative is a
+hole in the finished video and nothing the person can do about it. The answer is
+**+50**, **+100**, **+200** more videos, or *cut what you have*. Granting more
+does not merely carry on with the same searches — those would return the same
+uploads — it searches **deeper**: the results per query grow by six each time and
+every shape is tried again. It keeps asking as long as anything is missing, and an
+unanswered question answers itself after fifteen minutes.
 
 The other limits, for reference: the subject search returns what the page asks
 for (8 to 24), each phrase search 4, each top-up round 8, each hunt 5; uploads

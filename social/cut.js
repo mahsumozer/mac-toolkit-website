@@ -64,7 +64,7 @@ function pollJob(jobId, onProgress) {
 const fileUrl = (path) => `${API}/file?p=${encodeURIComponent(path)}`;
 const downloadUrl = (path) => `${API}/download?p=${encodeURIComponent(path)}`;
 
-const state = { running: false, result: null, chips: [], editor: null, seed: null };
+const state = { running: false, result: null, chips: [], editor: null, seed: null, jobId: null };
 
 const phase = (text) => ($("#cut-phase-text").textContent = text);
 
@@ -615,6 +615,61 @@ function showResult(rendered) {
   $("#cut-grid").prepend(card);
 }
 
+/* ------------------------------------------------------------- more credit */
+
+// The run stops and asks rather than ending with a hole in the line. Rendered
+// once per question: the poller sees the same `awaiting` on every tick until it
+// is answered.
+let askedAt = 0;
+
+function renderAsk(job) {
+  const ask = job.awaiting;
+  if (!ask || ask.asked === askedAt) return;
+  askedAt = ask.asked;
+  phase("Waiting for you");
+
+  const wrap = document.createElement("div");
+  wrap.className = "auto-msg is-error cut-ask";
+  const line = document.createElement("p");
+  line.className = "cut-ask-line";
+  line.textContent = `${ask.read} videos read and nobody says ${ask.missing.map((word) => `“${word}”`).join(", ")}. Keep looking?`;
+  wrap.appendChild(line);
+
+  const row = document.createElement("div");
+  row.className = "cut-ask-row";
+  const answer = async (reads, button) => {
+    for (const other of row.querySelectorAll("button")) other.disabled = true;
+    button.classList.add("is-chosen");
+    try {
+      await api("/supercut/continue", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jobId: state.jobId, reads }),
+      });
+    } catch (error) {
+      log(`could not answer: ${error.message}`, "is-error");
+    }
+  };
+  for (const reads of ask.options || [50, 100, 200]) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "button button-dark button-small";
+    button.textContent = `+${reads} videos`;
+    button.addEventListener("click", () => answer(reads, button));
+    row.appendChild(button);
+  }
+  const stop = document.createElement("button");
+  stop.type = "button";
+  stop.className = "button button-ghost button-small";
+  stop.textContent = "Cut what you have";
+  stop.addEventListener("click", () => answer(0, stop));
+  row.appendChild(stop);
+
+  wrap.appendChild(row);
+  $("#cut-feed").appendChild(wrap);
+  $("#cut-feed").scrollTop = $("#cut-feed").scrollHeight;
+}
+
 /* --------------------------------------------------------------------- run */
 
 // A second opinion on the same line. The transcripts are already on disk, so a
@@ -664,8 +719,10 @@ async function run(event) {
       }),
     });
 
+    state.jobId = jobId;
     let shown = 0;
     const result = await pollJob(jobId, (job) => {
+      if (job.awaiting) renderAsk(job);
       phase(job.stage || job.status);
       progress(job.progress || 0, job.stage || "");
       for (const message of (job.messages || []).slice(shown)) log(message.text, message.role === "tool-error" ? "is-error" : "is-done");

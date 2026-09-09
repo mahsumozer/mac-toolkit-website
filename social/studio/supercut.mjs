@@ -230,7 +230,7 @@ export function buildCutInChunks(script, chunks, sources, options = {}) {
   const usable = (chunks || []).filter((chunk) => tokenize(chunk).length);
   if (!usable.length || !splitCovers(script, usable)) return buildCut(tokenize(script), sources, options);
 
-  const all = { segments: [], missing: [] };
+  const all = { segments: [], missing: [], broken: [] };
   for (const [index, chunk] of usable.entries()) {
     const cut = buildCut(tokenize(chunk), sources, {
       ...options,
@@ -241,6 +241,9 @@ export function buildCutInChunks(script, chunks, sources, options = {}) {
     });
     all.segments.push(...cut.segments);
     all.missing.push(...cut.missing);
+    // Reported, not acted on: a phrase that had to be assembled out of several
+    // mouths is not missing, but it is not what was asked for either.
+    if (cut.segments.length > 1 && tokenize(chunk).length > 1) all.broken.push(chunk);
   }
   spreadSources(all.segments);
   const clips = all.segments.filter((segment) => segment.kind === "clip");

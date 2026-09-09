@@ -412,3 +412,31 @@ body.has-drawer .hub-main {
 .cut-split.is-busy .cut-pills {
   opacity: 0.45;
 }
+
+/* The question the run asks when its budget runs out. It is a message in the
+   feed rather than a dialog: the run is still going, and a modal over a page
+   that is working reads as an error. */
+.cut-ask {
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.cut-ask-line {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.cut-ask-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.cut-ask-row .button.is-chosen {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

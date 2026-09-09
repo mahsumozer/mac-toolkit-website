@@ -24,7 +24,7 @@ import { runAutopilot } from "./studio/autopilot.mjs";
 import { screenshotSite } from "./studio/shot.mjs";
 import { trendingNow } from "./studio/trends.mjs";
 import { fetchTranscript, condense, opening, guessLanguage } from "./studio/transcript.mjs";
-import { tokenize, indexSource, buildCut, buildCutInChunks, searchPhrases, splitCovers, naiveSplit } from "./studio/supercut.mjs";
+import { tokenize, indexSource, buildCut, buildCutInChunks, searchPhrases, splitCovers, naiveSplit, normalise } from "./studio/supercut.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SITE = resolve(HERE, "..");
@@ -1631,6 +1631,32 @@ async function cutSection(item, job) {
 // four search shapes keep not finding — can pull two hundred uploads through the
 // caption fetcher, and the run stops being minutes and starts being a coffee.
 const MAX_READS_PER_RUN = 100;
+// When the budget runs out with words still missing the job does not end: it
+// stops and asks, because the alternative is a hole in the finished video and
+// nothing the person can do about it. The page answers with more reads or with
+// nothing, and an unanswered question eventually answers itself.
+const ASK_TIMEOUT_MS = 15 * 60 * 1000;
+
+function askForMore(job, { missing, broken, read }) {
+  return new Promise((resolve) => {
+    job.awaiting = {
+      missing,
+      broken,
+      read,
+      options: [50, 100, 200],
+      asked: Date.now(),
+    };
+    job.stage = "Waiting for you";
+    const finish = (credit) => {
+      if (!job.awaiting) return;
+      job.awaiting = null;
+      clearTimeout(timer);
+      resolve(Number(credit) || 0);
+    };
+    const timer = setTimeout(() => finish(0), ASK_TIMEOUT_MS);
+    job.grantReads = finish;
+  });
+}
 
 async function readAll(videos, { lang = "en", job, budget } = {}) {
   const sources = [];
@@ -1733,9 +1759,13 @@ async function runSupercut(payload, job) {
   if (lang !== "en") say(`the script reads as ${lang}: only videos actually spoken in ${lang} can supply its words, so translated caption tracks are ignored`);
 
   job.stage = "Reading them";
-  const budget = { left: MAX_READS_PER_RUN };
+  const budget = { left: Number(payload.maxReads) || MAX_READS_PER_RUN };
   let sources = await readAll([...pool.values()], { lang, job, budget });
-  say(`${sources.length} of them have captions — ${sources.reduce((n, s) => n + s.words.length, 0).toLocaleString()} words to cut from (${budget.left} of ${MAX_READS_PER_RUN} reads left)`);
+  say(
+    `${sources.length} of them have captions — ${sources.reduce((n, s) => n + s.words.length, 0).toLocaleString()} words to cut from (${budget.left} of ${
+      Number(payload.maxReads) || MAX_READS_PER_RUN
+    } reads left)`,
+  );
 
   // Plenty of uploads have no captions at all, and a thin pool is what makes a
   // cut stutter. So the search does not stop at one page: it keeps asking, in
@@ -1774,28 +1804,64 @@ async function runSupercut(payload, job) {
   // does not stop at one search: a word that is missing is missing until it is
   // found, so each one is chased through several shapes of query and the match
   // is rebuilt after every round.
-  const SHAPES = [
-    (word) => `"${word}"`,
-    (word) => `${topic} ${word}`,
-    (word, neighbour) => (neighbour ? `"${word} ${neighbour}"` : `${word} nedir`),
-    (word) => `${word} ${lang === "tr" ? "anlatım" : "explained"}`,
-  ];
+  // Measured, not guessed. Searching the bare word — even quoted — lands on
+  // lofi timers and music: five results, two with captions, none of them
+  // speaking. The subject plus the word found it in three of five, so that goes
+  // first, and the rest lean on words that only appear where someone is talking.
+  const SHAPES = lang === "tr"
+    ? [
+        (word) => `${topic} ${word}`,
+        (word) => `${word} nedir`,
+        (word) => `${word} anlatım`,
+        (word, neighbour) => (neighbour ? `${word} ${neighbour}` : `${word} nasıl kullanılır`),
+        (word) => `${word} inceleme`,
+        (word) => `"${word}"`,
+      ]
+    : [
+        (word) => `${topic} ${word}`,
+        (word) => `${word} explained`,
+        (word) => `how to use ${word}`,
+        (word, neighbour) => (neighbour ? `${word} ${neighbour}` : `${word} tutorial`),
+        (word) => `${word} review`,
+        (word) => `"${word}"`,
+      ];
   const hunted = new Set();
+  let totalBudget = Number(payload.maxReads) || MAX_READS_PER_RUN;
+  let depth = 6;
   for (let round = 0; round < SHAPES.length; round++) {
     const stillMissing = cut.missing.filter((word) => !hunted.has(`${word}:${round}`));
     if (!stillMissing.length) break;
     if (budget.left <= 0) {
-      say(`stopped hunting at ${MAX_READS_PER_RUN} videos read — ${cut.missing.length} word${cut.missing.length === 1 ? "" : "s"} still missing`, { role: "tool-error" });
-      break;
+      const granted = await askForMore(job, {
+        missing: cut.missing,
+        broken: cut.broken || [],
+        read: totalBudget - budget.left,
+      });
+      if (!granted) {
+        say(`stopped at ${totalBudget - budget.left} videos read — ${cut.missing.length} word${cut.missing.length === 1 ? "" : "s"} still missing`, { role: "tool-error" });
+        break;
+      }
+      budget.left += granted;
+      totalBudget += granted;
+      // Fresh eyes on the same shapes: with a deeper search each pass, the
+      // queries that already ran reach past the results they had seen.
+      depth += 6;
+      round = -1;
+      hunted.clear();
+      say(`${granted} more videos to spend — searching deeper (${depth} results a query)`);
+      continue;
     }
     let grew = false;
     for (const word of stillMissing.slice(0, 8)) {
       hunted.add(`${word}:${round}`);
       job.stage = `Hunting "${word}"`;
       const at = tokens.findIndex((token) => token.raw === word);
-      const neighbour = at >= 0 && tokens[at + 1] ? tokens[at + 1].raw : "";
+      // Punctuation belongs to the script, not to the search: "Pomodoro," in
+      // quotes is a different query from Pomodoro, and a worse one.
+      const plain = at >= 0 ? tokens[at].norm : normalise(word);
+      const neighbour = at >= 0 && tokens[at + 1] ? tokens[at + 1].norm : "";
       const before = pool.size;
-      await gather(SHAPES[round](word, neighbour), 5, false);
+      await gather(SHAPES[round](plain, neighbour), depth, false);
       if (pool.size === before) continue;
       const fresh = [...pool.values()].filter((video) => !sources.some((source) => source.video.url === video.url));
       if (!fresh.length) continue;
@@ -2122,6 +2188,14 @@ async function route(req, res, url) {
     const { script, topic } = await readJson(req);
     if (!String(script || "").trim()) return json(res, 400, { error: "missing script" });
     return json(res, 200, await splitScript(String(script).trim(), String(topic || "").trim()));
+  }
+
+  if (path === "/supercut/continue" && req.method === "POST") {
+    const { jobId, reads } = await readJson(req);
+    const job = jobs.get(jobId);
+    if (!job || !job.grantReads) return json(res, 404, { error: "no such job, or it is not waiting" });
+    job.grantReads(Number(reads) || 0);
+    return json(res, 200, { ok: true, granted: Number(reads) || 0 });
   }
 
   if (path === "/supercut/run" && req.method === "POST") {
