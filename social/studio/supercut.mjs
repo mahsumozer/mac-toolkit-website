@@ -62,6 +62,35 @@ export function searchPhrases(script, { max = 5 } = {}) {
   return phrases.slice(0, max);
 }
 
+/**
+ * Does a proposed split actually spell the script?
+ *
+ * A model asked to break a line into phrases will occasionally drop a word,
+ * reorder two, or helpfully correct the spelling. Every one of those makes a
+ * video that says something the person did not write, so a split is only used
+ * when its words are the script's words, in order.
+ */
+export function splitCovers(script, chunks) {
+  const want = tokenize(script).map((token) => token.norm).join(" ");
+  const got = (chunks || []).flatMap((chunk) => tokenize(chunk).map((token) => token.norm)).join(" ");
+  return Boolean(want) && want === got;
+}
+
+/**
+ * The fallback split: clause by clause, then in runs of at most four words.
+ *
+ * Used when there is no model key, when the model's answer does not spell the
+ * script, and as the thing the model is asked to improve on.
+ */
+export function naiveSplit(script, { max = 4 } = {}) {
+  const chunks = [];
+  for (const clause of String(script || "").split(/(?<=[,.;:!?])\s+|\n+/)) {
+    const words = clause.trim().split(/\s+/).filter(Boolean);
+    for (let i = 0; i < words.length; i += max) chunks.push(words.slice(i, i + max).join(" "));
+  }
+  return chunks.filter(Boolean);
+}
+
 /** The script as units to find, keeping the original spelling for the caption. */
 export function tokenize(script) {
   return String(script || "")
@@ -143,8 +172,43 @@ const AIR_COST = 0.25;   // per second of dead air inside a clip
 // `cutCost` is the taste dial. At 0.6 the solver will happily take single words
 // and the result is the classic stuttering ransom note; at 2.2 it holds out for
 // whole phrases and cuts only where it must.
-export function buildCut(tokens, sources, { maxRun = 8, cutCost = 1 } = {}) {
-  const CUT_COST = Math.max(0.2, Number(cutCost) || 1);
+/**
+ * Solve one script, chunk by chunk.
+ *
+ * With chunks, each is solved on its own and no clip may straddle a boundary:
+ * "window management, keyboard cleaning mode" asked for as two phrases can never
+ * come back as "management, keyboard" from one mouth, which is the kind of join
+ * that reads as a mistake. Without chunks the whole line is one chunk, which is
+ * what it always used to be.
+ */
+export function buildCutInChunks(script, chunks, sources, options = {}) {
+  const usable = (chunks || []).filter((chunk) => tokenize(chunk).length);
+  if (!usable.length || !splitCovers(script, usable)) return buildCut(tokenize(script), sources, options);
+
+  const all = { segments: [], missing: [] };
+  for (const chunk of usable) {
+    const cut = buildCut(tokenize(chunk), sources, { ...options, wholeFirst: true });
+    all.segments.push(...cut.segments);
+    all.missing.push(...cut.missing);
+  }
+  const clips = all.segments.filter((segment) => segment.kind === "clip");
+  return {
+    ...all,
+    stats: {
+      words: tokenize(script).length,
+      found: clips.reduce((sum, clip) => sum + clip.words, 0),
+      clips: clips.length,
+      sources: new Set(clips.map((clip) => clip.url)).size,
+      seconds: Number(clips.reduce((sum, clip) => sum + clip.span, 0).toFixed(2)),
+    },
+  };
+}
+
+export function buildCut(tokens, sources, { maxRun = 8, cutCost = 1, wholeFirst = false } = {}) {
+  // Inside a chunk, taking the whole thing in one breath is worth more than the
+  // usual preference for fewer cuts: the chunk exists because those words belong
+  // together.
+  const CUT_COST = Math.max(0.2, Number(cutCost) || 1) * (wholeFirst ? 1.8 : 1);
   const n = tokens.length;
 
   // Every run that exists anywhere, per starting position. Longer runs are rare,

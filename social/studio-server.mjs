@@ -24,7 +24,7 @@ import { runAutopilot } from "./studio/autopilot.mjs";
 import { screenshotSite } from "./studio/shot.mjs";
 import { trendingNow } from "./studio/trends.mjs";
 import { fetchTranscript, condense, opening, guessLanguage } from "./studio/transcript.mjs";
-import { tokenize, indexSource, buildCut, searchPhrases } from "./studio/supercut.mjs";
+import { tokenize, indexSource, buildCut, buildCutInChunks, searchPhrases, splitCovers, naiveSplit } from "./studio/supercut.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SITE = resolve(HERE, "..");
@@ -1656,6 +1656,39 @@ async function readAll(videos, { lang = "en", job } = {}) {
   return sources;
 }
 
+const SPLIT_SYSTEM = `You break a line of narration into the phrases it should be hunted for, as json.
+
+The cut is assembled out of other people's videos, one phrase at a time, so where you put the boundaries decides whether it sounds like a sentence or like a ransom note.
+
+Rules:
+- Use every word of the line, in the order it was written, spelled exactly as it was written, punctuation included. You are placing boundaries, not rewriting.
+- A phrase is what one person would say in one breath: two to five words. A term that belongs together — "window management", "clipboard history", "menu bar" — is one phrase and must never be split.
+- Break at commas and full stops. Never carry a phrase across one.
+- A word that stands on its own because nothing goes with it is a phrase of one, but prefer not to leave articles and prepositions stranded: "all in one" beats "all" then "in one".
+- Return only a json object: {"chunks": ["...", "..."]}`;
+
+async function splitScript(script, topic) {
+  if (COPY_PROVIDER === "none") return { chunks: naiveSplit(script), source: "rules" };
+  const prompt = [
+    `The line, to be assembled out of clips of people saying these words${topic ? ` in videos about ${topic}` : ""}:`,
+    script,
+    ``,
+    `Return json in exactly this shape, with your own phrases:`,
+    JSON.stringify({ chunks: ["clipboard history,", "all in one", "menu bar app"] }, null, 2),
+  ].join("\n");
+
+  try {
+    const answer = COPY_PROVIDER === "deepseek" ? await deepseekJson(SPLIT_SYSTEM, prompt) : await claudeJson(`${SPLIT_SYSTEM}\n\n${prompt}`, null);
+    const chunks = (answer.chunks || []).map((chunk) => String(chunk).trim()).filter(Boolean);
+    // A split that does not spell the line is a different line. Rather than
+    // repair it, fall back to the rules — the boundaries are editable anyway.
+    if (!splitCovers(script, chunks)) return { chunks: naiveSplit(script), source: "rules", note: "the model's split did not spell the line" };
+    return { chunks, source: COPY_PROVIDER };
+  } catch (error) {
+    return { chunks: naiveSplit(script), source: "rules", note: String(error.message || error).slice(0, 120) };
+  }
+}
+
 async function runSupercut(payload, job) {
   job.messages = [];
   const say = (text, extra = {}) => job.messages.push({ at: Date.now(), role: "tool-result", tool: "supercut", text, ...extra });
@@ -1685,7 +1718,9 @@ async function runSupercut(payload, job) {
   // subject. This is what lets the solver take four words in one go instead of
   // stitching four singles.
   if (lang !== "en" && LANGUAGE_SEED[lang]) await gather(`${topic} ${LANGUAGE_SEED[lang]}`, 8);
-  const phrases = searchPhrases(script);
+  const phrases = Array.isArray(payload.chunks) && splitCovers(script, payload.chunks)
+    ? payload.chunks.map((chunk) => tokenize(chunk).map((token) => token.norm).join(" ")).filter((phrase) => phrase.split(" ").length >= 2).slice(0, 5)
+    : searchPhrases(script);
   for (const phrase of phrases) await gather(`"${phrase}"`, 4, false);
   say(`${pool.size} videos — "${topic}" plus ${phrases.length} phrase searches (${phrases.map((p) => `"${p}"`).join(", ")})`);
   if (lang !== "en") say(`the script reads as ${lang}: only videos actually spoken in ${lang} can supply its words, so translated caption tracks are ignored`);
@@ -1716,7 +1751,12 @@ async function runSupercut(payload, job) {
   job.stage = "Matching the script";
   const tokens = tokenize(script);
   const cutCost = Number(payload.cutCost) || 1;
-  let cut = buildCut(tokens, sources, { cutCost });
+  // The phrases the page shows under the box. They are boundaries, not
+  // suggestions: nothing may be taken across one.
+  const chunks = Array.isArray(payload.chunks) && splitCovers(script, payload.chunks) ? payload.chunks : null;
+  if (chunks) say(`hunting ${chunks.length} phrases: ${chunks.map((chunk) => `“${chunk}”`).join(" ")}`);
+  const solve = () => (chunks ? buildCutInChunks(script, chunks, sources, { cutCost }) : buildCut(tokens, sources, { cutCost }));
+  let cut = solve();
 
   // A word nobody in the first pool says gets hunted on its own, and the hunt
   // does not stop at one search: a word that is missing is missing until it is
@@ -1756,7 +1796,7 @@ async function runSupercut(payload, job) {
     }
     if (!grew) continue;
     const before = cut.missing.length;
-    cut = buildCut(tokens, sources, { cutCost });
+    cut = solve();
     if (cut.missing.length < before) say(`found ${before - cut.missing.length} more of them`);
     if (!cut.missing.length) break;
   }
@@ -2059,6 +2099,12 @@ async function route(req, res, url) {
     const item = await readJson(req);
     if (!/^https:\/\//.test(item.url || "")) return json(res, 400, { error: "missing or non-https url" });
     return json(res, 202, { jobId: startJob(item.title || "gif", (job) => fetchGif(item, job)) });
+  }
+
+  if (path === "/supercut/split" && req.method === "POST") {
+    const { script, topic } = await readJson(req);
+    if (!String(script || "").trim()) return json(res, 400, { error: "missing script" });
+    return json(res, 200, await splitScript(String(script).trim(), String(topic || "").trim()));
   }
 
   if (path === "/supercut/run" && req.method === "POST") {

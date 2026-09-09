@@ -50,6 +50,20 @@
             <span>Say this</span>
             <textarea class="cut-script" id="cut-script" rows="3" placeholder="pomodoro timer, clipboard history, all in one menu bar app" required></textarea>
           </label>
+
+          <div class="cut-split" id="cut-split" hidden>
+            <div class="cut-split-head">
+              <span class="cut-split-title" id="cut-split-title">How it will be hunted</span>
+              <div class="cut-split-actions">
+                <button class="cut-split-link" id="cut-split-again" type="button">Re-split</button>
+                <button class="cut-split-link" id="cut-split-hide" type="button">Hide</button>
+              </div>
+            </div>
+            <div class="cut-pills" id="cut-pills"></div>
+            <p class="cut-split-hint">Click between two words to break a phrase there; click the gap between two phrases to join them.</p>
+          </div>
+          <button class="cut-split-link cut-split-show" id="cut-split-show" type="button" hidden>Show how it will be hunted</button>
+
           <div class="auto-knobs">
             <label class="auto-knob">
               Search

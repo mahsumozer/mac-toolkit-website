@@ -82,6 +82,160 @@ function progress(fraction, note) {
   $("#cut-progress-note").textContent = note || "";
 }
 
+/* ------------------------------------------------------------------- split */
+
+// The line as the phrases it will be hunted for. Where the boundaries fall
+// decides how the cut sounds: "window management" hunted as one phrase comes out
+// of one mouth, hunted as two words comes out of two, and the join reads as a
+// mistake. The model proposes them; the boundaries are then yours to move.
+//
+// The split is held as an array of word counts rather than as strings, so it can
+// never stop spelling the line — clicking a seam splits a count in two, clicking
+// a join adds two together, and the words themselves are never touched.
+const SPLIT_HIDDEN_KEY = "supercut.splitHidden";
+const PILL_COLOURS = ["#ffd7d9", "#ffe2c2", "#fff3bf", "#d8f5cb", "#cfe6ff", "#e6dcff", "#ffd9f0", "#cdf1ee"];
+
+const split = { words: [], sizes: [], script: "", source: "", busy: false };
+
+const scriptWords = (script) => String(script || "").trim().split(/\s+/).filter(Boolean);
+
+function sizesFromChunks(words, chunks) {
+  const sizes = [];
+  let index = 0;
+  for (const chunk of chunks) {
+    const count = scriptWords(chunk).length;
+    if (!count || index + count > words.length) return null;
+    sizes.push(count);
+    index += count;
+  }
+  return index === words.length ? sizes : null;
+}
+
+const chunksFromSizes = () => {
+  const chunks = [];
+  let index = 0;
+  for (const size of split.sizes) {
+    chunks.push(split.words.slice(index, index + size).join(" "));
+    index += size;
+  }
+  return chunks;
+};
+
+function renderPills() {
+  const wrap = $("#cut-pills");
+  wrap.innerHTML = "";
+  let index = 0;
+  split.sizes.forEach((size, chunkIndex) => {
+    if (chunkIndex > 0) {
+      // The gap between two phrases: clicking it makes them one.
+      const join = document.createElement("button");
+      join.type = "button";
+      join.className = "cut-join";
+      join.title = "Join these two phrases";
+      join.setAttribute("aria-label", "Join these two phrases");
+      join.addEventListener("click", () => {
+        split.sizes.splice(chunkIndex - 1, 2, split.sizes[chunkIndex - 1] + split.sizes[chunkIndex]);
+        renderPills();
+      });
+      wrap.appendChild(join);
+    }
+
+    const pill = document.createElement("span");
+    pill.className = "cut-pill";
+    pill.style.background = PILL_COLOURS[chunkIndex % PILL_COLOURS.length];
+    const words = split.words.slice(index, index + size);
+    words.forEach((word, wordIndex) => {
+      if (wordIndex > 0) {
+        // A seam inside a phrase: clicking it breaks the phrase there.
+        const seam = document.createElement("button");
+        seam.type = "button";
+        seam.className = "cut-seam";
+        seam.title = "Break the phrase here";
+        seam.setAttribute("aria-label", "Break the phrase here");
+        const at = chunkIndex;
+        const cutAfter = wordIndex;
+        seam.addEventListener("click", () => {
+          split.sizes.splice(at, 1, cutAfter, size - cutAfter);
+          renderPills();
+        });
+        pill.appendChild(seam);
+      }
+      const span = document.createElement("span");
+      span.className = "cut-pill-word";
+      span.textContent = word;
+      pill.appendChild(span);
+    });
+    wrap.appendChild(pill);
+    index += size;
+  });
+
+  $("#cut-split-title").textContent = `${split.sizes.length} phrase${split.sizes.length === 1 ? "" : "s"}${
+    split.source === "rules" ? " · split by rules" : split.source ? ` · split by ${split.source}` : ""
+  }`;
+}
+
+function showSplit(visible) {
+  $("#cut-split").hidden = !visible || !split.sizes.length;
+  $("#cut-split-show").hidden = visible || !split.sizes.length;
+  try {
+    localStorage.setItem(SPLIT_HIDDEN_KEY, visible ? "0" : "1");
+  } catch {}
+}
+
+const splitHidden = () => {
+  try {
+    return localStorage.getItem(SPLIT_HIDDEN_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+
+// Ask the model where the phrases are. Called when the line settles, not on
+// every keystroke: it is a round trip, and a half-typed line splits into
+// nonsense.
+async function requestSplit(force = false) {
+  const script = $("#cut-script").value.trim();
+  const words = scriptWords(script);
+  if (words.length < 2) {
+    split.words = [];
+    split.sizes = [];
+    showSplit(false);
+    $("#cut-split-show").hidden = true;
+    return;
+  }
+  if (!force && script === split.script && split.sizes.length) return;
+
+  split.busy = true;
+  $("#cut-split").classList.add("is-busy");
+  try {
+    const answer = await api("/supercut/split", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ script, topic: $("#cut-topic").value.trim() }),
+    });
+    const sizes = sizesFromChunks(words, answer.chunks || []);
+    split.words = words;
+    split.sizes = sizes || [words.length];
+    split.script = script;
+    split.source = sizes ? answer.source : "rules";
+    renderPills();
+    showSplit(!splitHidden());
+    if (answer.note) log(`split: ${answer.note}`, "is-error");
+  } catch (error) {
+    // No model, no network: one phrase per clause is still better than nothing,
+    // and the seams are there to fix it by hand.
+    split.words = words;
+    split.sizes = words.map(() => 1);
+    split.script = script;
+    split.source = "rules";
+    renderPills();
+    showSplit(!splitHidden());
+  } finally {
+    split.busy = false;
+    $("#cut-split").classList.remove("is-busy");
+  }
+}
+
 /* ----------------------------------------------------------------- history */
 
 // Past runs, in this browser. The subject and the line are the hard part of a
@@ -116,6 +270,7 @@ function currentSettings() {
     cutCost: $("#cut-feel").value,
     captions: $("#cut-captions").checked,
     speak: $("#cut-speak").checked,
+    chunks: split.script === $("#cut-script").value.trim() && split.sizes.length ? chunksFromSizes() : undefined,
   };
 }
 
@@ -146,6 +301,20 @@ function applySettings(entry) {
   if (entry.cutCost) $("#cut-feel").value = entry.cutCost;
   $("#cut-captions").checked = entry.captions !== false;
   $("#cut-speak").checked = Boolean(entry.speak);
+  // The phrases come back with the line, so an old prompt returns exactly as it
+  // ran rather than being re-split into something slightly different.
+  const words = scriptWords(entry.script);
+  const sizes = entry.chunks ? sizesFromChunks(words, entry.chunks) : null;
+  split.words = words;
+  split.sizes = sizes || [];
+  split.script = entry.script || "";
+  split.source = sizes ? "your last run" : "";
+  if (sizes) {
+    renderPills();
+    showSplit(!splitHidden());
+  } else {
+    requestSplit(true);
+  }
   $("#cut-script").focus();
   toast("Loaded — change what you like, then Cut it");
 }
@@ -451,6 +620,7 @@ async function run(event) {
         videoCount: Number($("#cut-count").value) || 12,
         cutCost: Number($("#cut-feel").value) || 1,
         lang: $("#cut-lang").value,
+        chunks: split.script === script && split.sizes.length ? chunksFromSizes() : undefined,
       }),
     });
 
@@ -522,6 +692,17 @@ async function init() {
   $("#cut-history-clear").addEventListener("click", () => {
     if (loadHistory().length && window.confirm("Forget every past run on this machine?")) saveHistory([]);
   });
+
+  // The line settles, then it is split: on blur, and after a pause in typing.
+  let splitTimer = null;
+  $("#cut-script").addEventListener("blur", () => requestSplit());
+  $("#cut-script").addEventListener("input", () => {
+    clearTimeout(splitTimer);
+    splitTimer = setTimeout(() => requestSplit(), 1100);
+  });
+  $("#cut-split-again").addEventListener("click", () => requestSplit(true));
+  $("#cut-split-hide").addEventListener("click", () => showSplit(false));
+  $("#cut-split-show").addEventListener("click", () => showSplit(true));
 
   $("#cut-form").addEventListener("submit", run);
   $("#cut-render").addEventListener("click", renderCut);

@@ -354,6 +354,32 @@ A candidate is rejected when its span is longer than two seconds a word: that
 means the speaker paused mid-phrase, or the captions drifted, and the cut will
 sound wrong.
 
+### The split: which phrases are hunted
+
+Where the boundaries fall decides how the cut sounds. Hunted as one phrase,
+"window management" comes out of one mouth; hunted as two words it comes out of
+two, and the join reads as a mistake. So the line is split before anything is
+searched, and the split is shown.
+
+The model does it (`/supercut/split`): it is asked to place boundaries and
+nothing else — every word of the line, in order, spelled as written. A split that
+does not spell the line back is thrown away rather than repaired, and the rules
+fallback (clause by clause, then runs of four) is used instead; the same fallback
+covers having no model key at all.
+
+Under the box the line appears as coloured phrases. Click between two words to
+break a phrase there, click the gap between two phrases to join them. The split
+is held as a list of word counts rather than as strings, so editing it can never
+stop it spelling the line. **Hide** puts it away and the choice is remembered —
+the split is worth trusting most of the time.
+
+Those phrases are then boundaries, not suggestions: each is solved on its own, so
+no clip can straddle one, and taking a whole phrase in one breath is worth more
+inside a chunk than the usual preference for fewer cuts. A phrase nobody says
+whole is still split further *within itself* — "all in one" came back as "all in"
+plus "one" — but never joined across the boundary you drew. The same phrases are
+what gets searched for on YouTube, so the pool is chosen to contain them.
+
 ### Finding enough to cut from
 
 Plenty of uploads have no captions at all, and a thin pool is what makes a cut

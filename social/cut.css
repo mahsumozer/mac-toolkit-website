@@ -176,3 +176,138 @@
   font-size: 12.5px;
   color: var(--muted);
 }
+
+/* -------------------------------------------------------------------- split */
+
+/* The line as the phrases it will be hunted for. It sits under the box rather
+   than in a panel of its own because the split is part of writing the line: a
+   term that belongs together — "window management" — read as two phrases is the
+   difference between a sentence and a ransom note. */
+.cut-split {
+  margin-top: 2px;
+  padding: 11px 13px 9px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+  text-align: left;
+}
+
+.cut-split-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 9px;
+}
+
+.cut-split-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.cut-split-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.cut-split-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.cut-split-link:hover {
+  color: var(--ink);
+}
+
+.cut-split-show {
+  display: block;
+  margin: 4px auto 0;
+}
+
+.cut-pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0;
+  line-height: 1.9;
+}
+
+.cut-pill {
+  display: inline-flex;
+  align-items: baseline;
+  border-radius: 9px;
+  padding: 3px 2px;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #101010;
+}
+
+.cut-pill-word {
+  padding: 0 3px;
+  white-space: nowrap;
+}
+
+/* The click targets: a thin seam inside a phrase breaks it, the wider gap
+   between two phrases joins them. Both are invisible until pointed at, because
+   the split is read far more often than it is edited. */
+.cut-seam,
+.cut-join {
+  position: relative;
+  align-self: stretch;
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.cut-seam {
+  width: 7px;
+}
+
+.cut-join {
+  width: 10px;
+}
+
+.cut-seam::after,
+.cut-join::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  border-radius: 2px;
+  background: transparent;
+  transition: background 0.12s var(--ease);
+}
+
+.cut-seam:hover::after {
+  background: rgba(5, 5, 5, 0.55);
+}
+
+.cut-join:hover::after {
+  background: var(--accent);
+}
+
+.cut-split-hint {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.cut-split.is-busy .cut-pills {
+  opacity: 0.45;
+}
