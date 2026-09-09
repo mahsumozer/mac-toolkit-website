@@ -64,7 +64,7 @@ function pollJob(jobId, onProgress) {
 const fileUrl = (path) => `${API}/file?p=${encodeURIComponent(path)}`;
 const downloadUrl = (path) => `${API}/download?p=${encodeURIComponent(path)}`;
 
-const state = { running: false, result: null, chips: [], editor: null, seed: null, jobId: null };
+const state = { running: false, rendering: false, result: null, chips: [], editor: null, seed: null, jobId: null };
 
 const phase = (text) => ($("#cut-phase-text").textContent = text);
 
@@ -549,6 +549,7 @@ async function renderCut() {
   if (!state.result) return;
   const button = $("#cut-render");
   button.disabled = true;
+  state.rendering = true;
   try {
     progress(0.02, "Waiting for the clips to load…");
     const { ready, waiting } = await state.editor.whenReady();
@@ -589,6 +590,7 @@ async function renderCut() {
     log(`render failed: ${error.message}`, "is-error");
     toast(`Render failed: ${error.message}`);
   } finally {
+    state.rendering = false;
     button.disabled = false;
   }
 }
@@ -900,6 +902,16 @@ async function init() {
   $("#cut-split-again").addEventListener("click", () => requestSplit(true));
   $("#cut-split-hide").addEventListener("click", () => showSplit(false));
   $("#cut-split-show").addEventListener("click", () => showSplit(true));
+
+  // Closing the tab mid-run throws away everything the run has not finished
+  // paying for: minutes of searching, a pile of downloads, and a question it may
+  // be waiting on. The browser only allows a generic prompt, but a generic
+  // prompt is enough to stop a reflex.
+  window.addEventListener("beforeunload", (event) => {
+    if (!state.running && !state.rendering) return;
+    event.preventDefault();
+    event.returnValue = "";
+  });
 
   $("#cut-form").addEventListener("submit", run);
   $("#cut-render").addEventListener("click", renderCut);

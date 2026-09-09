@@ -476,6 +476,14 @@ moment where somebody is talking (the transcript says where). It goes on muted �
 someone else's sentence under our own word is two voices at once — with the words
 on screen and, with the switch on, the studio's voice saying them.
 
+### Leaving mid-run
+
+Closing the tab or following a link while a run is going takes everything with
+it: the searching, the downloads, and any question the run is waiting on. Both
+Supercut and Autopilot ask the browser to confirm while they are busy, and stop
+asking the moment they are not. The wording is the browser's — a page cannot
+choose it — but the prompt is enough to stop a reflex.
+
 ### History
 
 A rail down the left edge is always there; its clock button slides open a drawer

@@ -809,6 +809,14 @@ async function init() {
     if (formats.sceneFallback) state.sceneFallback = formats.sceneFallback;
   } catch {}
 
+  // A run is minutes of searching, downloading and rendering; leaving takes all
+  // of it with you.
+  window.addEventListener("beforeunload", (event) => {
+    if (!state.running && !state.draining && !state.pending) return;
+    event.preventDefault();
+    event.returnValue = "";
+  });
+
   $("#auto-form").addEventListener("submit", run);
   $("#auto-stop").addEventListener("click", stopRun);
   $("#auto-again").addEventListener("click", () => {
