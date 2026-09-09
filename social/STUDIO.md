@@ -380,6 +380,25 @@ whole is still split further *within itself* — "all in one" came back as "all 
 plus "one" — but never joined across the boundary you drew. The same phrases are
 what gets searched for on YouTube, so the pool is chosen to contain them.
 
+### Two people, one line, different videos
+
+Nothing about a transcript is random, so the same line typed by two people would
+come back in the same voices. Each run therefore draws a **seed**, and among
+readings that are within a breath of each other the seed decides which one wins —
+the jitter is small enough that a much tighter clip still beats a looser one.
+Each phrase draws its own numbers, or every phrase in a line would lean the same
+way.
+
+A cut where one video supplies half the words sounds like a clip of that video
+rather than a supercut, so after the solve the segments are shared out: where a
+segment has an alternate from a video carrying less of the line, it swaps. The
+words are identical either way; only the face changes.
+
+**Another take** re-runs the same line with a new seed. The transcripts are
+already on disk by then, so it is the searching over again with different
+numbers rather than the whole job. The seed is kept with the run in history, so
+**Add** brings the same take back while Another take asks for a different one.
+
 ### Finding enough to cut from
 
 Plenty of uploads have no captions at all, and a thin pool is what makes a cut
@@ -418,14 +437,15 @@ studio's own voice, depending on the switch.
 
 ### History
 
-**History** next to *Cut it* slides open a drawer down the left side holding what
-has been cut before on this machine: the subject, the line, the switches it ran
+A rail down the left edge is always there; its clock button slides open a drawer
+holding what has been cut before on this machine: the subject, the line, the switches it ran
 under, the phrases it was split into, and how it went (`12/12 words, 8 clips`). A
 drawer rather than a panel under the form, because picking an old prompt is
 something you do *while* writing the new one, and a list that pushes the form
-down moves the thing you are typing into. On a wide window the page steps aside
-for it; on a narrow one it lies on top. Escape closes it, and whether it was open
-is remembered.
+down moves the thing you are typing into. The toggle lives on the rail rather
+than in the form, where it would scroll away. On a wide window the page steps
+aside for the drawer; on a narrow one it lies on top. Escape closes it, and
+whether it was open is remembered.
 
 Each entry has **Add**, which puts those settings back in the form and stops
 there — the reason to reach for an old prompt is almost always to change

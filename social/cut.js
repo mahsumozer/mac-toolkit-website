@@ -64,7 +64,7 @@ function pollJob(jobId, onProgress) {
 const fileUrl = (path) => `${API}/file?p=${encodeURIComponent(path)}`;
 const downloadUrl = (path) => `${API}/download?p=${encodeURIComponent(path)}`;
 
-const state = { running: false, result: null, chips: [], editor: null };
+const state = { running: false, result: null, chips: [], editor: null, seed: null };
 
 const phase = (text) => ($("#cut-phase-text").textContent = text);
 
@@ -283,11 +283,14 @@ function rememberRun(settings) {
   return list[0].id;
 }
 
-function recordOutcome(id, outcome) {
+function recordOutcome(id, outcome, seed) {
   const list = loadHistory();
   const entry = list.find((item) => item.id === id);
   if (!entry) return;
   entry.outcome = outcome;
+  // The seed is what makes a run repeatable: Add brings back the same faces,
+  // Another take asks for different ones.
+  if (seed) entry.seed = seed;
   saveHistory(list);
 }
 
@@ -315,8 +318,9 @@ function applySettings(entry) {
   } else {
     requestSplit(true);
   }
+  state.seed = entry.seed || null;
   $("#cut-script").focus();
-  toast("Loaded — change what you like, then Cut it");
+  toast(entry.seed ? "Loaded — Cut it gives you the same take back" : "Loaded — change what you like, then Cut it");
 }
 
 const FEEL_LABEL = { "2.2": "long takes", "1": "balanced", "0.6": "chopped" };
@@ -334,7 +338,10 @@ const drawerWasOpen = () => {
 function setDrawer(open) {
   $("#cut-history").classList.toggle("is-open", open);
   document.body.classList.toggle("drawer-open", open);
-  $("#cut-history-toggle").textContent = open ? "Hide history" : "History";
+  const toggle = $("#cut-history-toggle");
+  toggle.classList.toggle("is-on", open);
+  toggle.setAttribute("aria-expanded", String(open));
+  toggle.title = open ? "Hide past runs" : "Past runs";
   try {
     localStorage.setItem(DRAWER_KEY, open ? "1" : "0");
   } catch {}
@@ -610,8 +617,17 @@ function showResult(rendered) {
 
 /* --------------------------------------------------------------------- run */
 
+// A second opinion on the same line. The transcripts are already on disk, so a
+// new take is the searching over again with different numbers — a minute, not
+// five — and a different set of faces saying the same words.
+async function anotherTake() {
+  if (state.running || !state.result) return;
+  state.seed = null;
+  await run(new Event("submit"));
+}
+
 async function run(event) {
-  event.preventDefault();
+  if (event && event.preventDefault) event.preventDefault();
   if (state.running) return;
   const topic = $("#cut-topic").value.trim();
   const script = $("#cut-script").value.trim();
@@ -628,6 +644,7 @@ async function run(event) {
   $("#cut-feed").innerHTML = "";
   $("#cut-strip").innerHTML = "";
   $("#cut-render").disabled = true;
+  $("#cut-again").disabled = true;
   phase("Finding videos");
 
   try {
@@ -641,6 +658,9 @@ async function run(event) {
         cutCost: Number($("#cut-feel").value) || 1,
         lang: $("#cut-lang").value,
         chunks: split.script === script && split.sizes.length ? chunksFromSizes() : undefined,
+        // Only sent when a take is being asked for again; left out, the server
+        // draws a fresh one.
+        seed: state.seed || undefined,
       }),
     });
 
@@ -653,7 +673,8 @@ async function run(event) {
     });
 
     state.result = result;
-    recordOutcome(historyId, `${result.stats.found}/${result.stats.words} words, ${result.stats.clips} clips`);
+    state.seed = result.seed || null;
+    recordOutcome(historyId, `${result.stats.found}/${result.stats.words} words, ${result.stats.clips} clips`, result.seed);
     renderStrip(result.segments);
     if (result.missing.length) log(`nobody says: ${result.missing.join(", ")} — ${$("#cut-speak").checked ? "spoken by the studio instead" : "shown as type"}`, "is-error");
 
@@ -662,6 +683,7 @@ async function run(event) {
     log(`${state.editor.layers.length} layers, ${duration.toFixed(1)}s`, "is-done");
     phase(`Ready — ${duration.toFixed(1)}s`);
     $("#cut-render").disabled = false;
+    $("#cut-again").disabled = false;
     $("#cut-progress").hidden = true;
   } catch (error) {
     phase("Stopped");
@@ -730,6 +752,7 @@ async function init() {
 
   $("#cut-form").addEventListener("submit", run);
   $("#cut-render").addEventListener("click", renderCut);
+  $("#cut-again").addEventListener("click", anotherTake);
   $("#cut-topic").focus();
 
   // The same seam Autopilot leaves: a result can be re-laid-out from the console.

@@ -14,6 +14,16 @@
   <body class="hub-body">
     <div class="toast-region" id="toast-region" aria-live="polite"></div>
 
+    <nav class="cut-rail" aria-label="Sidebar">
+      <button class="cut-rail-button" id="cut-history-toggle" type="button" aria-label="Past runs" title="Past runs">
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+          <path d="M3 4v4h4" />
+          <path d="M12 7.5V12l3 2" />
+        </svg>
+      </button>
+    </nav>
+
     <aside class="cut-drawer" id="cut-history" aria-label="Past runs">
       <header class="cut-drawer-head">
         <h2>History</h2>
@@ -112,7 +122,6 @@
               <input type="checkbox" id="cut-speak" />
               Speak the gaps
             </label>
-            <button class="button button-ghost button-small" id="cut-history-toggle" type="button">History</button>
             <button class="button button-accent auto-go" id="cut-go" type="submit">Cut it</button>
           </div>
         </form>
@@ -138,6 +147,7 @@
           </div>
           <div class="btn-row">
             <button class="button button-dark button-small" id="cut-render" type="button" disabled>Render the cut</button>
+            <button class="button button-ghost button-small" id="cut-again" type="button" disabled>Another take</button>
           </div>
         </div>
       </section>

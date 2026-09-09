@@ -1763,7 +1763,11 @@ async function runSupercut(payload, job) {
   // suggestions: nothing may be taken across one.
   const chunks = Array.isArray(payload.chunks) && splitCovers(script, payload.chunks) ? payload.chunks : null;
   if (chunks) say(`hunting ${chunks.length} phrases: ${chunks.map((chunk) => `“${chunk}”`).join(" ")}`);
-  const solve = () => (chunks ? buildCutInChunks(script, chunks, sources, { cutCost }) : buildCut(tokens, sources, { cutCost }));
+  // A new seed every run unless one is handed back: two people typing the same
+  // line should not get the same faces, and one person who liked a take should
+  // be able to ask for it again.
+  const seed = Number(payload.seed) || Math.floor(Math.random() * 1e9);
+  const solve = () => (chunks ? buildCutInChunks(script, chunks, sources, { cutCost, seed }) : buildCut(tokens, sources, { cutCost, seed }));
   let cut = solve();
 
   // A word nobody in the first pool says gets hunted on its own, and the hunt
@@ -1846,6 +1850,7 @@ async function runSupercut(payload, job) {
     topic,
     script,
     lang,
+    seed,
     segments: cut.segments.filter((segment) => segment.kind !== "clip" || segment.path),
     missing: cut.missing,
     stats: cut.stats,

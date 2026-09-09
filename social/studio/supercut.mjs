@@ -165,6 +165,23 @@ function clipFor(source, at, length, { pad = 0.08 } = {}) {
  * Returns the segments in script order plus whatever could not be found, so the
  * page can offer to speak the gaps rather than pretending the script was made.
  */
+/**
+ * A seeded random number generator (mulberry32).
+ *
+ * Seeded rather than free: two people typing the same line should not get the
+ * same video, but one person who liked a take should be able to get it back.
+ * The seed travels with the run.
+ */
+export function rng(seed) {
+  let a = (Number(seed) || 1) >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 const GAP_COST = 2.6;    // a word nobody says: worse than any join
 const OFF_TOPIC_AIR = 1.2; // what a clip from outside the subject is worth in dead air
 const AIR_COST = 0.25;   // per second of dead air inside a clip
@@ -181,16 +198,51 @@ const AIR_COST = 0.25;   // per second of dead air inside a clip
  * that reads as a mistake. Without chunks the whole line is one chunk, which is
  * what it always used to be.
  */
+/**
+ * Share the line out between mouths.
+ *
+ * A cut where one video supplies half the words sounds like a clip of that
+ * video, not like a supercut. Where a segment has an alternate from a video
+ * carrying less of the line, it is swapped — the words are identical either way,
+ * only the face changes.
+ */
+export function spreadSources(segments) {
+  const used = new Map();
+  const count = (url) => used.get(url) || 0;
+  for (const segment of segments) if (segment.kind === "clip") used.set(segment.url, count(segment.url) + 1);
+
+  for (const segment of segments) {
+    if (segment.kind !== "clip" || !segment.alternates || !segment.alternates.length) continue;
+    if (count(segment.url) < 2) continue;
+    const better = segment.alternates.find((alt) => count(alt.url) + 1 < count(segment.url));
+    if (!better) continue;
+    used.set(segment.url, count(segment.url) - 1);
+    used.set(better.url, count(better.url) + 1);
+    // The one it is stepping aside for becomes its own fallback.
+    const wasHere = { url: segment.url, title: segment.title, start: segment.start, end: segment.end, span: segment.span };
+    Object.assign(segment, { url: better.url, title: better.title, start: better.start, end: better.end, span: better.span });
+    segment.alternates = [wasHere, ...segment.alternates.filter((alt) => alt.url !== better.url)].slice(0, 3);
+  }
+  return segments;
+}
+
 export function buildCutInChunks(script, chunks, sources, options = {}) {
   const usable = (chunks || []).filter((chunk) => tokenize(chunk).length);
   if (!usable.length || !splitCovers(script, usable)) return buildCut(tokenize(script), sources, options);
 
   const all = { segments: [], missing: [] };
-  for (const chunk of usable) {
-    const cut = buildCut(tokenize(chunk), sources, { ...options, wholeFirst: true });
+  for (const [index, chunk] of usable.entries()) {
+    const cut = buildCut(tokenize(chunk), sources, {
+      ...options,
+      wholeFirst: true,
+      // Each phrase draws its own numbers; one seed for all of them would make
+      // every chunk lean the same way.
+      seed: (Number(options.seed) || 1) + index * 7919,
+    });
     all.segments.push(...cut.segments);
     all.missing.push(...cut.missing);
   }
+  spreadSources(all.segments);
   const clips = all.segments.filter((segment) => segment.kind === "clip");
   return {
     ...all,
@@ -204,7 +256,8 @@ export function buildCutInChunks(script, chunks, sources, options = {}) {
   };
 }
 
-export function buildCut(tokens, sources, { maxRun = 8, cutCost = 1, wholeFirst = false } = {}) {
+export function buildCut(tokens, sources, { maxRun = 8, cutCost = 1, wholeFirst = false, seed = 1, jitter = 0.5 } = {}) {
+  const random = rng(seed);
   // Inside a chunk, taking the whole thing in one breath is worth more than the
   // usual preference for fewer cuts: the chunk exists because those words belong
   // together.
@@ -225,7 +278,12 @@ export function buildCut(tokens, sources, { maxRun = 8, cutCost = 1, wholeFirst 
           // Among the same words in different mouths, the tightest reading —
           // with a thumb on the scale for videos that are actually about the
           // subject.
-          const air = Math.max(0, clip.span - length * 0.42) + (source.onTopic ? 0 : OFF_TOPIC_AIR);
+          // The jitter is what stops a line always coming out of the same
+          // mouths: among readings that are within a breath of each other, which
+          // one wins is decided by the seed rather than by the third decimal
+          // place of a duration.
+          const air =
+            Math.max(0, clip.span - length * 0.42) + (source.onTopic ? 0 : OFF_TOPIC_AIR) + random() * jitter;
           candidates.push({ source, at, length, clip, air });
         }
       }
@@ -292,6 +350,8 @@ export function buildCut(tokens, sources, { maxRun = 8, cutCost = 1, wholeFirst 
     });
     i = step.next;
   }
+
+  spreadSources(segments);
 
   // Neighbouring gaps read as one missing phrase rather than as loose words.
   const merged = [];

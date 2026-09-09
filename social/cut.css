@@ -90,12 +90,53 @@
 /* A drawer rather than a panel under the form: picking an old prompt is
    something you do *while* writing the new one, and a list that pushes the form
    down moves the thing you are typing into. */
-.cut-drawer {
+/* The rail is always there — a sidebar you can collapse is still a sidebar, and
+   a toggle that lives inside the form disappears the moment the form scrolls. */
+.cut-rail {
   position: fixed;
   top: 0;
   left: 0;
   bottom: 0;
-  width: 330px;
+  width: 52px;
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 0;
+  background: var(--paper-2);
+  border-right: 1px solid var(--line);
+}
+
+.cut-rail-button {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 11px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.14s var(--ease), color 0.14s var(--ease);
+}
+
+.cut-rail-button:hover {
+  background: rgba(5, 5, 5, 0.06);
+  color: var(--ink);
+}
+
+.cut-rail-button.is-on {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.cut-drawer {
+  position: fixed;
+  top: 0;
+  left: 52px;
+  bottom: 0;
+  width: 288px;
   max-width: 86vw;
   z-index: 40;
   display: flex;
@@ -104,12 +145,19 @@
   background: var(--paper-2);
   border-right: 1px solid var(--line);
   box-shadow: 0 0 40px rgba(5, 5, 5, 0.08);
-  transform: translateX(-100%);
+  transform: translateX(-340px);
   transition: transform 0.22s var(--ease);
 }
 
 .cut-drawer.is-open {
   transform: translateX(0);
+}
+
+/* The rail's own width is always given back to the page; the drawer's is only
+   taken while it is open. */
+body.has-drawer .hub-header,
+body.has-drawer .hub-main {
+  padding-left: 52px;
 }
 
 /* Wide enough and the page steps aside instead of being covered; narrow and the
@@ -122,7 +170,7 @@
 
   body.has-drawer.drawer-open .hub-header,
   body.has-drawer.drawer-open .hub-main {
-    padding-left: 346px;
+    padding-left: 356px;
   }
 }
 
