@@ -636,6 +636,46 @@ function showResult(rendered) {
   $("#cut-grid").prepend(card);
 }
 
+/* ---------------------------------------------------------------- subject */
+
+// The subject decides who is available to say the line, so it can be worked out
+// from the line itself. Pressing the button again offers the next idea rather
+// than asking for the same one twice.
+const topics = { script: "", list: [], at: 0 };
+
+async function suggestTopic() {
+  const script = $("#cut-script").value.trim();
+  if (!script) return toast("Write the line first — the subject comes out of it");
+  const button = $("#cut-topic-suggest");
+
+  if (topics.script === script && topics.list.length > 1) {
+    topics.at = (topics.at + 1) % topics.list.length;
+    $("#cut-topic").value = topics.list[topics.at];
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = "Thinking…";
+  try {
+    const answer = await api("/supercut/topic", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ script }),
+    });
+    topics.script = script;
+    topics.list = answer.topics || [];
+    topics.at = 0;
+    if (!topics.list.length) return toast("Could not think of a subject — type one");
+    $("#cut-topic").value = topics.list[0];
+    if (topics.list.length > 1) toast(`${topics.list.length} ideas — press again for the next`);
+  } catch (error) {
+    toast(`Could not suggest a subject: ${error.message}`);
+  } finally {
+    button.disabled = false;
+    button.textContent = "Suggest";
+  }
+}
+
 /* ------------------------------------------------------------- more credit */
 
 // The run stops and asks rather than ending with a hole in the line. Rendered
@@ -707,7 +747,9 @@ async function run(event) {
   if (state.running) return;
   const topic = $("#cut-topic").value.trim();
   const script = $("#cut-script").value.trim();
-  if (!topic || !script) return;
+  // The subject may be left empty: the server works it out from the line and
+  // says which one it used.
+  if (!script) return;
 
   const settings = currentSettings();
   const historyId = rememberRun(settings);
@@ -752,6 +794,9 @@ async function run(event) {
 
     state.result = result;
     state.seed = result.seed || null;
+    // Show what it decided to cut from, so the next run starts from that rather
+    // than guessing again.
+    if (result.topicWasGuessed && result.topic) $("#cut-topic").value = result.topic;
     recordOutcome(historyId, `${result.stats.found}/${result.stats.words} words, ${result.stats.clips} clips`, result.seed);
     renderStrip(result.segments);
     if (result.missing.length) {
@@ -847,6 +892,7 @@ async function init() {
   $("#cut-form").addEventListener("submit", run);
   $("#cut-render").addEventListener("click", renderCut);
   $("#cut-again").addEventListener("click", anotherTake);
+  $("#cut-topic-suggest").addEventListener("click", suggestTopic);
   $("#cut-topic").focus();
 
   // The same seam Autopilot leaves: a result can be re-laid-out from the console.

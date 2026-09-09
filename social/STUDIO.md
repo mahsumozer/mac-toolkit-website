@@ -322,6 +322,15 @@ macbook tips  +  "pomodoro timer, clipboard history, all in one menu bar app"
    →  6 clips from 5 videos, 4.5 seconds
 ```
 
+The subject can be left empty. It decides who is available to say the line, so
+the line can name it: the model is asked which corner of YouTube those words get
+spoken in — "lights out and away we go" comes back as *formula one commentary*,
+*f1 race highlights*, *motorsport radio* — and told to stay where people talk,
+since music and gameplay have no speech to cut. **Suggest** fills the field and
+pressing it again offers the next idea; running with the field empty picks the
+first and writes it back, so the next run starts from something rather than
+guessing twice.
+
 ### How the matching works
 
 `studio/supercut.mjs` costs every possible run and takes the cheapest path

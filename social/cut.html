@@ -65,8 +65,11 @@
 
         <form class="auto-form cut-form" id="cut-form" autocomplete="off">
           <label class="cut-field">
-            <span>Cut from</span>
-            <input class="auto-url" id="cut-topic" type="text" placeholder="macbook, formula one, coffee…" required />
+            <span>Cut from <em class="cut-field-note">leave it empty and the line picks its own</em></span>
+            <div class="cut-topic-row">
+              <input class="auto-url" id="cut-topic" type="text" placeholder="macbook, formula one, coffee…" />
+              <button class="button button-ghost button-small cut-suggest" id="cut-topic-suggest" type="button">Suggest</button>
+            </div>
           </label>
           <label class="cut-field">
             <span>Say this</span>

@@ -440,3 +440,29 @@ body.has-drawer .hub-main {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* The subject can be left empty — the line says where it belongs — so the field
+   comes with a button that asks. Pressing it again offers the next idea rather
+   than the same one. */
+.cut-topic-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.cut-topic-row .auto-url {
+  flex: 1;
+  min-width: 0;
+}
+
+.cut-suggest {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.cut-field-note {
+  font-style: normal;
+  font-weight: 500;
+  color: rgba(109, 107, 102, 0.85);
+  margin-left: 6px;
+}

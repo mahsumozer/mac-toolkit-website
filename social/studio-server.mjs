@@ -1722,6 +1722,35 @@ async function splitScript(script, topic) {
   }
 }
 
+const TOPIC_SYSTEM = `You name the corner of YouTube a line should be cut out of, as json.
+
+The line will be assembled word by word from videos found by searching that subject, so the subject decides who is available to say it.
+
+Rules:
+- Two to four plain words, the kind a person types into YouTube: "macbook tips", "coffee shop vlog", "formula one radio". Never a product name, never a slogan, never punctuation.
+- It has to be a place where people *talk*: tutorials, reviews, vlogs, explainers. Music, gameplay montages and lofi timers have no speech to cut.
+- The words of the line should plausibly be spoken there. A line about clipboards and menu bars belongs in Mac videos, not in cooking.
+- Give three, best first, each a different angle on where those words get said.
+- Return only a json object: {"topics": ["...", "...", "..."]}`;
+
+async function suggestTopics(script) {
+  const words = tokenize(script)
+    .map((token) => token.norm)
+    .filter((word) => word.length > 3);
+  // With no model, the longest words of the line are still a better search than
+  // nothing at all.
+  const fallback = [words.slice(0, 3).join(" ") || "tips", words.slice(0, 2).join(" "), words[0] || "review"].filter(Boolean);
+  if (COPY_PROVIDER === "none") return { topics: [...new Set(fallback)], source: "rules" };
+  try {
+    const prompt = [`The line to assemble:`, script, ``, `Return json in exactly this shape:`, JSON.stringify({ topics: ["macbook tips", "mac productivity", "menu bar apps"] }, null, 2)].join("\n");
+    const answer = COPY_PROVIDER === "deepseek" ? await deepseekJson(TOPIC_SYSTEM, prompt) : await claudeJson(`${TOPIC_SYSTEM}\n\n${prompt}`, null);
+    const topics = (answer.topics || []).map((topic) => String(topic).trim().replace(/["'.,]/g, "")).filter(Boolean).slice(0, 3);
+    return topics.length ? { topics, source: COPY_PROVIDER } : { topics: [...new Set(fallback)], source: "rules" };
+  } catch {
+    return { topics: [...new Set(fallback)], source: "rules" };
+  }
+}
+
 const VARIANT_SYSTEM = `You give the other ways people actually say a phrase, as json.
 
 The phrase has to be found in the wild, in somebody's video, said in one breath. "Mac application" is not something anyone says; "Mac app" is. Your job is to offer the wordings that mean the same and are far likelier to be spoken.
@@ -1759,10 +1788,16 @@ async function runSupercut(payload, job) {
   job.messages = [];
   const say = (text, extra = {}) => job.messages.push({ at: Date.now(), role: "tool-result", tool: "supercut", text, ...extra });
 
-  const topic = String(payload.topic || "").trim();
+  let topic = String(payload.topic || "").trim();
   const script = String(payload.script || "").trim();
-  if (!topic) throw new Error("Pick a subject to cut from — 'macbook', 'coffee', 'formula one'");
   if (!script) throw new Error("Write the line you want assembled");
+  // No subject given: the line itself says where it belongs.
+  if (!topic) {
+    job.stage = "Working out where to cut from";
+    const suggested = await suggestTopics(script);
+    topic = suggested.topics[0] || "tips";
+    job.messages.push({ at: Date.now(), role: "tool-result", tool: "supercut", text: `no subject given — cutting from “${topic}”` });
+  }
 
   const lang = payload.lang && payload.lang !== "auto" ? payload.lang : guessLanguage(script);
 
@@ -2018,6 +2053,7 @@ async function runSupercut(payload, job) {
     topic,
     script,
     lang,
+    topicWasGuessed: !String(payload.topic || "").trim(),
     seed,
     said: cut.said || [],
     broken: cut.broken || [],
@@ -2287,6 +2323,12 @@ async function route(req, res, url) {
     const item = await readJson(req);
     if (!/^https:\/\//.test(item.url || "")) return json(res, 400, { error: "missing or non-https url" });
     return json(res, 202, { jobId: startJob(item.title || "gif", (job) => fetchGif(item, job)) });
+  }
+
+  if (path === "/supercut/topic" && req.method === "POST") {
+    const { script } = await readJson(req);
+    if (!String(script || "").trim()) return json(res, 400, { error: "missing script" });
+    return json(res, 200, await suggestTopics(String(script).trim()));
   }
 
   if (path === "/supercut/split" && req.method === "POST") {
