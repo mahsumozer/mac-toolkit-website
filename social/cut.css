@@ -94,11 +94,13 @@
    a toggle that lives inside the form disappears the moment the form scrolls. */
 .cut-rail {
   position: fixed;
-  top: 0;
+  /* Below the header, not over it: the header is sticky and holds the nav, and a
+     rail that starts at the top of the window covers the brand. */
+  top: var(--rail-top, 57px);
   left: 0;
   bottom: 0;
   width: 52px;
-  z-index: 45;
+  z-index: 35;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -133,12 +135,12 @@
 
 .cut-drawer {
   position: fixed;
-  top: 0;
+  top: var(--rail-top, 57px);
   left: 52px;
   bottom: 0;
   width: 288px;
   max-width: 86vw;
-  z-index: 40;
+  z-index: 34;
   display: flex;
   flex-direction: column;
   padding: 18px 16px 16px;
@@ -155,7 +157,6 @@
 
 /* The rail's own width is always given back to the page; the drawer's is only
    taken while it is open. */
-body.has-drawer .hub-header,
 body.has-drawer .hub-main {
   padding-left: 52px;
 }
@@ -163,12 +164,10 @@ body.has-drawer .hub-main {
 /* Wide enough and the page steps aside instead of being covered; narrow and the
    drawer simply lies on top. */
 @media (min-width: 1180px) {
-  body.has-drawer .hub-header,
   body.has-drawer .hub-main {
     transition: padding-left 0.22s var(--ease);
   }
 
-  body.has-drawer.drawer-open .hub-header,
   body.has-drawer.drawer-open .hub-main {
     padding-left: 356px;
   }

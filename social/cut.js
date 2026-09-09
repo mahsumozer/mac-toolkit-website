@@ -727,6 +727,14 @@ async function init() {
 
   renderHistory();
   document.body.classList.add("has-drawer");
+  // The header is sticky and its height depends on its own padding, so it is
+  // measured rather than guessed — and measured again when the window changes.
+  const placeRail = () => {
+    const header = document.querySelector(".hub-header");
+    if (header) document.documentElement.style.setProperty("--rail-top", `${Math.round(header.getBoundingClientRect().height)}px`);
+  };
+  placeRail();
+  window.addEventListener("resize", placeRail);
   // The drawer remembers whether it was open: someone working through a batch of
   // lines wants it there, someone writing one wants the room.
   setDrawer(drawerWasOpen());
