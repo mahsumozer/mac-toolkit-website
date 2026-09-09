@@ -20,9 +20,10 @@ import { fileURLToPath } from "node:url";
 import { dirname, join, resolve, extname, basename, relative, sep } from "node:path";
 import { randomUUID, createHash } from "node:crypto";
 import { runAgent, toolSchemas, buildBrief } from "./studio/agent.mjs";
-import { runAutopilot } from "./studio/autopilot.mjs";
+import { runAutopilot, readBrand, trendQueries } from "./studio/autopilot.mjs";
 import { screenshotSite } from "./studio/shot.mjs";
 import { trendingNow } from "./studio/trends.mjs";
+import { hunt as blitzHunt, readWall as blitzRead, adaptWall as blitzAdapt, fetchClip as blitzClip } from "./studio/blitz.mjs";
 import { fetchTranscript, condense, opening, guessLanguage } from "./studio/transcript.mjs";
 import { tokenize, indexSource, buildCut, buildCutInChunks, searchPhrases, splitCovers, naiveSplit, normalise } from "./studio/supercut.mjs";
 
@@ -33,9 +34,97 @@ const OUT = join(HERE, "studio", "out");
 const TMP = join(HERE, "studio", "tmp");
 const PORT = Number(process.env.STUDIO_PORT || 8789);
 
-// The composition canvas. The editor uses the same pair from studio/composition.js.
+// The composition canvas, when a job does not say. Every spec sent by the
+// editor carries the frame it was composed in — a wide video is the same
+// arithmetic in a different box — and these are what a spec written before
+// there was a choice meant.
 const COMP_W = 1080;
 const COMP_H = 1920;
+
+// A frame ffmpeg will accept: whole, even (yuv420p halves both axes) and not
+// so large that a typo asks for a render nobody wanted.
+function frameSize(spec) {
+  const even = (value, fallback) => {
+    const n = Math.round(Number(value) || 0);
+    if (!(n >= 64 && n <= 4096)) return fallback;
+    return n % 2 ? n + 1 : n;
+  };
+  return { w: even(spec.width, COMP_W), h: even(spec.height, COMP_H) };
+}
+
+// The backdrop, as ffmpeg's `color` source wants it. Anything that is not a
+// plain #rrggbb is black, which is what every composition was before there was
+// a choice.
+function backdrop(spec) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(spec.background || "").trim());
+  return m ? `0x${m[1]}` : "black";
+}
+
+// atempo takes 0.5x–2x a stage (newer builds go to 100x, older ones do not),
+// so anything past that is a chain of stages that multiply to the speed.
+function atempoChain(speed) {
+  const stages = [];
+  let left = speed;
+  while (left > 2) {
+    stages.push("atempo=2");
+    left /= 2;
+  }
+  while (left < 0.5) {
+    stages.push("atempo=0.5");
+    left *= 2;
+  }
+  if (Math.abs(left - 1) > 0.001) stages.push(`atempo=${left.toFixed(4)}`);
+  return stages;
+}
+
+const clamp = (value, low, high, fallback) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.max(low, Math.min(n, high)) : fallback;
+};
+
+// Everything a picture layer can have done to it, as the filters that do it,
+// in the order the preview applies them: colour, then mirroring and rotation,
+// then blur and opacity, then the fades. Each has its twin in the canvas.
+function treatmentFilters(layer) {
+  const out = [];
+  const contrast = clamp(layer.contrast, 0.2, 2, 1);
+  const saturation = clamp(layer.saturation, 0, 2, 1);
+  const brightness = clamp(layer.brightness, 0.2, 2, 1);
+  const hue = clamp(layer.hue, -180, 180, 0);
+  if (Math.abs(contrast - 1) > 0.005 || Math.abs(saturation - 1) > 0.005) out.push(`eq=contrast=${contrast}:saturation=${saturation}`);
+  if (Math.abs(hue) > 0.5) out.push(`hue=h=${hue}`);
+  out.push("format=rgba");
+  // CSS brightness() is a straight multiply on the channels; so is this.
+  if (Math.abs(brightness - 1) > 0.005) out.push(`colorchannelmixer=rr=${brightness}:gg=${brightness}:bb=${brightness}`);
+  if (layer.flipH) out.push("hflip");
+  if (layer.flipV) out.push("vflip");
+  const angle = clamp(layer.rotate, -360, 360, 0);
+  if (Math.abs(angle) > 0.01) {
+    // The canvas grows to hold the turned picture; the overlay is then placed
+    // by its centre so it lands where the preview drew it.
+    const rad = ((angle * Math.PI) / 180).toFixed(6);
+    out.push(`rotate=${rad}:ow=rotw(${rad}):oh=roth(${rad}):c=black@0`);
+  }
+  return out;
+}
+
+function fadeFilters(layer, start, end) {
+  const out = [];
+  const fi = clamp(layer.fadeIn, 0, 10, 0);
+  const fo = clamp(layer.fadeOut, 0, 10, 0);
+  if (fi > 0) out.push(`fade=t=in:st=${start.toFixed(3)}:d=${fi.toFixed(3)}:alpha=1`);
+  if (fo > 0) out.push(`fade=t=out:st=${Math.max(end - fo, start).toFixed(3)}:d=${fo.toFixed(3)}:alpha=1`);
+  return out;
+}
+
+function audioFadeFilters(layer, length) {
+  const out = [];
+  const fi = clamp(layer.fadeIn, 0, 10, 0);
+  const fo = clamp(layer.fadeOut, 0, 10, 0);
+  if (fi > 0) out.push(`afade=t=in:st=0:d=${fi.toFixed(3)}`);
+  if (fo > 0) out.push(`afade=t=out:st=${Math.max(length - fo, 0).toFixed(3)}:d=${fo.toFixed(3)}`);
+  return out;
+}
 
 // Only these roots may be read through /file. A path that escapes them is a 403
 // rather than a silent read of anything else on the disk.
@@ -72,6 +161,10 @@ const USER_AGENT = "MacKitStudio/1.0 (https://usemackit.com)";
 const MODEL = config.model || "claude-opus-5";
 const DEEPSEEK_MODEL = config.deepseekModel || "deepseek-v4-pro";
 const GEMINI_TTS_MODEL = config.geminiTtsModel || "gemini-3.1-flash-tts-preview";
+// Blitz reads the words off a frame with this one. It is a list rather than a
+// name because the flash models answer "high demand" often enough that a single
+// id is a run that fails for no reason; the config overrides the first entry.
+const GEMINI_VISION_MODELS = [config.geminiVisionModel, "gemini-3.5-flash", "gemini-flash-latest", "gemini-2.5-flash"].filter(Boolean);
 
 // `copyProvider` in the config picks between the providers that actually have a
 // key; naming one without its key falls through rather than being honoured,
@@ -97,6 +190,7 @@ const MIME = {
   ".gif": "image/gif",
   ".mp4": "video/mp4",
   ".mov": "video/quicktime",
+  ".webm": "video/webm",
   ".m4a": "audio/mp4",
   ".mp3": "audio/mpeg",
   ".wav": "audio/wav",
@@ -107,7 +201,7 @@ const MIME = {
 
 const IMAGE_EXT = new Set([".png", ".jpg", ".jpeg", ".webp"]);
 const GIF_EXT = new Set([".gif", ".webp"]);
-const VIDEO_EXT = new Set([".mp4", ".mov", ".m4v"]);
+const VIDEO_EXT = new Set([".mp4", ".mov", ".m4v", ".webm"]);
 const AUDIO_EXT = new Set([".mp3", ".m4a", ".wav", ".aiff"]);
 
 function json(res, status, body) {
@@ -194,12 +288,14 @@ const metaCache = new Map();
 async function probeMeta(path, stat) {
   const key = `${path}:${stat.mtimeMs}:${stat.size}`;
   if (metaCache.has(key)) return metaCache.get(key);
-  let meta = { duration: 0, width: 0, height: 0 };
+  let meta = { duration: 0, width: 0, height: 0, audio: false };
   try {
+    // Every stream, not just the first video one: whether the file has sound
+    // at all is what tells the editor to grey out a volume slider that would
+    // otherwise be turned up on a screen recording that never had any.
     const out = await run("ffprobe", [
       "-v", "error",
-      "-select_streams", "v:0",
-      "-show_entries", "stream=width,height:format=duration",
+      "-show_entries", "stream=codec_type,width,height:format=duration",
       "-of", "default=nw=1:nk=0",
       path,
     ]);
@@ -207,7 +303,7 @@ async function probeMeta(path, stat) {
       const match = new RegExp(`^${field}=(.+)$`, "m").exec(out);
       return match ? Number(match[1]) : 0;
     };
-    meta = { duration: read("duration") || 0, width: read("width") || 0, height: read("height") || 0 };
+    meta = { duration: read("duration") || 0, width: read("width") || 0, height: read("height") || 0, audio: /^codec_type=audio$/m.test(out) };
   } catch {}
   metaCache.set(key, meta);
   return meta;
@@ -943,11 +1039,50 @@ async function fetchFootage(item, job) {
   return { name: basename(target), path: target, size: stat.size, url: `/file?p=${encodeURIComponent(target)}` };
 }
 
+/* -------------------------------------------------------------------- music */
+
+// Openverse is the audio counterpart of the Wikimedia fallback for photos: a
+// CC index over Jamendo and Freesound, no key, and every hit carries its
+// licence. `license_type=commercial` keeps out the NC tracks a post cannot use.
+async function searchMusic(query, { limit = 10 } = {}) {
+  const url = `https://api.openverse.org/v1/audio/?q=${encodeURIComponent(query)}&license_type=commercial&category=music&page_size=${limit}`;
+  const res = await fetch(url, { headers: { "user-agent": USER_AGENT } });
+  if (!res.ok) throw new Error(`Openverse ${res.status}`);
+  const data = await res.json();
+  // "Commercial" still lets ND through, and a track under a video is a
+  // derivative work — so only the licences that allow one are kept.
+  const allowed = new Set(["by", "by-sa", "cc0", "pdm"]);
+  return (data.results || [])
+    .filter((track) => track.url && allowed.has(String(track.license || "").toLowerCase()))
+    .map((track) => ({
+      id: `openverse-${track.id}`,
+      title: track.title || "Untitled",
+      url: track.url,
+      duration: Math.round((track.duration || 0) / 1000),
+      creator: track.creator || "",
+      license: track.license || "",
+      licenseUrl: track.license_url || "",
+      provider: "openverse",
+    }));
+}
+
+async function fetchMusic(item, job) {
+  await fs.mkdir(join(LIB, "music"), { recursive: true });
+  const target = join(LIB, "music", `${slugify(`${item.creator || "openverse"}-${item.title || item.id}`).slice(0, 48)}.mp3`);
+  job.stage = "Downloading";
+  const res = await fetch(item.url, { headers: { "user-agent": USER_AGENT }, redirect: "follow" });
+  if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+  await fs.writeFile(target, Buffer.from(await res.arrayBuffer()));
+  const duration = await probeDuration(target);
+  await recordSource(basename(target), item);
+  return { name: basename(target), path: target, duration, url: `/file?p=${encodeURIComponent(target)}` };
+}
+
 // Every downloaded clip is logged in library/videos/sources.json. Six months
 // from now the only way to answer "where did this footage come from and may we
 // use it" is a record written at download time.
 async function recordSource(name, item) {
-  const folder = item.provider === "giphy" ? "gifs" : item.provider === "site" ? "photos" : "videos";
+  const folder = item.provider === "giphy" ? "gifs" : item.provider === "site" ? "photos" : item.provider === "openverse" ? "music" : "videos";
   const file = join(LIB, folder, "sources.json");
   let manifest = {};
   try {
@@ -963,7 +1098,9 @@ async function recordSource(name, item) {
     licence:
       item.provider === "pexels"
         ? "Pexels licence — free for commercial use, no attribution required"
-        : item.provider === "giphy"
+        : item.provider === "openverse"
+          ? `Openverse / Jamendo — CC ${String(item.license || "").toUpperCase()} by ${item.creator || "unknown"}; commercial use allowed, credit the artist`
+          : item.provider === "giphy"
           ? "Giphy — check the source before commercial use; many uploads are third-party clips"
           : item.provider === "site"
             ? "the product's own site — fine for a post about that product, nothing else"
@@ -1047,6 +1184,10 @@ async function renderComposition(spec, job) {
   }
 
   let duration = Math.max(2, Math.min(Number(spec.duration) || 20, 300));
+  const { w: frameW, h: frameH } = frameSize(spec);
+  const fps = [24, 30, 60].includes(Number(spec.fps)) ? Number(spec.fps) : 30;
+  const crf = { best: 17, good: 20, small: 26 }[spec.quality] || 20;
+  const bg = backdrop(spec);
 
   job.stage = "Preparing layers";
   const inputs = [];
@@ -1063,7 +1204,7 @@ async function renderComposition(spec, job) {
   // filter graph ffmpeg refuses outright.
   const blackBase = () => {
     if (videoLabel) return videoLabel;
-    const baseIndex = addInput(["-f", "lavfi", "-i", `color=c=black:s=${COMP_W}x${COMP_H}:r=30`]);
+    const baseIndex = addInput(["-f", "lavfi", "-i", `color=c=${bg}:s=${frameW}x${frameH}:r=${fps}`]);
     chain.push(`[${baseIndex}:v]setsar=1[vbase]`);
     videoLabel = "vbase";
     return videoLabel;
@@ -1085,10 +1226,12 @@ async function renderComposition(spec, job) {
     return (
       Math.abs((rect.x || 0)) < 2 &&
       Math.abs((rect.y || 0)) < 2 &&
-      Math.abs((rect.w || 0) - COMP_W) < 2 &&
-      Math.abs((rect.h || 0) - COMP_H) < 2 &&
+      Math.abs((rect.w || 0) - frameW) < 2 &&
+      Math.abs((rect.h || 0) - frameH) < 2 &&
       !layer.blur &&
-      (layer.opacity ?? 1) >= 1
+      (layer.opacity ?? 1) >= 1 &&
+      !treatmentFilters(layer).some((f) => f !== "format=rgba") &&
+      !fadeFilters(layer, 0, 1).length
     );
   };
   const strip = [...pictures].sort((a, b) => (a.start || 0) - (b.start || 0));
@@ -1108,7 +1251,7 @@ async function renderComposition(spec, job) {
       // with black rather than left for concat to close, which would slide
       // everything after it out of time with the captions.
       if (start - at > 0.03) {
-        const blackIndex = addInput(["-f", "lavfi", "-t", (start - at).toFixed(3), "-i", `color=c=black:s=${COMP_W}x${COMP_H}:r=30`]);
+        const blackIndex = addInput(["-f", "lavfi", "-t", (start - at).toFixed(3), "-i", `color=c=${bg}:s=${frameW}x${frameH}:r=${fps}`]);
         chain.push(`[${blackIndex}:v]setsar=1,format=yuv420p[s${parts.length}]`);
         parts.push(`[s${parts.length}]`);
       }
@@ -1121,18 +1264,26 @@ async function renderComposition(spec, job) {
       // the transcript said would start again to fill the gap, and in a strip
       // that repeat is not hidden behind an enable window — it is in the video,
       // saying the word twice.
-      else index = addInput(["-ss", String(layer.trim || 0), "-t", span, "-i", layer.path]);
+      else {
+        // At 2x a second of the strip eats two seconds of the file, so the
+        // input is cut to that much — cut to `span` it ran out halfway and
+        // tpad froze the last frame for the rest.
+        const rate = clamp(layer.speed, 0.25, 4, 1);
+        index = addInput(["-ss", String(layer.trim || 0), "-t", (Number(span) * rate).toFixed(3), "-i", layer.path]);
+      }
 
+      const speed = layer.type === "video" ? clamp(layer.speed, 0.25, 4, 1) : 1;
       const filters = [];
+      if (speed !== 1) filters.push(`setpts=PTS/${speed}`);
       if (crop.sw && crop.sh) filters.push(`crop=${Math.round(crop.sw)}:${Math.round(crop.sh)}:${Math.round(crop.sx || 0)}:${Math.round(crop.sy || 0)}`);
       // Every segment has to agree on size, aspect, rate and pixel format, or
       // concat refuses them.
       // A short clip holds its last frame instead of starting over, so the
       // segment still fills the time the captions were timed against.
       filters.push(
-        `scale=${COMP_W}:${COMP_H}`,
+        `scale=${frameW}:${frameH}`,
         "setsar=1",
-        "fps=30",
+        `fps=${fps}`,
         "format=yuv420p",
         `tpad=stop_mode=clone:stop_duration=${span}`,
         `trim=duration=${span}`,
@@ -1143,7 +1294,7 @@ async function renderComposition(spec, job) {
 
       if (layer.type === "video" && Number(layer.volume) > 0 && (await hasAudio(layer.path))) {
         // Silence rather than the word again, for the same reason.
-        const audio = [`volume=${Number(layer.volume)}`, `apad=whole_dur=${span}`, `atrim=0:${span}`, "asetpts=PTS-STARTPTS"];
+        const audio = [`volume=${Number(layer.volume)}`, ...atempoChain(speed), `apad=whole_dur=${span}`, `atrim=0:${span}`, "asetpts=PTS-STARTPTS"];
         if (start > 0.01) audio.push(`adelay=delays=${Math.round(start * 1000)}:all=1`);
         chain.push(`[${index}:a]${audio.join(",")}[a${step}]`);
         audioParts.push(`[a${step}]`);
@@ -1179,7 +1330,10 @@ async function renderComposition(spec, job) {
       // -loop 1 is what makes a still last: a plain image input decodes one
       // frame and overlay stops compositing long before its window comes round.
       index = addInput(["-loop", "1", "-i", file]);
-      chain.push(`[${index}:v]format=rgba${layer.opacity < 1 ? `,colorchannelmixer=aa=${layer.opacity}` : ""}[l${step}]`);
+      const textFilters = ["format=rgba"];
+      if (layer.opacity < 1) textFilters.push(`colorchannelmixer=aa=${layer.opacity}`);
+      textFilters.push(...fadeFilters(layer, start, Math.min(end, duration)));
+      chain.push(`[${index}:v]${textFilters.join(",")}[l${step}]`);
       chain.push(`[${blackBase()}][l${step}]overlay=0:0:enable='between(t,${start.toFixed(3)},${end.toFixed(3)})'[v${step + 1}]`);
       videoLabel = `v${step + 1}`;
       step++;
@@ -1191,7 +1345,13 @@ async function renderComposition(spec, job) {
     if (layer.type === "audio") {
       if (!layer.path || Number(layer.volume) <= 0) continue;
       index = addInput(["-ss", String(layer.trim || 0), "-i", layer.path]);
-      const audio = [`volume=${Number(layer.volume)}`, `atrim=0:${(end - start).toFixed(3)}`, "asetpts=PTS-STARTPTS"];
+      const audio = [
+        `volume=${Number(layer.volume)}`,
+        ...atempoChain(clamp(layer.speed, 0.25, 4, 1)),
+        `atrim=0:${(end - start).toFixed(3)}`,
+        "asetpts=PTS-STARTPTS",
+        ...audioFadeFilters(layer, end - start),
+      ];
       if (start > 0.01) audio.push(`adelay=delays=${Math.round(start * 1000)}:all=1`);
       chain.push(`[${index}:a]${audio.join(",")}[a${step}]`);
       audioParts.push(`[a${step}]`);
@@ -1213,14 +1373,19 @@ async function renderComposition(spec, job) {
       index = addInput(["-stream_loop", "-1", "-ss", String(layer.trim || 0), "-i", layer.path]);
     }
 
+    const speed = layer.type === "video" ? clamp(layer.speed, 0.25, 4, 1) : 1;
     const filters = [];
+    // Speed first, on the source's own clock: 2x means its timestamps are
+    // halved, so a second of composition time shows two seconds of footage —
+    // the same thing the preview's clock does.
+    if (speed !== 1) filters.push(`setpts=PTS/${speed}`);
     if (crop.sw && crop.sh) filters.push(`crop=${Math.round(crop.sw)}:${Math.round(crop.sh)}:${Math.round(crop.sx || 0)}:${Math.round(crop.sy || 0)}`);
     filters.push(`scale=${Math.round(rect.w)}:${Math.round(rect.h)}`);
     filters.push("setsar=1");
     // CSS blur(r) is a gaussian of roughly r/2, which is what the canvas
     // preview draws — matching it here keeps the two in step.
     if (layer.blur) filters.push(`gblur=sigma=${(Number(layer.blur) / 2).toFixed(2)}`);
-    filters.push("format=rgba");
+    filters.push(...treatmentFilters(layer));
     if (layer.opacity < 1) filters.push(`colorchannelmixer=aa=${layer.opacity}`);
     // A clip that does not begin at zero has to be pushed down its own timeline
     // too, not merely hidden until its turn: `-ss` puts the in-point at output
@@ -1228,18 +1393,29 @@ async function renderComposition(spec, job) {
     // four seconds past its in-point. The padding is transparent and falls
     // entirely inside the window `enable` already hides.
     if (layer.type === "video" && start > 0.01) filters.push(`tpad=start_duration=${start.toFixed(3)}:start_mode=add:color=black@0`);
+    // Fades are in composition time, which by now every stream is on.
+    filters.push(...fadeFilters(layer, start, Math.min(end, duration)));
 
     chain.push(`[${index}:v]${filters.join(",")}[l${step}]`);
-    chain.push(
-      `[${blackBase()}][l${step}]overlay=${Math.round(rect.x)}:${Math.round(rect.y)}:enable='between(t,${start.toFixed(3)},${end.toFixed(3)})'[v${step + 1}]`,
-    );
+    // A turned picture is bigger than its box, so it is placed by its centre;
+    // the overlay's own w and h are what ffmpeg resolves those against.
+    const cx = Math.round(rect.x + rect.w / 2);
+    const cy = Math.round(rect.y + rect.h / 2);
+    const place = Math.abs(clamp(layer.rotate, -360, 360, 0)) > 0.01 ? `x=${cx}-w/2:y=${cy}-h/2` : `${Math.round(rect.x)}:${Math.round(rect.y)}`;
+    chain.push(`[${blackBase()}][l${step}]overlay=${place}:enable='between(t,${start.toFixed(3)},${end.toFixed(3)})'[v${step + 1}]`);
     videoLabel = `v${step + 1}`;
 
     if (layer.type === "video" && Number(layer.volume) > 0 && (await hasAudio(layer.path))) {
       // Audio is cut to the same window as the picture. Without the trim, two
       // halves of a split clip would each play their own sound over the whole
       // render instead of one after the other.
-      const audio = [`volume=${Number(layer.volume)}`, `atrim=0:${(end - start).toFixed(3)}`, "asetpts=PTS-STARTPTS"];
+      const audio = [
+        `volume=${Number(layer.volume)}`,
+        ...atempoChain(speed),
+        `atrim=0:${(end - start).toFixed(3)}`,
+        "asetpts=PTS-STARTPTS",
+        ...audioFadeFilters(layer, end - start),
+      ];
       if (start > 0.01) audio.push(`adelay=delays=${Math.round(start * 1000)}:all=1`);
       chain.push(`[${index}:a]${audio.join(",")}[a${step}]`);
       audioParts.push(`[a${step}]`);
@@ -1254,6 +1430,10 @@ async function renderComposition(spec, job) {
     audioParts.push("[amus]");
   }
 
+  // Nothing drew a picture — a composition of sound alone, or every clip was
+  // skipped — so the backdrop is the picture, rather than an empty label that
+  // ffmpeg refuses to parse.
+  if (!videoLabel) blackBase();
   chain.push(`[${videoLabel}]null[vout]`);
 
   let audioLabel = "";
@@ -1276,13 +1456,13 @@ async function renderComposition(spec, job) {
     "-t",
     duration.toFixed(2),
     "-r",
-    "30",
+    String(fps),
     "-c:v",
     "libx264",
     "-preset",
     "veryfast",
     "-crf",
-    "20",
+    String(crf),
     "-pix_fmt",
     "yuv420p",
     "-movflags",
@@ -1621,6 +1801,14 @@ function autopilotTools(job) {
   };
 }
 
+// Whichever model has a key, asked for json. Autopilot's passes and Blitz's
+// recon both go through this.
+function modelJson(system, prompt) {
+  if (COPY_PROVIDER === "deepseek") return deepseekJson(system, prompt);
+  if (COPY_PROVIDER === "anthropic") return claudeJson(`${system}\n\n${prompt}`, null);
+  throw new Error("This needs a model key — add deepseekApiKey to social/studio.config.json");
+}
+
 async function runAutopilotJob(payload, job) {
   job.messages = [];
   job.plans = [];
@@ -1638,11 +1826,7 @@ async function runAutopilotJob(payload, job) {
     // costs two yt-dlp passes and a campaign is often re-run within an hour.
     trends: (queries) => trendingNow({ queries, run, cacheDir: join(TMP, "trends") }),
     readVideo,
-    json: (system, prompt) => {
-      if (COPY_PROVIDER === "deepseek") return deepseekJson(system, prompt);
-      if (COPY_PROVIDER === "anthropic") return claudeJson(`${system}\n\n${prompt}`, null);
-      throw new Error("Autopilot needs a model key — add deepseekApiKey to social/studio.config.json");
-    },
+    json: modelJson,
     agentCall,
     toolImpls: autopilotTools(job),
     onEvent: (event) => {
@@ -1848,6 +2032,48 @@ async function suggestTopics(script) {
   } catch {
     return { topics: [...new Set(fallback)], source: "rules" };
   }
+}
+
+const LINE_SYSTEM = `You write the line for a video that is cut, word by word, out of other people's uploads, as json.
+
+Nothing here is spoken by us. Every word of the line has to be found in a stranger's mouth in some video and cut out of it, so a word nobody says is a hole in the finished video.
+
+Rules:
+- Everyday spoken words only. A word people say on camera all day is found in minutes; a word that exists only on this product's own page is never found at all.
+- Never the product's name, never a brand, never a number, a price, a website or a made-up compound. Those are hunted forever and found in nothing.
+- Six to fourteen words, one breath. A sentence, or the plain list of what it does — whichever people would actually say.
+- Say something the fact sheet supports: what it does, what it replaces, what it saves you. No marketing adjectives, no hype, no exclamation marks, no emoji.
+- Lower case, and no punctuation beyond commas.
+- Give three, best first, each a different angle on the same product.
+- Return only a json object: {"lines": ["...", "...", "..."]}`;
+
+// The line, written off the product's own site: the page is read into the same
+// fact sheet Autopilot builds (cached for the day), and the model turns it into
+// something that can plausibly be found in other people's mouths.
+async function writeLines(url) {
+  const brand = await brandFor(url, { onPhase: () => {}, onLog: () => {} });
+  const facts = [
+    [brand.name, brand.category].filter(Boolean).join(" — "),
+    brand.oneLiner || "",
+    ...(brand.features || []).slice(0, 8).map((feature) => `- ${feature}`),
+    ...(brand.proofs || []).slice(0, 4).map((proof) => `- ${proof}`),
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const prompt = [
+    `The product, from its own site:`,
+    facts,
+    ``,
+    `Return json in exactly this shape:`,
+    JSON.stringify({ lines: ["clipboard history you can search and paste back", "one menu bar app instead of a folder full of them"] }, null, 2),
+  ].join("\n");
+  const answer = await modelJson(LINE_SYSTEM, prompt);
+  const lines = (answer.lines || [])
+    .map((line) => String(line).trim().replace(/^["'\u201c]+|["'\u201d.]+$/g, "").trim())
+    .filter(Boolean)
+    .slice(0, 3);
+  if (!lines.length) throw new Error("the model gave no line back");
+  return { lines, brand: brand.name, source: COPY_PROVIDER };
 }
 
 const VARIANT_SYSTEM = `You give the other ways people actually say a phrase, as json.
@@ -2389,6 +2615,162 @@ function serveFile(req, res, path) {
 
 /* -------------------------------------------------------------------- routes */
 
+/* ------------------------------------------------------------------- blitz */
+
+// Blitz's three steps, each behind its own route because each costs something
+// different and the page shows a different thing while it runs. The work
+// itself is in studio/blitz.mjs; what lives here is the part that needs a
+// process, a key or the disk.
+
+async function runBlitzHunt(payload, job) {
+  job.notes = [];
+  job.stage = "Hunting";
+  const note = (text) => {
+    job.notes.push(text);
+    job.stage = text;
+  };
+
+  // The link is the point: what gets hunted, and what the shape is later filled
+  // with, both come off whatever site was pasted. Same recon and same fact
+  // sheet Autopilot builds — one implementation, in autopilot.mjs.
+  let brand = null;
+  if (String(payload.url || "").trim()) {
+    brand = await brandFor(String(payload.url).trim(), {
+      fresh: Boolean(payload.fresh),
+      onPhase: note,
+      onLog: (text) => job.notes.push(text),
+    });
+    note(`${brand.name}: ${brand.oneLiner || brand.category || ""}`.trim());
+  }
+
+  const typed = (Array.isArray(payload.queries) ? payload.queries : String(payload.queries || "").split(/[,\n]/))
+    .map((query) => String(query).trim())
+    .filter(Boolean);
+  // Typed phrases win; with none, the niche is read off the fact sheet, because
+  // what is moving in one niche says nothing about another.
+  const queries = typed.length ? typed : brand ? trendQueries(brand) : [];
+  if (!typed.length && queries.length) note(`searching for: ${queries.join(", ")}`);
+
+  const { items, notes, cached } = await blitzHunt({
+    queries,
+    accounts: Array.isArray(payload.accounts) ? payload.accounts : String(payload.accounts || "").split(/[,\n\s]/),
+    run,
+    cacheDir: join(TMP, "trends"),
+    tmpDir: TMP,
+    perSource: Math.min(Number(payload.perSource) || 6, 12),
+    maxDuration: Math.min(Number(payload.maxDuration) || 90, 180),
+    limit: Math.min(Number(payload.limit) || 18, 40),
+    ttlHours: payload.fresh ? 0 : 6,
+    onNote: note,
+  });
+  job.notes.push(...notes);
+  return { brand, items, notes: job.notes, cached: Boolean(cached) };
+}
+
+// The clip alone, for the deck's hover preview. Same file the read will use.
+async function runBlitzClip(payload, job) {
+  const item = payload.item || {};
+  if (!/^https:\/\//.test(item.url || "")) throw new Error("missing or non-https url");
+  const { file, duration } = await blitzClip({ item, run, ytdlpDownload, tmpDir: TMP, onStage: (stage) => (job.stage = stage) });
+  return { path: file, duration, videoUrl: `/file?p=${encodeURIComponent(file)}` };
+}
+
+async function runBlitzRead(payload, job) {
+  const item = payload.item || {};
+  if (!/^https:\/\//.test(item.url || "")) throw new Error("missing or non-https url");
+  const read = await blitzRead({
+    item,
+    run,
+    ytdlpDownload,
+    tmpDir: TMP,
+    geminiKey: GEMINI_KEY,
+    models: GEMINI_VISION_MODELS,
+    onStage: (stage) => {
+      job.stage = stage;
+      job.progress = Math.min(0.9, (job.progress || 0) + 0.3);
+    },
+  });
+  // What is *said* as well as what is shown. Half the shorts in this format
+  // carry no caption block at all — the hook is spoken — and a spoken opener is
+  // a shape like any other. Same transcript reader Autopilot and Supercut use,
+  // cached by video id; a clip with no captions comes back empty, not failed.
+  job.stage = "Reading what is said";
+  let speech = null;
+  try {
+    const transcript = await readVideo(item.url);
+    if (transcript.cues.length) {
+      speech = {
+        opening: opening(transcript.cues, 10),
+        lines: condense(transcript.cues, { window: 6, limit: 14 }),
+        source: transcript.source,
+        original: Boolean(transcript.original),
+      };
+    }
+  } catch {
+    // A TikTok address, or a video with nothing to read: the frames still stand.
+  }
+  return {
+    ...read,
+    speech,
+    // The page plays the source itself — the left pane is the receipt for what
+    // the shape was taken from, and a still would not show the timing.
+    videoUrl: `/file?p=${encodeURIComponent(read.path)}`,
+    frameUrls: read.frames.map((frame) => `/file?p=${encodeURIComponent(frame)}`),
+  };
+}
+
+async function blitzAdaptOnce(payload) {
+  return blitzAdapt({
+    read: payload.read || { onScreen: false, wall: "", lines: [], casing: "sentence", note: "" },
+    item: payload.item || {},
+    brand: payload.brand && payload.brand.name ? payload.brand : await macKitFacts(),
+    ask: async (system, prompt) => {
+      if (DEEPSEEK_KEY) return deepseekJson(system, prompt);
+      if (ANTHROPIC_KEY) return claudeJson(`${system}\n\n${prompt}`, null);
+      throw new Error("no-key");
+    },
+  });
+}
+
+// A site's fact sheet, kept for a day. Reading it is four page fetches and a
+// model call, and a link is usually hunted several times in one sitting — once
+// for a phrase, again for an account, again after a bad draft.
+async function brandFor(url, { fresh = false, onPhase, onLog }) {
+  const dir = join(TMP, "brands");
+  const file = join(dir, `${createHash("sha1").update(url).digest("hex").slice(0, 16)}.json`);
+  if (!fresh) {
+    const cached = await fs.readFile(file, "utf8").then(JSON.parse, () => null);
+    if (cached && Date.now() - cached.at < 24 * 3600 * 1000) {
+      onLog(`fact sheet for ${cached.brand.name} reused from earlier today`);
+      return cached.brand;
+    }
+  }
+  const { brand } = await readBrand({ url, fetchPage: fetchSitePage, json: modelJson, onPhase, onLog });
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(file, JSON.stringify({ at: Date.now(), url, brand }, null, 2));
+  return brand;
+}
+
+// With no link, it is this app's own studio, so its own bank stands in for the
+// fact sheet — the same shape a read site produces, so nothing downstream has
+// to know which of the two it got.
+async function macKitFacts() {
+  const formats = JSON.parse(await fs.readFile(join(HERE, "studio", "formats.json"), "utf8"));
+  return {
+    name: "Mac Kit",
+    url: "https://usemackit.com/",
+    category: "macOS menu bar app",
+    oneLiner: formats.positioning.oneLiner,
+    priceLine: formats.positioning.price,
+    audience: ["Mac users who have collected a folder of single-purpose utilities"],
+    features: Object.values(formats.painFixes || {}).map((fix) => `${fix.short}. Instead of: ${fix.pain}. It does: ${fix.fix}`),
+    proofs: formats.positioning.proofs || [],
+    tone: "plain, first person, no hype",
+    keywords: ["macos", "menu bar", "productivity"],
+    avoid: ["do not claim an iOS app", "do not claim team features"],
+  };
+}
+
 async function route(req, res, url) {
   const path = url.pathname;
 
@@ -2453,6 +2835,11 @@ async function route(req, res, url) {
     const dir = url.searchParams.get("dir") || "photos";
     const name = basename(url.searchParams.get("name") || `upload-${Date.now()}`);
     if (!["photos", "videos", "music"].includes(dir)) return json(res, 400, { error: "bad dir" });
+    // A file the shelves would never list is refused here with a reason,
+    // rather than saved and silently never seen again.
+    const ext = extname(name).toLowerCase();
+    const allowed = dir === "videos" ? VIDEO_EXT : dir === "music" ? AUDIO_EXT : IMAGE_EXT;
+    if (!allowed.has(ext)) return json(res, 415, { error: `${ext || "that"} is not a format the editor can play — use ${[...allowed].join(", ")}` });
     const target = join(LIB, dir, name);
     await fs.mkdir(dirname(target), { recursive: true });
     await fs.writeFile(target, await readBody(req));
@@ -2480,6 +2867,18 @@ async function route(req, res, url) {
     return json(res, 200, { results });
   }
 
+  if (path === "/music/search") {
+    const query = url.searchParams.get("q") || "";
+    if (!query) return json(res, 400, { error: "missing q" });
+    return json(res, 200, { results: await searchMusic(query, { limit: Math.min(Number(url.searchParams.get("limit")) || 10, 20) }) });
+  }
+
+  if (path === "/music/fetch" && req.method === "POST") {
+    const item = await readJson(req);
+    if (!/^https:\/\//.test(item.url || "")) return json(res, 400, { error: "missing or non-https url" });
+    return json(res, 202, { jobId: startJob(item.title || "music", (job) => fetchMusic(item, job)) });
+  }
+
   if (path === "/gif/search") {
     const query = url.searchParams.get("q") || "";
     if (!query) return json(res, 400, { error: "missing q" });
@@ -2499,6 +2898,12 @@ async function route(req, res, url) {
     return json(res, 200, await suggestTopics(String(script).trim()));
   }
 
+  if (path === "/supercut/line" && req.method === "POST") {
+    const { url } = await readJson(req);
+    if (!/^https?:\/\/\S+$/i.test(String(url || "").trim())) return json(res, 400, { error: "missing or unreadable address" });
+    return json(res, 200, await writeLines(String(url).trim()));
+  }
+
   if (path === "/supercut/split" && req.method === "POST") {
     const { script, topic } = await readJson(req);
     if (!String(script || "").trim()) return json(res, 400, { error: "missing script" });
@@ -2516,6 +2921,33 @@ async function route(req, res, url) {
   if (path === "/supercut/run" && req.method === "POST") {
     const payload = await readJson(req);
     return json(res, 202, { jobId: startJob("supercut", (job) => runSupercut(payload, job)) });
+  }
+
+  if (path === "/blitz/hunt" && req.method === "POST") {
+    const payload = await readJson(req);
+    return json(res, 202, { jobId: startJob("blitz-hunt", (job) => runBlitzHunt(payload, job)) });
+  }
+
+  if (path === "/blitz/clip" && req.method === "POST") {
+    const payload = await readJson(req);
+    return json(res, 202, { jobId: startJob("blitz-clip", (job) => runBlitzClip(payload, job)) });
+  }
+
+  if (path === "/blitz/read" && req.method === "POST") {
+    const payload = await readJson(req);
+    return json(res, 202, { jobId: startJob("blitz-read", (job) => runBlitzRead(payload, job)) });
+  }
+
+  // The only one of the three that answers in the request: it is one text call,
+  // and the page has nothing to show while it waits.
+  if (path === "/blitz/adapt" && req.method === "POST") {
+    const payload = await readJson(req);
+    try {
+      return json(res, 200, await blitzAdaptOnce(payload));
+    } catch (error) {
+      if (error.message === "no-key") return json(res, 428, { error: "no-key" });
+      throw error;
+    }
   }
 
   if (path === "/auto/run" && req.method === "POST") {

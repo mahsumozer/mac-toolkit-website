@@ -4,8 +4,8 @@
 // and changed before anything is rendered. Selection chrome is drawn on a
 // separate pass over the finished frame, so it never leaks into the export.
 
-import { COMP_W, COMP_H, fitLayer } from "./composition.js";
-import { drawTextLayer, measureTextLayer, ensureFonts } from "./render-image.js";
+import { COMP_W, COMP_H, DEFAULT_BACKGROUND, fitLayer, fadeAlpha, hasColorWork } from "./composition.js";
+import { drawTextLayer, measureTextLayer, ensureFonts, applyLayerTransform } from "./render-image.js";
 
 // Grips are sized in *screen* pixels and converted back into composition
 // pixels, because the canvas is 1080 wide but displayed around 300: a grip
@@ -62,6 +62,21 @@ export class Editor {
     this.time = 0;
     this.syncMedia();
     this.onChange();
+    this.draw();
+  }
+
+  /**
+   * Follow the composition into a different frame.
+   *
+   * Resizing a canvas clears it, which is fine — everything on it is redrawn
+   * from the layers — but it also resets the context, so the draw has to come
+   * after both surfaces are the new size, not between them.
+   */
+  resizeFrame() {
+    this.canvas.width = COMP_W;
+    this.canvas.height = COMP_H;
+    this.frame.width = COMP_W;
+    this.frame.height = COMP_H;
     this.draw();
   }
 
@@ -281,11 +296,24 @@ export class Editor {
 
   /* --------------------------------------------------------------- transport */
 
+  // Where the picture and sound actually end: the latest end of any visible
+  // layer, or the composition's length when there is nothing on it.
+  contentEnd() {
+    let end = 0;
+    for (const layer of this.layers) if (layer.visible) end = Math.max(end, Number(layer.end) || 0);
+    return end > 0 ? Math.min(end, this.comp.duration) : this.comp.duration;
+  }
+
   play() {
+    // Play from the end is play from the start.
+    if (this.time >= this.contentEnd() - 0.05) this.time = 0;
     this.playing = true;
     for (const layer of this.layers) {
       const el = this.media.get(layer.src);
-      if (el && el.tagName === "VIDEO") el.play().catch(() => {});
+      if (el && el.tagName === "VIDEO") {
+        el.playbackRate = Number(layer.speed) || 1;
+        el.play().catch(() => {});
+      }
     }
     this.syncAudio();
     this.onChange();
@@ -297,18 +325,35 @@ export class Editor {
     this.onChange();
   }
 
-  // Audio is not drawn, so it needs its own pass: play the layers whose window
-  // covers the playhead, pause the rest, and keep each one lined up with the
-  // composition clock. Scrubbing moves it too, which is the whole point of
-  // having it on the timeline.
+  // Sound is not drawn, so it needs its own pass: every layer whose window
+  // covers the playhead plays at its own level, everything else is quiet, and
+  // each element is kept lined up with the composition clock. Scrubbing moves
+  // it too, which is the whole point of having it on the timeline.
+  //
+  // Clips are heard as well as voiceovers. They used to be muted here outright
+  // ("audio is mixed at render"), which made the volume slider a control with
+  // no audible effect and a cut that could not be timed to what was said. A
+  // <video> is driven by the draw loop, so only its level is set here; one
+  // element can serve several layers, and then it takes the loudest of them.
   syncAudio() {
+    const clipLevel = new Map();
     for (const layer of this.layers) {
-      if (layer.type !== "audio") continue;
+      if (layer.type !== "audio" && layer.type !== "video") continue;
       const el = this.media.get(layer.src);
-      if (!el || el.tagName !== "AUDIO") continue;
+      if (!el || (el.tagName !== "AUDIO" && el.tagName !== "VIDEO")) continue;
       const inside = layer.visible && this.time >= layer.start && this.time <= layer.end;
-      const want = (Number(layer.trim) || 0) + (this.time - layer.start);
-      el.volume = Math.max(0, Math.min(Number(layer.volume) ?? 1, 1));
+      const volume = Math.max(0, Math.min(Number(layer.volume ?? (layer.type === "audio" ? 1 : 0)) || 0, 1));
+
+      if (el.tagName === "VIDEO") {
+        const heard = inside && this.playing ? volume : 0;
+        clipLevel.set(el, Math.max(clipLevel.get(el) || 0, heard));
+        continue;
+      }
+
+      const rate = Number(layer.speed) || 1;
+      const want = (Number(layer.trim) || 0) + (this.time - layer.start) * rate;
+      el.volume = volume;
+      if (el.playbackRate !== rate) el.playbackRate = rate;
       if (!inside || !this.playing) {
         if (!el.paused) el.pause();
         if (inside && el.readyState >= 1 && Math.abs(el.currentTime - want) > 0.1) el.currentTime = want;
@@ -316,6 +361,10 @@ export class Editor {
       }
       if (el.readyState >= 1 && Math.abs(el.currentTime - want) > 0.3) el.currentTime = want;
       if (el.paused) el.play().catch(() => {});
+    }
+    for (const [el, level] of clipLevel) {
+      el.volume = level;
+      el.muted = !(level > 0);
     }
   }
 
@@ -335,7 +384,11 @@ export class Editor {
     if (this.playing) {
       const dt = this._last ? (now - this._last) / 1000 : 0;
       this.time += dt;
-      if (this.time >= this.comp.duration) {
+      if (this.time >= this.contentEnd()) {
+        // The content is over: stop and go back to the start. It used to play
+        // on over the black to the composition's length and then start again,
+        // forever, which is not what anyone pressing Play was asking for.
+        this.pause();
         this.time = 0;
         for (const el of this.media.values()) if (el.tagName === "VIDEO") el.currentTime = 0;
       }
@@ -349,9 +402,13 @@ export class Editor {
   // Where a layer's source should be at composition time `t`, wrapping so a
   // short clip under a long composition loops instead of freezing on its last
   // frame.
+  //
+  // Speed is a multiplier on the clock: at 2x the source is twice as far along
+  // for every composition second that passes, which is exactly what the
+  // render's `setpts=PTS/2` does to it.
   sourceTime(layer, el) {
     const span = (el.duration || 0) - (layer.trim || 0);
-    const local = this.time - layer.start;
+    const local = (this.time - layer.start) * (Number(layer.speed) || 1);
     if (!Number.isFinite(span) || span <= 0.05) return layer.trim || 0;
     return (layer.trim || 0) + (((local % span) + span) % span);
   }
@@ -362,7 +419,7 @@ export class Editor {
     const ctx = this.frameCtx;
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = "#000";
+    ctx.fillStyle = this.comp.background || DEFAULT_BACKGROUND;
     ctx.fillRect(0, 0, COMP_W, COMP_H);
 
     for (const layer of this.layers) {
@@ -371,10 +428,12 @@ export class Editor {
       // Sound contributes nothing to the picture.
       if (layer.type === "audio") continue;
       if (layer.type === "text") {
-        ctx.globalAlpha = layer.opacity ?? 1;
+        ctx.save();
+        ctx.globalAlpha = (layer.opacity ?? 1) * fadeAlpha(layer, this.time);
+        applyLayerTransform(ctx, layer, { x: layer.x, y: layer.y, w: layer.w, h: measureTextLayer(ctx, layer) });
         const height = drawTextLayer(ctx, layer);
+        ctx.restore();
         if (height && Math.abs(height - layer.h) > 2) layer.h = height;
-        ctx.globalAlpha = 1;
         continue;
       }
 
@@ -390,15 +449,25 @@ export class Editor {
       }
 
       if (el.tagName === "VIDEO") {
+        const speed = Number(layer.speed) || 1;
+        if (this.playing && el.playbackRate !== speed) el.playbackRate = speed;
         const want = this.sourceTime(layer, el);
         // Seek only on real drift, and never while one is already in flight.
         // A seek lands on the nearest decodable frame, not the exact time asked
         // for, so re-seeking on any difference at all means every `seeked`
         // schedules the next one: readyState never climbs out of 1 and the
         // canvas stays black until something forces playback.
-        const tolerance = this.playing ? 0.3 : 0.1;
-        if (!el.seeking && el.readyState >= 1 && Math.abs(el.currentTime - want) > tolerance) {
+        // The tolerance grows with the speed: at 4x the clock runs four times
+        // as far during the hundred-odd milliseconds a seek takes, and a
+        // tolerance fixed at 0.3s made every seek land already out of
+        // tolerance — a clip sped up played as a stutter of seeks. A short
+        // cool-down after each one gives the element time to catch up on
+        // its own rate before it is judged again.
+        const tolerance = (this.playing ? 0.3 : 0.1) * Math.max(1, speed);
+        const settled = !el._seekUntil || performance.now() > el._seekUntil;
+        if (!el.seeking && settled && el.readyState >= 1 && Math.abs(el.currentTime - want) > tolerance) {
           el.currentTime = want;
+          el._seekUntil = performance.now() + (this.playing ? 400 : 0);
         }
         // readyState 2 means "a frame at the current position is decoded".
         // Below that there is nothing to paint yet; the media events call back
@@ -408,11 +477,26 @@ export class Editor {
 
       const { crop, rect } = fitLayer(layer, size.w, size.h);
       ctx.save();
-      ctx.globalAlpha = layer.opacity ?? 1;
+      ctx.globalAlpha = (layer.opacity ?? 1) * fadeAlpha(layer, this.time);
       // Only effects ffmpeg can reproduce are drawn here. Anything the render
       // cannot match would make the preview a lie, which is the one thing this
-      // editor exists to avoid.
-      if (layer.blur) ctx.filter = `blur(${layer.blur}px)`;
+      // editor exists to avoid. Blur is gblur, the colour work is eq + hue,
+      // brightness is a channel multiply — each one has its twin in the
+      // render's filter chain.
+      const filters = [];
+      if (layer.blur) filters.push(`blur(${layer.blur}px)`);
+      if (hasColorWork(layer)) {
+        filters.push(
+          `brightness(${Number(layer.brightness ?? 1)})`,
+          `contrast(${Number(layer.contrast ?? 1)})`,
+          `saturate(${Number(layer.saturation ?? 1)})`,
+          `hue-rotate(${Number(layer.hue) || 0}deg)`,
+        );
+      }
+      if (filters.length) ctx.filter = filters.join(" ");
+      // Turned about the centre of the drawn picture — a contained clip turns
+      // about its own middle, not the middle of the box it sits in.
+      applyLayerTransform(ctx, layer, rect);
       try {
         ctx.drawImage(source, crop.sx, crop.sy, crop.sw, crop.sh, rect.x, rect.y, rect.w, rect.h);
       } catch {

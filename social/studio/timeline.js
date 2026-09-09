@@ -179,6 +179,13 @@ export class Timeline {
 
       const bar = document.createElement("div");
       bar.className = `tl-bar is-${layer.type}${layer.id === this.editor.selectedId ? " is-active" : ""}${layer.visible ? "" : " is-hidden"}`;
+      // A picture bar shows its picture, repeated along its length like a
+      // filmstrip. The server's poster for a clip lives beside its file route.
+      if (layer.src && layer.path && (layer.type === "video" || layer.type === "image" || layer.type === "gif")) {
+        const still = layer.type === "video" ? `${layer.src.split("/file?")[0]}/thumb?p=${encodeURIComponent(layer.path)}` : layer.src;
+        bar.style.backgroundImage = `url("${still}")`;
+        bar.classList.add("has-still");
+      }
       bar.dataset.id = layer.id;
       bar.innerHTML =
         '<span class="tl-grip tl-grip-in"></span>' +
@@ -331,7 +338,10 @@ export class Timeline {
         // under the bar stay where they were instead of the whole clip
         // restarting later. Text and stills have no in-point to move.
         const patch = { start };
-        if (layer.type === "video" || layer.type === "audio") patch.trim = Math.max(0, snap(this.drag.trim + (start - this.drag.start)));
+        // A sped-up clip covers more footage per second, so its in-point moves
+        // that much further for the same drag.
+        const rate = layer.type === "video" ? Number(layer.speed) || 1 : 1;
+        if (layer.type === "video" || layer.type === "audio") patch.trim = Math.max(0, snap(this.drag.trim + (start - this.drag.start) * rate));
         this.editor.updateLayer(layer.id, patch);
       } else {
         const end = this._magnet(clamp(snap(this.drag.end + dt), (Number(layer.start) || 0) + MIN_SPAN, this.duration));

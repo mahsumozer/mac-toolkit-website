@@ -662,7 +662,10 @@
 }
 
 .canvas-wrap-video {
-  aspect-ratio: 9 / 16;
+  /* The frame is a choice now, so the preview box is shaped by a variable the
+     page sets when the size changes rather than by a ratio written down here.
+     Portrait until it is told otherwise. */
+  aspect-ratio: var(--comp-aspect, 9 / 16);
   max-height: 74vh;
 }
 
@@ -2121,5 +2124,22 @@ kbd {
 
 .ai-pickcancel:hover {
   background: var(--bad);
+  color: #fff;
+}
+
+/* A bar with a still of its own picture behind the label, repeated along its
+   length like a filmstrip; the label sits on a dark pill so it stays readable
+   over whatever the picture is. */
+.tl-bar.has-still {
+  background-size: auto 100%;
+  background-repeat: repeat-x;
+  background-position: left center;
+}
+
+.tl-bar.has-still .tl-bar-text {
+  margin-left: 4px;
+  padding: 1px 7px;
+  border-radius: 5px;
+  background: rgba(5, 5, 5, 0.6);
   color: #fff;
 }

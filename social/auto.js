@@ -12,7 +12,7 @@
 // single canvas and two compositions cannot share it.
 
 import { renderSlide, toPngDataUrl, textLayerToPng, loadImage } from "./studio/render-image.js";
-import { newLayer, audioLayer, textLayer, timeTextLayers, fitLayer, COMP_W, COMP_H } from "./studio/composition.js";
+import { newLayer, audioLayer, textLayer, timeTextLayers, fitLayer, COMP_W, COMP_H, COMP_SIZE } from "./studio/composition.js";
 import { Editor } from "./studio/editor.js";
 import { freezeComposition } from "./studio/freeze.js";
 
@@ -365,6 +365,8 @@ async function buildVideo(plan) {
     body: JSON.stringify({
       id: plan.hook || plan.conceptId || "autopilot",
       duration: editor.comp.duration,
+      width: COMP_W,
+      height: COMP_H,
       layers,
       musicPath: "",
       musicVolume: 0,
@@ -375,6 +377,9 @@ async function buildVideo(plan) {
       project: {
         derivedFrom: null,
         duration: editor.comp.duration,
+        size: COMP_SIZE,
+        width: COMP_W,
+        height: COMP_H,
         layers: editor.layers.map(({ src, ...layer }) => layer),
         script: { format: "autopilot", hook: plan.hook || "", lines: (plan.lines || []).join("\n"), topic: plan.angle || "" },
         captions: { style, fontSize: 66, wordsPerCard: 6, y },

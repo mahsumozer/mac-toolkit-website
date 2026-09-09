@@ -6,7 +6,7 @@
 // server as PNGs, so the preview is the export.
 
 import { renderSlide, textLayerToPng, toPngDataUrl, loadImage, CANVAS_SIZES, TEXT_STYLES } from "./studio/render-image.js";
-import { textLayer, imageLayer, audioLayer, splitLayerAt, timeTextLayers, splitIntoCards, newLayer, uid, fitLayer, COMP_W, COMP_H } from "./studio/composition.js";
+import { textLayer, imageLayer, audioLayer, splitLayerAt, timeTextLayers, splitIntoCards, newLayer, uid, fitLayer, rescaleLayer, setCompSize, sizeFromDimensions, setLayerSpeed, DEFAULT_BACKGROUND, SIZES, COMP_W, COMP_H, COMP_SIZE } from "./studio/composition.js";
 import { Editor } from "./studio/editor.js";
 import { Timeline } from "./studio/timeline.js";
 
@@ -1062,6 +1062,30 @@ function setCompDuration(seconds) {
   editor.seek(Math.min(editor.time, duration));
 }
 
+/**
+ * Turn the frame the composition is composed in.
+ *
+ * Everything already on the canvas is carried across rather than left where it
+ * was: a layer that filled a tall frame fills the wide one, and a caption two
+ * thirds of the way down stays two thirds of the way down. Reopening a project
+ * passes `rescale: false`, because those layers were written for the frame the
+ * project was saved in and are already in the right place.
+ */
+function setCompFrame(id, { rescale = true } = {}) {
+  const fromW = COMP_W;
+  const fromH = COMP_H;
+  const size = setCompSize(id);
+  if (rescale) for (const layer of editor.layers) rescaleLayer(layer, fromW, fromH, size.w, size.h);
+  editor.resizeFrame();
+  // The preview box is shaped by a variable rather than by a fixed ratio, so
+  // the stage follows the frame and the editor page can still override it.
+  for (const wrap of $$(".canvas-wrap-video")) wrap.style.setProperty("--comp-aspect", `${size.w} / ${size.h}`);
+  const field = $("#tl-size");
+  if (field && field.value !== size.id) field.value = size.id;
+  onEditorChange();
+  return size;
+}
+
 /* --------------------------------------------------------- dropping on canvas */
 
 // Cards carry their library entry through the drag. dataTransfer only moves
@@ -1098,6 +1122,9 @@ function centredBox(item, at) {
 }
 
 function addClipToCanvas(item, at) {
+  // A clip arrives with its own sound on. It used to arrive silent, which was
+  // right for b-roll under a voiceover and wrong for everything an editor is
+  // used for; the slider is right there for the b-roll case.
   const layer = editor.addLayer(
     newLayer({
       type: "video",
@@ -1105,7 +1132,7 @@ function addClipToCanvas(item, at) {
       path: item.path,
       src: fileUrl(item),
       end: editor.comp.duration,
-      volume: 0,
+      volume: 1,
       ...clipPlacement(item, at),
     }),
   );
@@ -1264,6 +1291,81 @@ function duplicateSelected() {
   toast("Duplicated");
 }
 
+// The clip's sound on a track of its own — trimmed, timed and levelled exactly
+// as the picture was — and the picture muted, so the two can be moved apart.
+function detachAudio() {
+  const layer = editor.selected;
+  if (!layer || layer.type !== "video") return toast("Select a clip first");
+  if (!(Number(layer.volume) > 0)) return toast("That clip is already silent");
+  const sound = audioLayer(
+    { name: `${layer.name} · sound`, path: layer.path, src: layer.src, duration: layer.sourceDuration || 0 },
+    { start: layer.start, end: layer.end, trim: layer.trim || 0, volume: layer.volume, speed: Number(layer.speed) || 1, fadeIn: layer.fadeIn || 0, fadeOut: layer.fadeOut || 0 },
+  );
+  editor.updateLayer(layer.id, { volume: 0 });
+  editor.addLayer(sound);
+  toast("Sound is on its own track — the clip is muted");
+}
+
+/* ------------------------------------------------------------------- undoStack */
+
+// Undo is a stack of whole compositions. Every change the editor reports is
+// compared to the last one kept, a quarter-second after it stops — so a drag
+// is one step, not three hundred — and put on the stack if anything differs.
+// (`undoStack`, not `history` — that name is the browser's, and showTab uses it.)
+const undoStack = { past: [], future: [], last: null, timer: 0, applying: false, limit: 100 };
+
+function snapshotComposition() {
+  return JSON.stringify({ duration: editor.comp.duration, background: editor.comp.background || DEFAULT_BACKGROUND, layers: editor.layers });
+}
+
+function recordHistory() {
+  if (undoStack.applying) return;
+  clearTimeout(undoStack.timer);
+  undoStack.timer = setTimeout(() => {
+    const now = snapshotComposition();
+    if (now === undoStack.last) return;
+    if (undoStack.last !== null) {
+      undoStack.past.push(undoStack.last);
+      if (undoStack.past.length > undoStack.limit) undoStack.past.shift();
+      undoStack.future = [];
+    }
+    undoStack.last = now;
+  }, 250);
+}
+
+function restoreComposition(json) {
+  undoStack.applying = true;
+  clearTimeout(undoStack.timer);
+  const data = JSON.parse(json);
+  const time = editor.time;
+  const selected = editor.selectedId;
+  editor.setComposition({ duration: data.duration, background: data.background, layers: data.layers });
+  editor.selectedId = data.layers.some((l) => l.id === selected) ? selected : null;
+  setCompDuration(data.duration);
+  editor.seek(Math.min(time, data.duration));
+  $("#tl-bg").value = data.background || DEFAULT_BACKGROUND;
+  undoStack.last = json;
+  undoStack.applying = false;
+}
+
+function undo() {
+  clearTimeout(undoStack.timer);
+  const now = snapshotComposition();
+  // A change still waiting on the timer is a step too: keep it, then go back.
+  if (undoStack.last !== null && now !== undoStack.last) undoStack.past.push(undoStack.last);
+  if (!undoStack.past.length) return toast("Nothing to undo");
+  undoStack.future.push(now);
+  restoreComposition(undoStack.past.pop());
+  toast("Undone");
+}
+
+function redo() {
+  if (!undoStack.future.length) return toast("Nothing to redo");
+  undoStack.past.push(snapshotComposition());
+  restoreComposition(undoStack.future.pop());
+  toast("Redone");
+}
+
 // Text added from the timeline starts at the playhead and runs for a readable
 // beat, so "how long is this on screen" is a bar to drag rather than a number to
 // guess at.
@@ -1339,6 +1441,16 @@ function syncInspector() {
   $("#insp-clip-row").hidden = isText;
   $("#insp-h-field").hidden = isText;
   $("#insp-trim-field").hidden = layer.type !== "video";
+  $("#insp-speed-field").hidden = layer.type !== "video";
+  $("#insp-flip-field").hidden = isText;
+  $("#insp-colour").hidden = isText;
+  // A clip with no audio track gets no volume control to turn up in vain —
+  // most screen recordings are like that, and a live slider on one reads as
+  // "the sound is broken" rather than "there is none".
+  const source = layer.type === "video" ? libraryItemByPath(layer.path) : null;
+  const silent = Boolean(source && source.audio === false);
+  $("#insp-volume").disabled = silent;
+  $("#insp-detach").hidden = layer.type !== "video" || silent;
 
   const set = (sel, value) => {
     const el = $(sel);
@@ -1358,11 +1470,34 @@ function syncInspector() {
   set("#insp-volume", layer.volume || 0);
   set("#insp-start", layer.start || 0);
   set("#insp-end", layer.end || 0);
+  // The time sliders span the composition, whatever length it has grown to.
+  for (const sel of ["#insp-start", "#insp-end"]) $(sel).max = String(Math.max(editor.comp.duration, 1));
   set("#insp-trim", layer.trim || 0);
+  set("#insp-speed", layer.speed || 1);
+  set("#insp-opacity", layer.opacity ?? 1);
+  set("#insp-fadein", layer.fadeIn || 0);
+  set("#insp-fadeout", layer.fadeOut || 0);
+  set("#insp-rotate", layer.rotate || 0);
+  set("#insp-brightness", layer.brightness ?? 1);
+  set("#insp-contrast", layer.contrast ?? 1);
+  set("#insp-saturation", layer.saturation ?? 1);
+  set("#insp-hue", layer.hue || 0);
+  $("#insp-flip-h").setAttribute("aria-pressed", String(Boolean(layer.flipH)));
+  $("#insp-flip-v").setAttribute("aria-pressed", String(Boolean(layer.flipV)));
+
+  $("#insp-speed-out").textContent = `${Number(layer.speed || 1).toFixed(2)}×`;
+  $("#insp-opacity-out").textContent = `${Math.round((layer.opacity ?? 1) * 100)}%`;
+  $("#insp-fadein-out").textContent = `${Number(layer.fadeIn || 0).toFixed(1)}s`;
+  $("#insp-fadeout-out").textContent = `${Number(layer.fadeOut || 0).toFixed(1)}s`;
+  $("#insp-rotate-out").textContent = `${Math.round(layer.rotate || 0)}°`;
+  $("#insp-brightness-out").textContent = Number(layer.brightness ?? 1).toFixed(2);
+  $("#insp-contrast-out").textContent = Number(layer.contrast ?? 1).toFixed(2);
+  $("#insp-saturation-out").textContent = Number(layer.saturation ?? 1).toFixed(2);
+  $("#insp-hue-out").textContent = `${Math.round(layer.hue || 0)}°`;
 
   $("#insp-fontsize-out").textContent = String(Math.round(layer.fontSize || 68));
   $("#insp-blur-out").textContent = String(Math.round(layer.blur || 0));
-  $("#insp-volume-out").textContent = Number(layer.volume || 0).toFixed(2);
+  $("#insp-volume-out").textContent = silent ? "no sound in this clip" : Number(layer.volume || 0).toFixed(2);
   $("#insp-start-out").textContent = `${Number(layer.start || 0).toFixed(1)}s`;
   $("#insp-end-out").textContent = `${Number(layer.end || 0).toFixed(1)}s`;
   $("#insp-trim-out").textContent = `${Math.round(layer.trim || 0)}s`;
@@ -1389,6 +1524,39 @@ function wireInspector() {
   apply("#insp-start", "start");
   apply("#insp-end", "end");
   apply("#insp-trim", "trim");
+  apply("#insp-opacity", "opacity");
+  apply("#insp-fadein", "fadeIn");
+  apply("#insp-fadeout", "fadeOut");
+  apply("#insp-rotate", "rotate");
+  apply("#insp-brightness", "brightness");
+  apply("#insp-contrast", "contrast");
+  apply("#insp-saturation", "saturation");
+  apply("#insp-hue", "hue");
+
+  // Speed changes the clip's length on the timeline along with its pace, so it
+  // goes through the helper that moves the end rather than through apply().
+  $("#insp-speed").addEventListener("input", () => {
+    const layer = editor.selected;
+    if (!layer || layer.type !== "video") return;
+    setLayerSpeed(layer, $("#insp-speed").value);
+    // Slowed past the end of the composition, the clip takes the composition
+    // with it — the way every editor's timeline follows its longest layer.
+    if (layer.end > editor.comp.duration) setCompDuration(Math.min(Math.ceil(layer.end), 300));
+    if (layer.end > editor.comp.duration) layer.end = editor.comp.duration;
+    editor.updateLayer(layer.id, {});
+  });
+
+  const tweak = (fn) => {
+    const layer = editor.selected;
+    if (!layer) return;
+    editor.updateLayer(layer.id, fn(layer));
+  };
+  $("#insp-rotate-90").addEventListener("click", () => tweak((l) => ({ rotate: (((Math.round(l.rotate || 0) + 90 + 180) % 360) + 360) % 360 - 180 })));
+  $("#insp-flip-h").addEventListener("click", () => tweak((l) => ({ flipH: !l.flipH })));
+  $("#insp-flip-v").addEventListener("click", () => tweak((l) => ({ flipV: !l.flipV })));
+  $("#insp-bw").addEventListener("click", () => tweak(() => ({ saturation: 0 })));
+  $("#insp-colour-reset").addEventListener("click", () => tweak(() => ({ brightness: 1, contrast: 1, saturation: 1, hue: 0 })));
+  $("#insp-detach").addEventListener("click", detachAudio);
 
   // Geometry that is fiddly to drag by hand and exact when clicked.
   const geometry = (props) => {
@@ -1428,6 +1596,7 @@ function showStage(mode) {
 }
 
 function onEditorChange() {
+  recordHistory();
   // The "drag a clip here" prompt is only right while the canvas is genuinely
   // empty; a composition of nothing but captions still needs it.
   const empty = !editor.layers.some((l) => l.type === "video" || l.type === "image");
@@ -1748,6 +1917,12 @@ function currentProject() {
   return {
     derivedFrom: state.video.derivedFrom || null,
     duration: editor.comp.duration,
+    size: COMP_SIZE,
+    width: COMP_W,
+    height: COMP_H,
+    background: editor.comp.background || DEFAULT_BACKGROUND,
+    fps: Number($("#vid-fps").value) || 30,
+    quality: $("#vid-quality").value || "good",
     layers: editor.layers.map(({ src, ...layer }) => layer),
     script: {
       format: currentVideoFormat().id,
@@ -1775,8 +1950,15 @@ function applyProject(project, sourceLabel) {
   const layers = (project.layers || []).map((layer) =>
     layer.path ? { ...layer, src: `${API}/file?p=${encodeURIComponent(layer.path)}` } : { ...layer },
   );
-  editor.setComposition({ duration: project.duration || 20, layers });
+  // The frame comes back before the layers go in: their geometry was written
+  // for it, so moving it afterwards would move them twice. Projects saved
+  // before there was a choice have neither field and open portrait.
+  setCompFrame((SIZES[project.size] || sizeFromDimensions(project.width, project.height)).id, { rescale: false });
+  editor.setComposition({ duration: project.duration || 20, background: project.background || DEFAULT_BACKGROUND, layers });
   setCompDuration(project.duration || 20);
+  $("#tl-bg").value = project.background || DEFAULT_BACKGROUND;
+  if (project.fps) $("#vid-fps").value = String(project.fps);
+  if (project.quality) $("#vid-quality").value = project.quality;
 
   const script = project.script || {};
   if (script.format) $("#vid-format").value = script.format;
@@ -1860,12 +2042,25 @@ function pollJob(jobId, onProgress) {
 // painted. Nothing downstream re-derives geometry, so the file matches the
 // preview.
 async function serializeComposition() {
+  // A clip added a moment ago may not have its metadata yet, and a layer with
+  // no known size cannot be frozen — it used to be dropped from the render
+  // with a toast, which for a one-clip composition meant a file of nothing.
+  // Give the media a moment to arrive first.
+  await editor.whenReady();
   const layers = [];
   const missing = [];
   for (const layer of editor.layers) {
     if (!layer.visible) continue;
     if (layer.type === "text") {
-      layers.push({ type: "text", start: layer.start, end: layer.end, opacity: layer.opacity ?? 1, png: await textLayerToPng(layer) });
+      layers.push({
+        type: "text",
+        start: layer.start,
+        end: layer.end,
+        opacity: layer.opacity ?? 1,
+        fadeIn: Number(layer.fadeIn) || 0,
+        fadeOut: Number(layer.fadeOut) || 0,
+        png: await textLayerToPng(layer, COMP_W, COMP_H),
+      });
       continue;
     }
     // Sound has no geometry to freeze, only a window and a level.
@@ -1877,6 +2072,9 @@ async function serializeComposition() {
         end: layer.end,
         trim: layer.trim || 0,
         volume: layer.volume ?? 1,
+        speed: Number(layer.speed) || 1,
+        fadeIn: Number(layer.fadeIn) || 0,
+        fadeOut: Number(layer.fadeOut) || 0,
       });
       continue;
     }
@@ -1897,6 +2095,19 @@ async function serializeComposition() {
       end: layer.end,
       trim: layer.trim || 0,
       volume: layer.volume || 0,
+      // The rest of the treatment, each with its twin in the render's filter
+      // chain. A still has no speed; it is always 1 here so the server never
+      // has to ask what kind of layer it is looking at.
+      speed: layer.type === "video" ? Number(layer.speed) || 1 : 1,
+      rotate: Number(layer.rotate) || 0,
+      flipH: Boolean(layer.flipH),
+      flipV: Boolean(layer.flipV),
+      fadeIn: Number(layer.fadeIn) || 0,
+      fadeOut: Number(layer.fadeOut) || 0,
+      brightness: Number(layer.brightness ?? 1),
+      contrast: Number(layer.contrast ?? 1),
+      saturation: Number(layer.saturation ?? 1),
+      hue: Number(layer.hue) || 0,
     });
   }
   return { layers, missing };
@@ -1925,6 +2136,11 @@ async function renderVideo() {
     const spec = {
       id: $("#vid-hook").value || currentVideoFormat().id,
       duration: editor.comp.duration,
+      width: COMP_W,
+      height: COMP_H,
+      background: editor.comp.background || DEFAULT_BACKGROUND,
+      fps: Number($("#vid-fps").value) || 30,
+      quality: $("#vid-quality").value || "good",
       layers,
       musicPath: $("#vid-music").value || "",
       musicVolume: Number($("#vid-musicvol").value),
@@ -2030,12 +2246,30 @@ function wireVideoTab() {
     if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
     const step = e.shiftKey ? 10 : 1;
     const moves = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
-    if (e.key === " ") {
+    const cmd = e.metaKey || e.ctrlKey;
+    if (cmd && (e.key === "z" || e.key === "Z")) {
+      e.shiftKey ? redo() : undo();
+      e.preventDefault();
+    } else if (cmd && (e.key === "y" || e.key === "Y")) {
+      redo();
+      e.preventDefault();
+    } else if (cmd && (e.key === "d" || e.key === "D")) {
+      duplicateSelected();
+      e.preventDefault();
+    } else if (e.key === " ") {
       if (tag === "BUTTON") return;
       editor.toggle();
       e.preventDefault();
     } else if (e.key === "s" || e.key === "S") {
       splitSelected();
+      e.preventDefault();
+    } else if (e.key === "," || e.key === ".") {
+      // One frame either way, for landing a cut on the exact picture.
+      editor.pause();
+      editor.seek(editor.time + (e.key === "," ? -1 : 1) / 30);
+      e.preventDefault();
+    } else if (e.key === "Home" || e.key === "End") {
+      editor.seek(e.key === "Home" ? 0 : editor.comp.duration);
       e.preventDefault();
     } else if (moves[e.key] && editor.nudge(...moves[e.key])) e.preventDefault();
     else if (e.key === "Backspace" || e.key === "Delete") {
@@ -2088,6 +2322,15 @@ function wireVideoTab() {
 
   $("#vid-dur").addEventListener("input", (event) => setCompDuration(event.target.value));
   $("#tl-duration").addEventListener("change", (event) => setCompDuration(event.target.value));
+  $("#tl-size").addEventListener("change", (event) => {
+    const size = setCompFrame(event.target.value);
+    toast(`${size.label} — ${size.w}×${size.h}`);
+  });
+  $("#tl-bg").addEventListener("input", (event) => {
+    editor.comp.background = event.target.value;
+    editor.draw();
+    onEditorChange();
+  });
   setCompDuration(Number($("#vid-dur").value) || 20);
 
   // Images are filed with the photos, clips and music with the videos, so one
@@ -2096,9 +2339,22 @@ function wireVideoTab() {
     $("#video-drop"),
     $("#video-input"),
     (file) => (file.type.startsWith("image/") ? "photos" : file.type.startsWith("audio/") ? "music" : "videos"),
-    // The stills shelf is built from the library, so it has to be redrawn once
-    // an upload lands or a dropped image is invisible until the next reload.
-    () => renderPhotoGrid(),
+    // A file you just added is a file you want on the canvas: clips and stills
+    // go straight on, music is picked as the bed. The shelves have already
+    // been redrawn by loadLibrary().
+    (landed) => {
+      for (const file of landed || []) {
+        const shelf = file.dir === "photos" ? state.library.photos : file.dir === "music" ? state.library.music : state.library.videos;
+        const item = (shelf || []).find((i) => i.path === file.path) || (shelf || []).find((i) => i.name === file.name);
+        if (!item) continue;
+        if (file.dir === "videos") addClipToCanvas(item);
+        else if (file.dir === "photos") addImageLayer(item);
+        else {
+          $("#vid-music").value = item.path;
+          toast(`${item.name} is the music bed — set its level under Audio`);
+        }
+      }
+    },
   );
 
   const holdOut = () => {
@@ -2122,7 +2378,7 @@ const AI_QUESTIONS = [
   {
     id: "kind",
     ask: "What are we making?",
-    note: "A video is 1080×1920 with burnt-in captions. A carousel is 4:5 cards you swipe through.",
+    note: "A video is a 9:16, 16:9 or 1:1 frame with burnt-in captions — the size is on the timeline. A carousel is 4:5 cards you swipe through.",
     options: [
       { label: "A video", value: "video" },
       { label: "An image carousel", value: "image" },
@@ -2438,20 +2694,34 @@ function libraryItemByPath(path) {
   return all.find((item) => item.path === path) || null;
 }
 
-// The four layouts the presets used to build, as plain geometry.
-const AI_LAYOUTS = {
-  split: { app: { x: 0, y: 0, w: COMP_W, h: 960, fit: "cover" }, bg: { x: 0, y: 960, w: COMP_W, h: 960, fit: "cover" } },
-  pip: { bg: { x: 0, y: 0, w: COMP_W, h: COMP_H, fit: "cover" }, app: { x: 80, y: 620, w: 920, h: 560, fit: "contain" } },
-  screen: { bg: { x: 0, y: 0, w: COMP_W, h: COMP_H, fit: "cover", blur: 40 }, app: { x: 0, y: 400, w: COMP_W, h: 1120, fit: "contain" } },
-  stack: { bg: { x: 0, y: 0, w: COMP_W, h: 640, fit: "cover" }, app: { x: 0, y: 640, w: COMP_W, h: 1280, fit: "cover" } },
-};
+// The four layouts the presets used to build, as plain geometry — worked out
+// when they are asked for rather than written down once, because the frame they
+// are geometry *in* is now something the user can turn.
+function aiLayouts() {
+  const w = COMP_W;
+  const h = COMP_H;
+  const part = (fx, fy, fw, fh, extra = {}) => ({
+    x: Math.round(w * fx),
+    y: Math.round(h * fy),
+    w: Math.round(w * fw),
+    h: Math.round(h * fh),
+    ...extra,
+  });
+  return {
+    split: { app: part(0, 0, 1, 0.5, { fit: "cover" }), bg: part(0, 0.5, 1, 0.5, { fit: "cover" }) },
+    pip: { bg: part(0, 0, 1, 1, { fit: "cover" }), app: part(0.074, 0.323, 0.852, 0.292, { fit: "contain" }) },
+    screen: { bg: part(0, 0, 1, 1, { fit: "cover", blur: 40 }), app: part(0, 0.208, 1, 0.583, { fit: "contain" }) },
+    stack: { bg: part(0, 0, 1, 0.333, { fit: "cover" }), app: part(0, 0.333, 1, 0.667, { fit: "cover" }) },
+  };
+}
 
 async function aiBuildVideo(plan) {
   const duration = Math.max(4, Math.min(Number(plan.duration) || 20, 120));
   editor.setComposition({ duration, layers: [] });
   setCompDuration(duration);
 
-  const layout = AI_LAYOUTS[plan.layout] || AI_LAYOUTS.split;
+  const layouts = aiLayouts();
+  const layout = layouts[plan.layout] || layouts.split;
   const place = (path, box, extra = {}) => {
     const item = libraryItemByPath(path);
     if (!item) {
@@ -2477,7 +2747,7 @@ async function aiBuildVideo(plan) {
 
   // With nothing behind it, a split or a picture-in-picture is half a frame of
   // black; the recording should just fill what there is.
-  const shape = backgroundPath ? layout : AI_LAYOUTS.screen;
+  const shape = backgroundPath ? layout : layouts.screen;
 
   // Background first so it sits underneath, whatever the layout.
   if (backgroundPath) place(backgroundPath, shape.bg, { volume: 0.25 });
@@ -2855,19 +3125,33 @@ function wireTabs() {
 
 function wireDropZone(zone, input, dir, done) {
   const upload = async (files) => {
+    // What actually landed, by the name the server filed it under, so the
+    // caller can find each one in the freshly loaded library.
+    const landed = [];
     for (const file of files) {
       try {
         const target = typeof dir === "function" ? dir(file) : dir;
-        await fetch(`${API}/upload?dir=${target}&name=${encodeURIComponent(file.name)}`, { method: "POST", body: file });
+        const res = await fetch(`${API}/upload?dir=${target}&name=${encodeURIComponent(file.name)}`, { method: "POST", body: file });
+        if (!res.ok) throw new Error(`${res.status} ${(await res.text()).slice(0, 120)}`);
+        const saved = await res.json();
+        landed.push({ name: saved.name || file.name, path: saved.path, dir: target });
       } catch (error) {
         toast(`Upload failed: ${error.message}`);
       }
     }
-    toast(`Added ${files.length} file${files.length === 1 ? "" : "s"}`);
+    if (!landed.length) return;
+    toast(`Added ${landed.length} file${landed.length === 1 ? "" : "s"}`);
     await loadLibrary();
-    done();
+    done(landed);
+    document.dispatchEvent(new CustomEvent("studio:uploaded", { detail: landed }));
   };
-  zone.addEventListener("click", () => input.click());
+  // The zone is a <label> around the input, which opens the picker by itself;
+  // opening it from here too asked for the file twice.
+  zone.addEventListener("click", (event) => {
+    if (event.target === input) return;
+    event.preventDefault();
+    input.click();
+  });
   input.addEventListener("change", () => upload(Array.from(input.files)));
   zone.addEventListener("dragover", (e) => {
     e.preventDefault();

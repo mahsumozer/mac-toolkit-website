@@ -7,7 +7,7 @@
 // The clips arrive already cut, so each one is a layer that starts where the last
 // finished. There is no trimming here: the file *is* the word.
 
-import { newLayer, audioLayer, textLayer, COMP_W, COMP_H } from "./studio/composition.js";
+import { newLayer, audioLayer, textLayer, setCompSize, SIZES, COMP_W, COMP_H, COMP_SIZE } from "./studio/composition.js";
 import { Editor } from "./studio/editor.js";
 import { freezeComposition } from "./studio/freeze.js";
 
@@ -268,6 +268,7 @@ function currentSettings() {
     videoCount: $("#cut-count").value,
     lang: $("#cut-lang").value,
     cutCost: $("#cut-feel").value,
+    size: $("#cut-size").value,
     captions: $("#cut-captions").checked,
     speak: $("#cut-speak").checked,
     chunks: split.script === $("#cut-script").value.trim() && split.sizes.length ? chunksFromSizes() : undefined,
@@ -302,6 +303,7 @@ function applySettings(entry) {
   if (entry.videoCount) $("#cut-count").value = entry.videoCount;
   if (entry.lang) $("#cut-lang").value = entry.lang;
   if (entry.cutCost) $("#cut-feel").value = entry.cutCost;
+  if (entry.size && SIZES[entry.size]) $("#cut-size").value = entry.size;
   $("#cut-captions").checked = entry.captions !== false;
   $("#cut-speak").checked = Boolean(entry.speak);
   // The phrases come back with the line, so an old prompt returns exactly as it
@@ -441,6 +443,11 @@ async function speak(text) {
 
 async function buildComposition(result) {
   const editor = state.editor;
+  // The frame is chosen per run rather than per page: the clips come from
+  // YouTube, which is wide, so a supercut is one of the few things here that is
+  // often better off not being a phone video.
+  setCompSize($("#cut-size").value);
+  editor.resizeFrame();
   const withCaptions = $("#cut-captions").checked;
   const speakGaps = $("#cut-speak").checked;
   const layers = [];
@@ -570,6 +577,8 @@ async function renderCut() {
       body: JSON.stringify({
         id: `supercut-${state.result.script.slice(0, 40)}`,
         duration: state.editor.comp.duration,
+        width: COMP_W,
+        height: COMP_H,
         layers,
         musicPath: "",
         musicVolume: 0,
@@ -578,6 +587,9 @@ async function renderCut() {
         project: {
           derivedFrom: null,
           duration: state.editor.comp.duration,
+          size: COMP_SIZE,
+          width: COMP_W,
+          height: COMP_H,
           layers: state.editor.layers.map(({ src, ...layer }) => layer),
           script: { format: "supercut", hook: state.result.script, lines: "", topic: state.result.topic },
           captions: { style: "sticker-white", fontSize: 76, wordsPerCard: 6, y: 0.74 },
@@ -680,6 +692,56 @@ async function suggestTopic() {
   } finally {
     button.disabled = false;
     button.textContent = "Suggest";
+  }
+}
+
+/* ------------------------------------------------------------------- site */
+
+// The line can also be taken off the product's own page: the server reads it
+// into the same fact sheet Autopilot builds, then writes a line out of words
+// strangers actually say — a line full of brand names can never be found.
+// Pressing the button again offers the next of the three rather than reading
+// the site twice.
+const written = { url: "", list: [], at: 0 };
+
+function setScript(line) {
+  $("#cut-script").value = line;
+  // The value was set, not typed, so nothing fired: the split has to be asked
+  // for or the pills would still describe the previous line.
+  requestSplit(true);
+}
+
+async function writeLine() {
+  const typed = $("#cut-site").value.trim();
+  if (!typed) return toast("Paste your site's address first");
+  const url = /^https?:\/\//i.test(typed) ? typed : `https://${typed}`;
+  const button = $("#cut-site-write");
+
+  if (written.url === url && written.list.length > 1) {
+    written.at = (written.at + 1) % written.list.length;
+    setScript(written.list[written.at]);
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = "Reading…";
+  try {
+    const answer = await api("/supercut/line", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+    written.url = url;
+    written.list = answer.lines || [];
+    written.at = 0;
+    if (!written.list.length) return toast("Nothing to say came out of that page — write the line");
+    setScript(written.list[0]);
+    if (written.list.length > 1) toast(`${answer.brand}: ${written.list.length} lines — press again for the next`);
+  } catch (error) {
+    toast(`Could not write a line from the site: ${error.message}`);
+  } finally {
+    button.disabled = false;
+    button.textContent = "AI Create";
   }
 }
 
@@ -922,6 +984,7 @@ async function init() {
   $("#cut-render").addEventListener("click", renderCut);
   $("#cut-again").addEventListener("click", anotherTake);
   $("#cut-topic-suggest").addEventListener("click", suggestTopic);
+  $("#cut-site-write").addEventListener("click", writeLine);
   $("#cut-topic").focus();
 
   // The same seam Autopilot leaves: a result can be re-laid-out from the console.

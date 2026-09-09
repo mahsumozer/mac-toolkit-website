@@ -484,6 +484,67 @@
                       <input id="insp-trim" type="range" min="0" max="300" step="1" />
                     </label>
                   </div>
+                  <div class="field-row">
+                    <label class="field" id="insp-speed-field">
+                      <span>Speed <output id="insp-speed-out"></output></span>
+                      <input id="insp-speed" type="range" min="0.25" max="4" step="0.05" />
+                    </label>
+                    <label class="field">
+                      <span>Opacity <output id="insp-opacity-out"></output></span>
+                      <input id="insp-opacity" type="range" min="0" max="1" step="0.05" />
+                    </label>
+                  </div>
+                  <div class="field-row">
+                    <label class="field">
+                      <span>Fade in <output id="insp-fadein-out"></output></span>
+                      <input id="insp-fadein" type="range" min="0" max="3" step="0.1" />
+                    </label>
+                    <label class="field">
+                      <span>Fade out <output id="insp-fadeout-out"></output></span>
+                      <input id="insp-fadeout" type="range" min="0" max="3" step="0.1" />
+                    </label>
+                  </div>
+                  <div class="field-row">
+                    <label class="field">
+                      <span>Rotate <output id="insp-rotate-out"></output></span>
+                      <input id="insp-rotate" type="range" min="-180" max="180" step="1" />
+                    </label>
+                    <div class="field" id="insp-flip-field">
+                      <span>Turn &amp; mirror</span>
+                      <div class="btn-row insp-mini">
+                        <button class="button button-ghost button-small" id="insp-rotate-90" type="button" title="Turn a quarter clockwise">90°</button>
+                        <button class="button button-ghost button-small" id="insp-flip-h" type="button" aria-pressed="false" title="Mirror left to right">↔</button>
+                        <button class="button button-ghost button-small" id="insp-flip-v" type="button" aria-pressed="false" title="Mirror top to bottom">↕</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div id="insp-colour">
+                    <div class="field-row">
+                      <label class="field">
+                        <span>Brightness <output id="insp-brightness-out"></output></span>
+                        <input id="insp-brightness" type="range" min="0.2" max="2" step="0.05" />
+                      </label>
+                      <label class="field">
+                        <span>Contrast <output id="insp-contrast-out"></output></span>
+                        <input id="insp-contrast" type="range" min="0.2" max="2" step="0.05" />
+                      </label>
+                    </div>
+                    <div class="field-row">
+                      <label class="field">
+                        <span>Saturation <output id="insp-saturation-out"></output></span>
+                        <input id="insp-saturation" type="range" min="0" max="2" step="0.05" />
+                      </label>
+                      <label class="field">
+                        <span>Hue <output id="insp-hue-out"></output></span>
+                        <input id="insp-hue" type="range" min="-180" max="180" step="1" />
+                      </label>
+                    </div>
+                    <div class="btn-row">
+                      <button class="button button-ghost button-small" id="insp-bw" type="button">Black &amp; white</button>
+                      <button class="button button-ghost button-small" id="insp-colour-reset" type="button">Reset colour</button>
+                      <button class="button button-ghost button-small" id="insp-detach" type="button" title="Put this clip's sound on its own track and mute the picture">Detach audio</button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </details>
@@ -549,6 +610,24 @@
                   <span>Hashtags</span>
                   <input id="vid-hashtags" type="text" placeholder="macos macapps productivity" />
                 </label>
+                <div class="field-row">
+                  <label class="field">
+                    <span>Frame rate</span>
+                    <select id="vid-fps">
+                      <option value="24">24 fps</option>
+                      <option value="30" selected>30 fps</option>
+                      <option value="60">60 fps</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span>Quality</span>
+                    <select id="vid-quality">
+                      <option value="best">Best · bigger file</option>
+                      <option value="good" selected>Good</option>
+                      <option value="small">Small file</option>
+                    </select>
+                  </label>
+                </div>
                 <div class="btn-row">
                   <button class="button button-accent button-small" id="vid-render" type="button">Render video</button>
                   <label class="button button-ghost button-small" for="vid-open-input">Open a project…</label>
@@ -590,8 +669,8 @@
             </div>
             <p class="field-hint">
               Drag a layer to move it, drag any orange corner to resize, arrow keys to
-              nudge (shift for 10px), Delete to remove. The preview is silent — audio is
-              mixed at render.
+              nudge (shift for 10px), Delete to remove. Clips and voice play at their
+              own level; music is mixed at render.
             </p>
           </div>
         </div>
@@ -610,6 +689,18 @@
             <label class="tl-field">
               <span>Length</span>
               <input id="tl-duration" type="number" min="2" max="300" step="1" />
+            </label>
+            <label class="tl-field">
+              <span>Size</span>
+              <select id="tl-size">
+                <option value="portrait">9:16</option>
+                <option value="landscape">16:9</option>
+                <option value="square">1:1</option>
+              </select>
+            </label>
+            <label class="tl-field">
+              <span>Backdrop</span>
+              <input id="tl-bg" type="color" value="#000000" title="The colour under every layer" />
             </label>
             <label class="tl-field tl-field-zoom">
               <span>Zoom</span>

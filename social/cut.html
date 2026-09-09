@@ -74,6 +74,13 @@
             </div>
           </label>
           <label class="cut-field">
+            <span>From your site <em class="cut-field-note">it reads the page and writes the line</em></span>
+            <div class="cut-topic-row">
+              <input class="auto-url" id="cut-site" type="url" inputmode="url" placeholder="https://usemackit.com" spellcheck="false" />
+              <button class="button button-ghost button-small cut-suggest" id="cut-site-write" type="button">AI Create</button>
+            </div>
+          </label>
+          <label class="cut-field">
             <span>Say this</span>
             <textarea class="cut-script" id="cut-script" rows="3" placeholder="pomodoro timer, clipboard history, all in one menu bar app" required></textarea>
           </label>
@@ -110,6 +117,14 @@
                 <option value="de">Deutsch</option>
                 <option value="es">Español</option>
                 <option value="fr">Français</option>
+              </select>
+            </label>
+            <label class="auto-knob">
+              Frame
+              <select id="cut-size">
+                <option value="portrait" selected>9:16</option>
+                <option value="landscape">16:9</option>
+                <option value="square">1:1</option>
               </select>
             </label>
             <label class="auto-knob">

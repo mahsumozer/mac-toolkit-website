@@ -241,6 +241,26 @@ export function measureTextLayer(ctx, layer) {
 
 // A text layer as a transparent full-frame PNG, positioned exactly where the
 // editor shows it. ffmpeg overlays these at 0:0.
+/**
+ * Turn and mirror the context so `box` is drawn rotated about its own centre.
+ *
+ * One helper for the preview and for the text PNG, so a rotated caption is
+ * rotated the same way in both — and the same way ffmpeg's `rotate` turns a
+ * clip, which is also about the centre of the picture.
+ */
+export function applyLayerTransform(ctx, layer, box) {
+  const angle = Number(layer.rotate) || 0;
+  const fx = layer.flipH ? -1 : 1;
+  const fy = layer.flipV ? -1 : 1;
+  if (!angle && fx === 1 && fy === 1) return;
+  const cx = box.x + box.w / 2;
+  const cy = box.y + box.h / 2;
+  ctx.translate(cx, cy);
+  ctx.rotate((angle * Math.PI) / 180);
+  ctx.scale(fx, fy);
+  ctx.translate(-cx, -cy);
+}
+
 export async function textLayerToPng(layer, width = 1080, height = 1920) {
   await ensureFonts();
   const canvas = document.createElement("canvas");
@@ -248,6 +268,11 @@ export async function textLayerToPng(layer, width = 1080, height = 1920) {
   canvas.height = height;
   const ctx = canvas.getContext("2d");
   ctx.clearRect(0, 0, width, height);
+  // Rotation is baked into the PNG: ffmpeg overlays it at 0:0 like any other
+  // text frame and never needs to know the caption was turned.
+  ctx.save();
+  applyLayerTransform(ctx, layer, { x: layer.x, y: layer.y, w: layer.w, h: measureTextLayer(ctx, layer) });
   drawTextLayer(ctx, layer);
+  ctx.restore();
   return canvas.toDataURL("image/png");
 }
