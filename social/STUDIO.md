@@ -438,13 +438,14 @@ this rarely has to fire; a Turkish run leans on it.
 
 ### What one run is allowed to do
 
-A run has a budget: **100 videos read**, shared by the first pool, the top-ups
+A run has a budget: **200 videos read**, shared by the first pool, the top-ups
 and the hunt. Without it a stubborn word — one the search shapes keep not
 finding — pulls two hundred uploads through the caption fetcher and the run stops
 being minutes.
 
-When the budget runs out with words still missing the run does not end: it stops
-and **asks**, in the feed rather than in a dialog, because the alternative is a
+At about a second a read that is roughly three minutes of searching before it has
+to come back to you. When the budget runs out with words still missing the run
+does not end: it stops and **asks**, in the feed rather than in a dialog, because the alternative is a
 hole in the finished video and nothing the person can do about it. The answer is
 **+50**, **+100**, **+200** more videos, or *cut what you have*. Granting more
 does not merely carry on with the same searches — those would return the same
