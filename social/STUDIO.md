@@ -458,9 +458,13 @@ each time and stopping when nothing is missing or nothing new can be found. That
 someone saying *pomodoro*: on the verified run it found it in "Best Pomodoro
 Timer Apps EVER!" at 4:48.
 
-What is still missing after the hunt is never dropped. It stays in the script as a
-gap, shown in the strip in red, and is either typed on screen or spoken by the
-studio's own voice, depending on the switch.
+What is still missing after the hunt is never dropped. It stays in the script as
+a gap, shown in the strip in red — and a gap is no longer a black frame. Each one
+gets a **picture**: a two-and-a-half second slice of a video that came up while
+hunting that very word, so it is at least about the right thing, cut from a
+moment where somebody is talking (the transcript says where). It goes on muted —
+someone else's sentence under our own word is two voices at once — with the words
+on screen and, with the switch on, the studio's voice saying them.
 
 ### History
 

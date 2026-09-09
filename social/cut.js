@@ -472,9 +472,10 @@ async function buildComposition(result) {
       continue;
     }
 
-    // A word nobody said. Either it is spoken by the studio's own voice over a
-    // held frame, or it is simply typed — but it is never dropped, because the
-    // script is the thing being made.
+    // A word nobody said. It is never dropped — the script is the thing being
+    // made — so it gets the studio's own voice saying it, and a picture from a
+    // video about that word to say it over. A black frame for a second and a
+    // half is what this used to be.
     let span = 0.8;
     if (speakGaps) {
       try {
@@ -484,6 +485,26 @@ async function buildComposition(result) {
       } catch (error) {
         log(`could not speak "${segment.text}": ${error.message}`, "is-error");
       }
+    }
+    if (segment.filler && segment.filler.path) {
+      layers.push(
+        newLayer({
+          type: "video",
+          name: `${segment.text} (filler)`,
+          path: segment.filler.path,
+          src: fileUrl(segment.filler.path),
+          x: 0,
+          y: 0,
+          w: COMP_W,
+          h: COMP_H,
+          fit: "cover",
+          start: Number(at.toFixed(3)),
+          end: Number((at + span).toFixed(3)),
+          // Muted: someone else's sentence under our own word is two voices at
+          // once.
+          volume: 0,
+        }),
+      );
     }
     captions.push({ text: segment.text, start: at, end: at + span, gap: true });
     at += span;
@@ -733,7 +754,15 @@ async function run(event) {
     state.seed = result.seed || null;
     recordOutcome(historyId, `${result.stats.found}/${result.stats.words} words, ${result.stats.clips} clips`, result.seed);
     renderStrip(result.segments);
-    if (result.missing.length) log(`nobody says: ${result.missing.join(", ")} — ${$("#cut-speak").checked ? "spoken by the studio instead" : "shown as type"}`, "is-error");
+    if (result.missing.length) {
+      const how = [
+        result.fillers ? `${result.fillers} shown over a related clip` : null,
+        $("#cut-speak").checked ? "spoken by the studio" : "shown as type",
+      ]
+        .filter(Boolean)
+        .join(", ");
+      log(`nobody says: ${result.missing.join(", ")} — ${how}`, "is-error");
+    }
 
     phase("Laying it out");
     const duration = await buildComposition(result);

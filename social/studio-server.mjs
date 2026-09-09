@@ -1768,10 +1768,13 @@ async function runSupercut(payload, job) {
 
   job.stage = "Finding videos";
   const pool = new Map();
-  const gather = async (query, limit, onTopic = true) => {
+  // `foundFor` is what makes a filler possible later: a video pulled in while
+  // hunting "pomodoro" is about pomodoro even if nobody in it says the word, so
+  // it is the right picture to put the word over.
+  const gather = async (query, limit, onTopic = true, foundFor = "") => {
     const results = await searchYouTube(query, { limit, sort: "views", maxDuration: 2400 }).catch(() => []);
     for (const result of results) {
-      if (!pool.has(result.id)) pool.set(result.id, { url: result.url, title: result.title, channel: result.channel, onTopic });
+      if (!pool.has(result.id)) pool.set(result.id, { url: result.url, title: result.title, channel: result.channel, onTopic, foundFor });
     }
     return results.length;
   };
@@ -1895,7 +1898,7 @@ async function runSupercut(payload, job) {
       const plain = at >= 0 ? tokens[at].norm : normalise(word);
       const neighbour = at >= 0 && tokens[at + 1] ? tokens[at + 1].norm : "";
       const before = pool.size;
-      await gather(SHAPES[round](plain, neighbour), depth, false);
+      await gather(SHAPES[round](plain, neighbour), depth, false, plain);
       if (pool.size === before) continue;
       const fresh = [...pool.values()].filter((video) => !sources.some((source) => source.video.url === video.url));
       if (!fresh.length) continue;
@@ -1951,6 +1954,37 @@ async function runSupercut(payload, job) {
     for (const swap of cut.said || []) say(`“${swap.wrote}” is said as “${swap.said}” — taken whole rather than stitched`);
   }
 
+  // A word nobody says is still in the script, and a black frame is not an
+  // answer. So each remaining gap gets a picture — a slice of a video that came
+  // up while hunting that very word, so it is at least about the right thing —
+  // and the page speaks the words over it.
+  const gaps = cut.segments.filter((segment) => segment.kind === "gap");
+  if (gaps.length) {
+    job.stage = "Finding something to show";
+    for (const gap of gaps.slice(0, 4)) {
+      const wanted = tokenize(gap.text).map((token) => token.norm);
+      const source =
+        sources.find((item) => wanted.includes(item.video.foundFor)) ||
+        sources.find((item) => item.video.onTopic !== false) ||
+        sources[0];
+      if (!source) continue;
+      // A moment with speech in it: a title card or a silent intro makes a poor
+      // bed for a voice, and the transcript says exactly where the talking is.
+      const middle = source.words[Math.floor(source.words.length * 0.45)];
+      const start = Math.max(1, Number((middle ? middle.t : 30).toFixed(2)));
+      try {
+        gap.filler = {
+          path: await cutSection({ url: source.video.url, title: source.video.title, text: `filler-${wanted[0] || "gap"}`, start, end: Number((start + 2.6).toFixed(2)) }, job),
+          title: source.video.title,
+          url: source.video.url,
+        };
+        say(`“${gap.text}” has nobody saying it — putting it over ${String(source.video.title).slice(0, 40)}`);
+      } catch (error) {
+        say(`could not fetch a picture for “${gap.text}” (${String(error.message).split("\n")[0].slice(0, 60)})`, { role: "tool-error" });
+      }
+    }
+  }
+
   job.stage = "Cutting";
   const clips = cut.segments.filter((segment) => segment.kind === "clip");
   let done = 0;
@@ -1988,6 +2022,7 @@ async function runSupercut(payload, job) {
     said: cut.said || [],
     broken: cut.broken || [],
     segments: cut.segments.filter((segment) => segment.kind !== "clip" || segment.path),
+    fillers: gaps.filter((gap) => gap.filler).length,
     missing: cut.missing,
     stats: cut.stats,
   };
