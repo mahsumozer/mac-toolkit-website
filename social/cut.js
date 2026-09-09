@@ -321,6 +321,26 @@ function applySettings(entry) {
 
 const FEEL_LABEL = { "2.2": "long takes", "1": "balanced", "0.6": "chopped" };
 
+const DRAWER_KEY = "supercut.historyOpen";
+
+const drawerWasOpen = () => {
+  try {
+    return localStorage.getItem(DRAWER_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+
+function setDrawer(open) {
+  $("#cut-history").classList.toggle("is-open", open);
+  document.body.classList.toggle("drawer-open", open);
+  $("#cut-history-toggle").textContent = open ? "Hide history" : "History";
+  try {
+    localStorage.setItem(DRAWER_KEY, open ? "1" : "0");
+  } catch {}
+  if (open) renderHistory();
+}
+
 function renderHistory() {
   const list = loadHistory();
   const wrap = $("#cut-history-list");
@@ -684,10 +704,14 @@ async function init() {
   }, 120);
 
   renderHistory();
-  $("#cut-history-toggle").addEventListener("click", () => {
-    const panel = $("#cut-history");
-    panel.hidden = !panel.hidden;
-    if (!panel.hidden) renderHistory();
+  document.body.classList.add("has-drawer");
+  // The drawer remembers whether it was open: someone working through a batch of
+  // lines wants it there, someone writing one wants the room.
+  setDrawer(drawerWasOpen());
+  $("#cut-history-toggle").addEventListener("click", () => setDrawer($("#cut-history").classList.contains("is-open") ? false : true));
+  $("#cut-history-close").addEventListener("click", () => setDrawer(false));
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && $("#cut-history").classList.contains("is-open")) setDrawer(false);
   });
   $("#cut-history-clear").addEventListener("click", () => {
     if (loadHistory().length && window.confirm("Forget every past run on this machine?")) saveHistory([]);

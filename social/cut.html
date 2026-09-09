@@ -14,6 +14,17 @@
   <body class="hub-body">
     <div class="toast-region" id="toast-region" aria-live="polite"></div>
 
+    <aside class="cut-drawer" id="cut-history" aria-label="Past runs">
+      <header class="cut-drawer-head">
+        <h2>History</h2>
+        <div class="cut-drawer-actions">
+          <button class="cut-split-link" id="cut-history-clear" type="button">Clear</button>
+          <button class="cut-drawer-close" id="cut-history-close" type="button" aria-label="Close history">✕</button>
+        </div>
+      </header>
+      <div class="cut-history-list" id="cut-history-list"></div>
+    </aside>
+
     <header class="hub-header">
       <a class="brand" href="../index.html">
         <span class="brand-mark" aria-hidden="true">
@@ -105,13 +116,6 @@
             <button class="button button-accent auto-go" id="cut-go" type="submit">Cut it</button>
           </div>
         </form>
-        <section class="cut-history" id="cut-history" hidden>
-          <header class="cut-history-head">
-            <h2>What you have cut before</h2>
-            <button class="button button-ghost button-small" id="cut-history-clear" type="button">Clear</button>
-          </header>
-          <div class="cut-history-list" id="cut-history-list"></div>
-        </section>
       </section>
 
       <section class="auto-run" id="cut-run" hidden>

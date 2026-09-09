@@ -87,81 +87,135 @@
 
 /* ------------------------------------------------------------------ history */
 
-/* Every run is worth keeping: the subject and the line are the hard part, and
-   the second attempt at a script is usually the first one with one word
-   changed. Kept in this browser only — there is nobody else to share it with. */
-.cut-history {
-  max-width: 720px;
-  margin: 22px auto 0;
-  text-align: left;
+/* A drawer rather than a panel under the form: picking an old prompt is
+   something you do *while* writing the new one, and a list that pushes the form
+   down moves the thing you are typing into. */
+.cut-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 330px;
+  max-width: 86vw;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 16px 16px;
+  background: var(--paper-2);
+  border-right: 1px solid var(--line);
+  box-shadow: 0 0 40px rgba(5, 5, 5, 0.08);
+  transform: translateX(-100%);
+  transition: transform 0.22s var(--ease);
 }
 
-.cut-history-head {
+.cut-drawer.is-open {
+  transform: translateX(0);
+}
+
+/* Wide enough and the page steps aside instead of being covered; narrow and the
+   drawer simply lies on top. */
+@media (min-width: 1180px) {
+  body.has-drawer .hub-header,
+  body.has-drawer .hub-main {
+    transition: padding-left 0.22s var(--ease);
+  }
+
+  body.has-drawer.drawer-open .hub-header,
+  body.has-drawer.drawer-open .hub-main {
+    padding-left: 346px;
+  }
+}
+
+.cut-drawer-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
-.cut-history-head h2 {
+.cut-drawer-head h2 {
   margin: 0;
+  font-size: 15px;
+  letter-spacing: -0.015em;
+}
+
+.cut-drawer-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cut-drawer-close {
+  border: 0;
+  background: none;
+  padding: 2px 4px;
   font-size: 14px;
-  letter-spacing: -0.01em;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.cut-drawer-close:hover {
+  background: rgba(5, 5, 5, 0.06);
+  color: var(--ink);
 }
 
 .cut-history-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 46vh;
   overflow-y: auto;
+  flex: 1;
+  margin: 0 -4px;
+  padding: 0 4px 4px;
 }
 
 .cut-past {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 11px 13px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 11px 12px;
   border-radius: 13px;
   border: 1px solid var(--line);
-  background: var(--paper-2);
+  background: var(--paper);
 }
 
 .cut-past-body {
-  flex: 1;
-  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
 }
 
 .cut-past-script {
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 600;
   line-height: 1.4;
 }
 
 .cut-past-meta {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--muted);
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
 .cut-past-actions {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 6px;
-  flex-shrink: 0;
 }
 
 .cut-past-drop {
   border: 0;
   background: none;
   color: var(--muted);
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1;
-  padding: 6px;
+  padding: 5px 7px;
   cursor: pointer;
   border-radius: 8px;
 }

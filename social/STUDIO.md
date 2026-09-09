@@ -404,10 +404,17 @@ studio's own voice, depending on the switch.
 
 ### History
 
-**History** next to *Cut it* opens what has been cut before on this machine: the
-subject, the line, the switches it ran under, and how it went (`12/12 words, 8
-clips`). Each one has **Add**, which puts those settings back in the form and
-stops there — the reason to reach for an old prompt is almost always to change
+**History** next to *Cut it* slides open a drawer down the left side holding what
+has been cut before on this machine: the subject, the line, the switches it ran
+under, the phrases it was split into, and how it went (`12/12 words, 8 clips`). A
+drawer rather than a panel under the form, because picking an old prompt is
+something you do *while* writing the new one, and a list that pushes the form
+down moves the thing you are typing into. On a wide window the page steps aside
+for it; on a narrow one it lies on top. Escape closes it, and whether it was open
+is remembered.
+
+Each entry has **Add**, which puts those settings back in the form and stops
+there — the reason to reach for an old prompt is almost always to change
 one word in it, and a button that re-ran the whole thing would take three minutes
 to undo. The same subject and line run twice is one entry, moved back to the top.
 
