@@ -49,6 +49,7 @@ new-videos/*
 !/social/out.js
 !/social/out.css
 !/social/editor.html
+!/social/editor.js
 !/social/editor.css
 !/social/studio-server.mjs
 !/social/studio.config.example.json

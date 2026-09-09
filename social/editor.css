@@ -1,24 +1,692 @@
-/* Editor — the studio's video tab on a page of its own.
+/* Editor — the studio's video tab in an editor's shell.
    
-   Nothing is copied: the page is the studio's markup and studio.js drives it
-   unchanged, which is why the panels the editor does not offer are hidden
-   rather than deleted. The script wires every tab on load and would fall over
-   on a missing one, and a second copy of two thousand lines would drift from
-   the original within a week. */
+   The markup is the studio's and studio.js drives it unchanged; editor.js moves
+   the finished pieces into place and this lays them out. The colours are the
+   site's own — this is the same workbench, in a different arrangement, not a
+   different product — and only the stage stays dark, because that is what video
+   is looked at on everywhere else in the hub. */
 
+/* Panels this page does not offer. Hidden rather than deleted: studio.js wires
+   every tab on load and would fall over on a missing one. */
 .tab[data-tab="ai"],
 .tab[data-tab="image"],
 .tab-panel[data-panel="ai"],
-.tab-panel[data-panel="image"] {
-  display: none !important;
-}
-
-/* With two tabs left the row is a pair of buttons rather than a strip. */
-.tabs .tab-list {
-  gap: 4px;
-}
-
-/* The stage lives beside the video panel here, never beside a conversation. */
+.tab-panel[data-panel="image"],
 .ai-stage {
   display: none !important;
+}
+
+/* The studio's page frame gets out of the way: this is one screen, not a
+   scrolling column of steps. */
+.hub-main.studio-main {
+  max-width: none;
+  width: 100%;
+  padding: 0;
+  display: block;
+}
+
+.studio-body {
+  width: 100%;
+}
+
+body.ed-ready .tab-panel[data-panel="output"] {
+  display: none !important;
+}
+
+/* ------------------------------------------------------------------- shell */
+
+.ed-shell {
+  position: relative;
+  display: grid;
+  grid-template-columns: 76px 0px minmax(0, 1fr) 300px;
+  grid-template-rows: minmax(0, 1fr) var(--ed-dock, 236px);
+  grid-template-areas:
+    "rail panel stage inspector"
+    "rail panel dock dock";
+  height: calc(100vh - 57px);
+  background: var(--paper);
+  transition: grid-template-columns 0.18s var(--ease);
+}
+
+.ed-shell.is-open {
+  grid-template-columns: 76px 330px minmax(0, 1fr) 300px;
+}
+
+/* -------------------------------------------------------------------- rail */
+
+.ed-rail {
+  grid-area: rail;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 6px;
+  background: var(--paper-2);
+  border-right: 1px solid var(--line);
+  overflow-y: auto;
+}
+
+.ed-rail-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 4px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.14s var(--ease), color 0.14s var(--ease);
+}
+
+.ed-rail-button:hover {
+  background: rgba(5, 5, 5, 0.06);
+  color: var(--ink);
+}
+
+.ed-rail-button.is-on {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* ------------------------------------------------------------------- panel */
+
+.ed-panel {
+  grid-area: panel;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--paper-2);
+  border-right: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.ed-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 14px 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.ed-panel-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.ed-panel-collapse {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  padding: 2px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.ed-panel-collapse:hover {
+  background: rgba(5, 5, 5, 0.06);
+  color: var(--ink);
+}
+
+/* The studio's rows were laid out for a 700px column. Two across here, and a
+   search row (query, source, button) keeps its query on a line of its own. */
+.ed-panel .field-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+
+.ed-panel .field-row > .field:first-child:nth-last-child(3) {
+  grid-column: 1 / -1;
+}
+
+.ed-panel .field-row > .button {
+  align-self: end;
+  justify-self: start;
+}
+
+/* A filter for the shelves, in the panel head; hidden on panels without cards. */
+.ed-panel-filter {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0 8px;
+  padding: 5px 9px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.ed-panel-filter:focus {
+  outline: none;
+  border-color: var(--ink);
+}
+
+.ed-panel-filter[hidden] {
+  display: none;
+}
+
+.ed-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+/* A block inside a panel is only its contents: the card and the step number
+   were scaffolding for a page that scrolled. */
+.ed-pane .block-body {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ed-pane .field-row {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ed-pane .clip-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ed-pane label.field > span,
+.ed-inspector label.field > span {
+  font-size: 11px;
+  /* One line, always: "Clip starts at" wrapped onto three of them and pushed
+     its slider a row below the two beside it. */
+  white-space: nowrap;
+}
+
+/* The studio lays these fields four across a 700px column. In a 300px
+   inspector that is 60px a field — too narrow to show "1080" — so they go two
+   across, which is also how X/Y and W/H want to be read anyway. */
+.ed-inspector .field-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+
+.ed-inspector .field input[type="number"],
+.ed-inspector .field select,
+.ed-inspector .field input[type="text"] {
+  padding: 7px 9px;
+  font-size: 13px;
+}
+
+/* Groups of controls, rather than one long list of them: the four commands,
+   the four placements, then geometry, then time, then the treatment. */
+.ed-inspector .block-body > .btn-row + .btn-row {
+  margin-top: -4px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.ed-inspector #layer-inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Layout · Timing · Adjust — three short pages instead of one long scroll. */
+.ed-insp-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+  padding: 3px;
+  border-radius: 9px;
+  background: rgba(5, 5, 5, 0.05);
+}
+
+.ed-insp-tab {
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 650;
+  padding: 6px 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.ed-insp-tab:hover {
+  color: var(--ink);
+}
+
+.ed-insp-tab.is-on {
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(5, 5, 5, 0.08);
+}
+
+.ed-insp-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ed-insp-pane[hidden] {
+  display: none;
+}
+
+.ed-insp-pane #insp-colour {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.ed-inspector #insp-colour {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.ed-inspector #insp-colour[hidden] {
+  display: none;
+}
+
+/* The turn-and-mirror buttons sit where a control would, so they line up with
+   the rotate slider beside them. */
+.ed-inspector .insp-mini {
+  gap: 5px;
+  flex-wrap: nowrap;
+}
+
+.ed-inspector .insp-mini .button {
+  padding: 6px 0;
+  min-width: 0;
+  flex: 1 1 0;
+}
+
+.ed-inspector .button[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+
+/* The backdrop swatch, in the timeline head beside the size. */
+.ed-dock .tl-field input[type="color"] {
+  width: 34px;
+  height: 26px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--paper);
+  cursor: pointer;
+}
+
+/* ------------------------------------------------------------------- stage */
+
+/* Dark, like every other stage in the hub: a frame is judged against black. */
+.ed-stage {
+  grid-area: stage;
+  display: grid;
+  /* Stretch, not centre: a centred item is measured before it is placed, so a
+     preview asking for the full height of the stage was centred against a
+     shorter box and hung over both edges. */
+  place-items: stretch;
+  min-width: 0;
+  padding: 18px;
+  background: #101010;
+  overflow: hidden;
+}
+
+.ed-stage .studio-preview {
+  /* The head is absolutely positioned over the picture, so the rows here are
+     the canvas, the transport and the hint — named explicitly, because an
+     auto-placed transport ends up in the row that was meant for the canvas. */
+  /* The studio parks this column under the sticky page header with
+     `sticky; top: 75px`; kept relative, that offset becomes a straight 75px
+     push down the stage, which is how the transport ended up over the edge. */
+  position: relative;
+  top: 0;
+  margin: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  justify-items: center;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+/* The frame belongs to the picture, not to the room it stands in: the wrapper
+   only centres, and the border follows the canvas, which keeps its own aspect.
+   `.canvas-wrap-video` pins a 9:16 box in the studio, where the column is
+   narrow and the page scrolls; on a stage of fixed height that box is taller
+   than the room and the canvas inside it gets cut off, so it goes. */
+.ed-stage .canvas-wrap {
+  grid-row: 1;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  max-height: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+}
+
+/* Left to size itself between two maximums, a canvas scales down on its own
+   ratio — so it fits the stage however the window is shaped, and the box the
+   pointer maps onto stays the box the frame is drawn in. */
+.ed-stage canvas,
+.ed-stage #stage-canvas,
+.ed-stage #result-canvas,
+.ed-stage video {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 12px;
+  background: #000;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+}
+
+.ed-stage .preview-head,
+.ed-stage .transport {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.ed-stage .transport {
+  grid-row: 2;
+  width: min(520px, 100%);
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.ed-stage .transport input[type="range"] {
+  flex: 1;
+}
+
+/* On the dark stage the studio's own type and buttons need to be readable. */
+.ed-stage,
+.ed-stage .preview-label,
+.ed-stage .transport-time,
+.ed-stage .stage-empty {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.ed-stage .field-hint {
+  font-size: 11px;
+  line-height: 1.5;
+  max-width: 640px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0;
+}
+
+.ed-stage .button-ghost {
+  color: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.ed-stage .button-ghost:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.ed-stage .button-ghost[aria-pressed="true"] {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.ed-stage .button-dark {
+  background: var(--paper-2);
+  color: var(--ink);
+}
+
+/* --------------------------------------------------------------- inspector */
+
+.ed-inspector {
+  grid-area: inspector;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--paper-2);
+  border-left: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.ed-inspector-head {
+  padding: 14px 14px 10px;
+  border-bottom: 1px solid var(--line);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.ed-inspector-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.ed-inspector .block-body {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ------------------------------------------------------------------ bottom */
+
+.ed-dock {
+  grid-area: dock;
+  min-width: 0;
+  background: var(--paper-2);
+  border-top: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.ed-dock .timeline {
+  position: static;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.ed-dock .timeline-head {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.ed-dock {
+  position: relative;
+}
+
+.ed-dock-grip {
+  position: absolute;
+  top: -4px;
+  left: 0;
+  right: 0;
+  height: 9px;
+  z-index: 3;
+  cursor: row-resize;
+}
+
+.ed-dock-grip::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 3px;
+  height: 3px;
+  background: transparent;
+  transition: background 0.15s var(--ease);
+}
+
+.ed-dock-grip:hover::after,
+.ed-dock-grip.is-dragging::after {
+  background: var(--accent, #f5941d);
+}
+
+/* The studio caps the timeline at three rows and scrolls the rest. Here the
+   dock is the cap — drag its edge for more rows — so the scroll areas fill
+   whatever height it has. */
+.ed-dock .tl-scroll,
+.ed-dock .tl-gutter-scroll {
+  max-height: none;
+  height: 100%;
+}
+
+.ed-dock .timeline-body {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Toasts used to rise from the bottom centre — straight over the timeline,
+   five deep after five clips. Top of the stage instead, beside the inspector. */
+.ed-ready .toast-region {
+  bottom: auto;
+  top: 72px;
+  left: auto;
+  right: 316px;
+  transform: none;
+  align-items: flex-end;
+}
+
+/* Both the stage and the timeline end in a paragraph of studio instructions.
+   In a page-long form they read as help; in a fixed editor they are the two
+   things pushed against the bottom edge and cut in half. The inspector says
+   the same thing where there is room for it. */
+.ed-dock .field-hint,
+.ed-stage .field-hint {
+  display: none;
+}
+
+/* Below 1100px there is no room for four columns. The inspector is what you
+   edit with, so it stays; the panel floats over the stage while it is open
+   and goes when a tool is clicked again. */
+@media (max-width: 1100px) {
+  .ed-shell,
+  .ed-shell.is-open {
+    grid-template-columns: 68px minmax(0, 1fr) 280px;
+    grid-template-areas:
+      "rail stage inspector"
+      "rail dock dock";
+  }
+
+  .ed-panel {
+    position: absolute;
+    left: 68px;
+    top: 0;
+    bottom: var(--ed-dock, 236px);
+    width: 300px;
+    z-index: 6;
+    display: none;
+    box-shadow: 8px 0 24px rgba(5, 5, 5, 0.12);
+  }
+
+  .ed-shell.is-open .ed-panel {
+    display: flex;
+  }
+}
+
+/* --------------------------------------------------------------- scrollbars */
+
+/* The system scrollbar is a fat bar on a white gutter, and this page has five
+   scrolling columns. Thin, on the surface it scrolls, appearing where it is
+   needed. */
+.ed-shell *,
+.ed-panel-body,
+.ed-inspector-body,
+.ed-rail,
+.ed-dock .tl-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(5, 5, 5, 0.22) transparent;
+}
+
+.ed-shell ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.ed-shell ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ed-shell ::-webkit-scrollbar-thumb {
+  background: rgba(5, 5, 5, 0.18);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.ed-shell ::-webkit-scrollbar-thumb:hover {
+  background: rgba(5, 5, 5, 0.32);
+  background-clip: content-box;
+}
+
+.ed-shell ::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* One line at the top of a panel saying what clicking does. */
+.ed-pane-hint {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+/* The upload panel is a drop target and nothing else, so the target is big. */
+.ed-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ed-upload .drop-zone {
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px 18px;
+  font-size: 13px;
+}
+
+/* The clip shelves scroll inside themselves in the studio, which in a 330px
+   panel means a scrollbar inside a scrollbar. Here the panel does the
+   scrolling. */
+.ed-pane .clip-grid {
+  max-height: none;
+  overflow: visible;
+}
+
+.ed-stage ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.24);
+  background-clip: content-box;
 }
