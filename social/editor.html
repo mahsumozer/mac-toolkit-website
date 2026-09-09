@@ -4,10 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex, nofollow" />
-    <title>Mac Kit · Content Studio</title>
+    <title>Mac Kit · Editor</title>
     <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="social.css" />
     <link rel="stylesheet" href="studio.css" />
+    <link rel="stylesheet" href="editor.css" />
   </head>
   <body class="hub-body">
     <div class="toast-region" id="toast-region" aria-live="polite"></div>
@@ -21,15 +22,15 @@
         </span>
         <span>Mac Kit</span>
       </a>
-      <span class="hub-title">Content Studio</span>
+      <span class="hub-title">Editor</span>
       <nav class="hub-nav">
         <a class="hub-nav-link" href="index.html">Queue</a>
-        <a class="hub-nav-link is-current" href="studio.html">Studio</a>
+        <a class="hub-nav-link" href="studio.html">Studio</a>
         <a class="hub-nav-link" href="auto.html">Autopilot</a>
         <a class="hub-nav-link" href="cut.html">Supercut</a>
         <a class="hub-nav-link" href="blitz.html">Blitz</a>
         <a class="hub-nav-link" href="out.html">Output</a>
-        <a class="hub-nav-link" href="editor.html">Editor</a>
+        <a class="hub-nav-link is-current" href="editor.html">Editor</a>
       </nav>
       <span class="server-pill" id="server-pill" data-state="checking">Checking server…</span>
     </header>
@@ -659,6 +660,12 @@
       <p class="lightbox-caption" id="lightbox-caption"></p>
     </div>
 
+    <script>
+      // The editor is the video tab and nothing else. studio.js reads the hash
+      // on load, so the choice is made before it runs rather than by switching
+      // tabs afterwards, which would flash the image editor on the way past.
+      if (!location.hash) location.hash = "video";
+    </script>
     <script src="config.js"></script>
     <script type="module" src="studio.js"></script>
   </body>

@@ -1,0 +1,24 @@
+/* Editor — the studio's video tab on a page of its own.
+   
+   Nothing is copied: the page is the studio's markup and studio.js drives it
+   unchanged, which is why the panels the editor does not offer are hidden
+   rather than deleted. The script wires every tab on load and would fall over
+   on a missing one, and a second copy of two thousand lines would drift from
+   the original within a week. */
+
+.tab[data-tab="ai"],
+.tab[data-tab="image"],
+.tab-panel[data-panel="ai"],
+.tab-panel[data-panel="image"] {
+  display: none !important;
+}
+
+/* With two tabs left the row is a pair of buttons rather than a strip. */
+.tabs .tab-list {
+  gap: 4px;
+}
+
+/* The stage lives beside the video panel here, never beside a conversation. */
+.ai-stage {
+  display: none !important;
+}

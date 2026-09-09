@@ -42,9 +42,14 @@ new-videos/*
 !/social/cut.html
 !/social/cut.js
 !/social/cut.css
+!/social/blitz.html
+!/social/blitz.js
+!/social/blitz.css
 !/social/out.html
 !/social/out.js
 !/social/out.css
+!/social/editor.html
+!/social/editor.css
 !/social/studio-server.mjs
 !/social/studio.config.example.json
 !/social/studio/

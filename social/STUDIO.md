@@ -21,6 +21,7 @@ npm run hub                     # :8787 — serves the repo root
 node social/studio-server.mjs   # :8789 — render + generation server
 open http://127.0.0.1:8787/social/studio.html
 open http://127.0.0.1:8787/social/auto.html    # Autopilot — a URL in, posts out
+open http://127.0.0.1:8787/social/blitz.html   # Blitz — someone else's shape, our words
 ```
 
 The header pill turns green when the page can reach the server. Without the
@@ -37,7 +38,7 @@ fallback, so the studio is usable with none of them:
 | --- | --- | --- |
 | `deepseekApiKey` / `anthropicApiKey` | The "Write with …" buttons — slide copy, video scripts, captions | The template writer in `studio/formats.json`, which assembles copy from a fixed feature bank |
 | `pexelsApiKey` | Stock backgrounds (free licence, no attribution) | Wikimedia Commons — reliable, but CC-licensed, so check the licence shown under each thumbnail |
-| `geminiApiKey` | Voiceover — the default speaker | ElevenLabs if its key is set, otherwise macOS `say` |
+| `geminiApiKey` | Voiceover — the default speaker. Also Blitz's read of what a short says on screen (`geminiVisionModel` picks the model) | ElevenLabs if its key is set, otherwise macOS `say` — and Blitz cannot read a video at all |
 | `elevenLabsApiKey` | Voiceover, when there is no Gemini key | macOS `say`, offered as a voice list in the render panel |
 | `giphyApiKey` | GIF and sticker search | GIF search is disabled; everything else works |
 | `serpApiKey` + `useSerpApi: true` | One engine only, `youtube_video_transcript`, and only when `yt-dlp` comes back with nothing for a single video Autopilot wants to read. **Off by default** — it reads the same captions yt-dlp does and charges per search | that video is simply not read |
@@ -89,6 +90,21 @@ reads each layer's intrinsic size to work out its crop, and a layer added a
 moment earlier has not measured itself yet. Those layers were silently dropped —
 the first AI render was captions over black. `editor.whenReady()` now waits for
 them before the freeze.
+
+## Editor
+
+`editor.html`, the video editor on its own page: find footage on YouTube, drop in
+clips and stills from the computer, arrange them on the canvas, add GIFs, put
+captions and a voiceover on the timeline, render. No AI mode, no image posts —
+the plain editor.
+
+Nothing is duplicated to get it. The page *is* the studio's markup and
+`studio.js` drives it unchanged; `editor.css` hides the two panels this page does
+not offer, and an inline script sets the hash to `#video` before the script runs
+so the image editor never flashes past on the way in. The panels are hidden
+rather than deleted because studio.js wires every tab on load and would fall over
+on a missing one — and a second copy of two thousand lines would drift from the
+original inside a week.
 
 ## Output
 
@@ -566,6 +582,104 @@ being spoken is drawn over it, and the strip above the log lights up chip by chi
 as the playhead crosses it. Render goes through the same `/render-video` as
 everything else, so the result lands in `studio/out/` with its `project.json`.
 
+## Blitz
+
+`blitz.html`. Remix (`remix.html`) does this to titles: a fast hook becomes a
+skeleton and the skeleton is filled with our own claims. Blitz does it to the
+thing short-form actually rewards — the wall of text a creator burns over their
+own face, the "just watched a girl in my lecture …" block that *is* the video.
+
+The rule is Remix's rule. What is borrowed is the **shape**: the opener's
+grammar, the number of beats, the cadence, the lowercase, where it stops. Never
+the sentence, never the subject, and never a frame — the clip under our words is
+our own footage, fetched during the run.
+
+Three steps, three routes, because they cost three different things.
+
+### 1. Hunt
+
+`POST /blitz/hunt` → `hunt()` in `studio/blitz.mjs`. Two ways in, and the second
+exists because of what the first cannot do.
+
+A **phrase** is searched on YouTube through its results page rather than
+`ytsearch:`. The search extractor returns long-form almost exclusively — forty
+results for "mac tips" and not one of them under ninety seconds — and yt-dlp
+drops the `sp` parameter that would ask YouTube for Shorts, so the results page
+is the only form that mixes short-form in at all.
+
+An **account** is the reliable path, and the more honest unit: the shape being
+borrowed belongs to somebody who posts it every day, not to one lucky video. A
+bare `@name` is read as TikTok, a link with `youtube.com` in it as that
+channel's `/shorts` tab, which is nothing but shorts. TikTok cannot be searched
+by phrase at all — yt-dlp's tag and search extractors are broken and the API is
+closed — so there it is accounts or nothing.
+
+Ranked by **velocity**, views per day, for the reason `trends.mjs` gives: a
+video that took three years to reach a million is not a trend. A TikTok listing
+needs no second pass — the flat entries already carry views, likes and the
+timestamp — while YouTube needs one, because a flat entry has no upload date and
+without a date there is no velocity. Cached for six hours; the tick box under
+the field skips the cache.
+
+### 2. Read it off the picture
+
+`POST /blitz/read`. The words that matter in this format are not in the title
+and not in the captions: they are burned into the frames. So the clip is
+downloaded at 720 (a quarter of the bytes of 1080, and plenty to read type off),
+three frames are cut from it — 12%, 42%, 74%, because the block sometimes
+changes halfway through and one frame would report half a video — and Gemini is
+asked what they say.
+
+The prompt spends most of its length on what to *ignore*: the @handle, the
+like/comment/share counts, the music ticker, the Follow button, the watermark
+and word-by-word auto-subtitles are all things the app drew, not things the
+creator wrote. A video with nothing written on it is not a failure — it has no
+shape to lend, `onScreen` comes back false and its own caption is used instead.
+
+The vision model is a list, not a name (`GEMINI_VISION_MODELS`, first entry
+overridable with `geminiVisionModel`): the flash models answer "high demand"
+often enough that a single id is a run that fails for no reason, and 429 and
+503 fall through to the next one while anything else throws.
+
+The downloaded source lands in `studio/tmp/blitz/` and never in the library. It
+is read, shown once in the left pane as the receipt for what was borrowed, and
+thrown away with the rest of tmp.
+
+### 3. Adapt
+
+`POST /blitz/adapt`, one text call, answered in the request because the page has
+nothing to show while it waits. The model is given the source block, what its
+shape does, and the fact bank — `formats.json` → `painFixes` and `positioning` —
+and told: borrow the skeleton, and write nothing that is not in the bank. It
+returns our block, the angle that becomes the pill, a caption, hashtags, a
+sentence naming what it borrowed, and two or three words to search for footage.
+
+**Why this content?** is composed by the page, not by the model. The velocity,
+the like rate and the age are numbers the hunt measured; a model asked to
+justify itself invents them.
+
+### The two panes
+
+What it was taken from stays on screen beside what was made from it, at the same
+size, both playing. A shape you cannot see next to your own copy is a shape you
+cannot judge.
+
+The right-hand phone is the real `Editor` canvas, not a picture of one, so the
+text sits where it will sit in the file and the render goes out through the same
+`/render-video` as everything else — and lands in Output with a `project.json`
+that records, under `script.remixedFrom`, which post the shape came off. Six
+months from now that line is the only answer to "where did this come from".
+
+The block is sized to fit rather than set to a number: the 68px that suits a
+six-word hook runs a forty-word wall off the bottom of the frame, so the font
+steps down until the text clears the lower half. Retyping it rebuilds rather
+than redraws, since both the size and the position depend on how many lines it
+wraps to.
+
+Only the seconds that end up on screen are downloaded for the bed —
+`--download-sections` on the footage fetch — which is the difference between a
+run of six seconds and one of ninety.
+
 ## Image posts
 
 The format is the one the reference posts use: a photo, and bold centred type in
@@ -860,6 +974,7 @@ social/
   studio.html  studio.js  studio.css      the page
   auto.html    auto.js    auto.css        Autopilot — a URL in, finished posts out
   cut.html     cut.js     cut.css         Supercut — a line, cut out of other people's videos
+  blitz.html   blitz.js   blitz.css       Blitz — the shape of a hyped short, worn by one of ours
   studio-server.mjs                        the local server
   studio.config.json                       keys (create from the .example)
   studio/
@@ -869,6 +984,7 @@ social/
     agent.mjs                              AI mode's tool loop
     autopilot.mjs                          Autopilot's five passes and its producer
     trends.mjs                             velocity-ranked trends + the hook classifier
+    blitz.mjs                              hunts short-form, reads its on-screen text, adapts the shape
     transcript.mjs                         what a video says, with timings (yt-dlp, then SerpApi)
     supercut.mjs                           finds a script's words inside those transcripts
     freeze.js                              canvas -> render spec, shared by every page
