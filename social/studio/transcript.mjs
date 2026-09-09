@@ -161,6 +161,11 @@ async function serpApiTranscript(url, { apiKey, lang = "en" }) {
   return { cues, words, title: data.video_title || "", source: "serpapi", approximate: true };
 }
 
+// YouTube answers 429 when several caption fetches land at once, and a 429 is
+// not "this video has no captions" — it is "come back in a moment". Treating the
+// two the same is what sent a third of the reads to a paid API for no reason.
+const RETRY_AFTER = [1200, 4000, 9000];
+
 async function ytdlpTranscript(url, { run, tmpDir, lang = "en" }) {
   await fs.mkdir(tmpDir, { recursive: true });
   const id = videoId(url);
@@ -169,7 +174,7 @@ async function ytdlpTranscript(url, { run, tmpDir, lang = "en" }) {
   // fine for understanding what a video is about, useless for cutting, because
   // the mouth never said those words. Both are asked for and which one arrived
   // is reported.
-  await run("yt-dlp", [
+  const args = [
     "--skip-download",
     "--write-subs",
     "--write-auto-subs",
@@ -181,7 +186,21 @@ async function ytdlpTranscript(url, { run, tmpDir, lang = "en" }) {
     "-o",
     join(tmpDir, "%(id)s.%(ext)s"),
     url,
-  ]);
+  ];
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await run("yt-dlp", args);
+      break;
+    } catch (error) {
+      const message = String(error.message || error);
+      const throttled = /429|too many requests|rate.?limit/i.test(message);
+      if (!throttled || attempt >= RETRY_AFTER.length) {
+        if (!throttled) break; // a real failure: fall through and see what landed
+        throw error;
+      }
+      await new Promise((r) => setTimeout(r, RETRY_AFTER[attempt]));
+    }
+  }
   const names = await fs.readdir(tmpDir);
   const mine = names.filter((name) => name.startsWith(id));
   const prefer = [`.${lang}-orig.json3`, `.${lang}.json3`, `.${lang}-orig.vtt`, `.${lang}.vtt`];

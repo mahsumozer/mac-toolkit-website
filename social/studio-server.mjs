@@ -1604,7 +1604,11 @@ async function cutSection(item, job) {
 async function readAll(videos, { lang = "en", job } = {}) {
   const sources = [];
   const queue = [...videos];
-  const workers = Array.from({ length: 4 }, async () => {
+  // Three at a time, staggered. Four simultaneous caption fetches is what earns
+  // the 429 in the first place, and a read that has to be retried costs more
+  // than the one that was never throttled.
+  const workers = Array.from({ length: 3 }, async (_unused, index) => {
+    await new Promise((r) => setTimeout(r, index * 350));
     while (queue.length) {
       const video = queue.shift();
       try {
