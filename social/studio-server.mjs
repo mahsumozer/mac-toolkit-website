@@ -2048,7 +2048,13 @@ async function runSupercut(payload, job) {
   job.stage = "Cutting";
   const clips = cut.segments.filter((segment) => segment.kind === "clip");
   let done = 0;
-  for (const clip of clips) {
+
+  // One clip is one yt-dlp invocation, and most of its eight seconds is the
+  // page-and-player extraction rather than the second of video being fetched.
+  // Sequentially that is eight minutes for a paragraph; four at a time is the
+  // same work in a quarter of the wall clock, and the downloads do not touch
+  // each other.
+  const cutOne = async (clip) => {
     // The first choice, then whoever else said the same words. A refused
     // download is not a reason to lose the line.
     const takes = [clip, ...(clip.alternates || [])];
@@ -2069,7 +2075,12 @@ async function runSupercut(payload, job) {
     done++;
     job.progress = 0.5 + (0.5 * done) / clips.length;
     job.stage = `Cutting ${done} of ${clips.length}`;
-  }
+  };
+
+  const queue = [...clips];
+  await Promise.all(Array.from({ length: Math.min(4, queue.length) }, async () => {
+    while (queue.length) await cutOne(queue.shift());
+  }));
 
   const cutClips = clips.filter((clip) => clip.path);
   say(`${cutClips.length} clips from ${new Set(cutClips.map((c) => c.url)).size} videos, ${cut.stats.seconds}s of speech`);
