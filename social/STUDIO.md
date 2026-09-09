@@ -427,6 +427,16 @@ caption read about one with three in flight, so repairing a phrase is ten to
 twenty-five seconds and one model call. Everything it uses — yt-dlp, captions — is
 free.
 
+### Knowing when to stop chasing a word
+
+A brand name is a word nobody says, and chasing it through all six shapes spends
+the budget the findable words need. Two rounds that bring back nothing new to
+read and the word is set aside — it still gets its filler, and the hunt spends
+what is left on words that can actually be found. If only set-aside words remain,
+the run does not bother asking for more videos; and if more are granted anyway,
+the searches deepen, which is a different search, so the set-aside words get
+another try.
+
 ### Finding enough to cut from
 
 Plenty of uploads have no captions at all, and a thin pool is what makes a cut

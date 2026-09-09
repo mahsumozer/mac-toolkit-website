@@ -1898,12 +1898,19 @@ async function runSupercut(payload, job) {
         (word) => `"${word}"`,
       ];
   const hunted = new Set();
+  // A brand name is a word nobody says, and chasing it through all six shapes
+  // spends the budget that the findable words need. Two fruitless rounds — a
+  // round being fruitless when its search brought back nothing new to read — and
+  // the word is left to the filler.
+  const FRUITLESS_LIMIT = 2;
+  const fruitless = new Map();
+  const givenUp = new Set();
   let totalBudget = Number(payload.maxReads) || MAX_READS_PER_RUN;
   let depth = 6;
   for (let round = 0; round < SHAPES.length; round++) {
-    const stillMissing = cut.missing.filter((word) => !hunted.has(`${word}:${round}`));
+    const stillMissing = cut.missing.filter((word) => !hunted.has(`${word}:${round}`) && !givenUp.has(word));
     if (!stillMissing.length) break;
-    if (budget.left <= 0) {
+    if (budget.left <= 0 && cut.missing.some((word) => !givenUp.has(word))) {
       const granted = await askForMore(job, {
         missing: cut.missing,
         broken: cut.broken || [],
@@ -1920,6 +1927,10 @@ async function runSupercut(payload, job) {
       depth += 6;
       round = -1;
       hunted.clear();
+      // More budget means deeper searches, which is a different search: the
+      // words that were set aside are worth another try.
+      fruitless.clear();
+      givenUp.clear();
       say(`${granted} more videos to spend — searching deeper (${depth} results a query)`);
       continue;
     }
@@ -1934,9 +1945,23 @@ async function runSupercut(payload, job) {
       const neighbour = at >= 0 && tokens[at + 1] ? tokens[at + 1].norm : "";
       const before = pool.size;
       await gather(SHAPES[round](plain, neighbour), depth, false, plain);
-      if (pool.size === before) continue;
+      const nothingNew = () => {
+        const count = (fruitless.get(word) || 0) + 1;
+        fruitless.set(word, count);
+        if (count >= FRUITLESS_LIMIT) {
+          givenUp.add(word);
+          say(`“${word}” turns up nothing new — leaving it to the filler and spending the budget elsewhere`);
+        }
+      };
+      if (pool.size === before) {
+        nothingNew();
+        continue;
+      }
       const fresh = [...pool.values()].filter((video) => !sources.some((source) => source.video.url === video.url));
-      if (!fresh.length) continue;
+      if (!fresh.length) {
+        nothingNew();
+        continue;
+      }
       // A Turkish script still says "clipboard" and "cleaning mode". Those words
       // are English wherever they are spoken, so when a missing word is plain
       // ASCII the hunt reads its videos as English as well — the cut is a
