@@ -40,7 +40,7 @@ fallback, so the studio is usable with none of them:
 | `geminiApiKey` | Voiceover — the default speaker | ElevenLabs if its key is set, otherwise macOS `say` |
 | `elevenLabsApiKey` | Voiceover, when there is no Gemini key | macOS `say`, offered as a voice list in the render panel |
 | `giphyApiKey` | GIF and sticker search | GIF search is disabled; everything else works |
-| `serpApiKey` | One engine only, `youtube_video_transcript`, and only when `yt-dlp` comes back with nothing for a single video Autopilot wants to read | that video is simply not read |
+| `serpApiKey` + `useSerpApi: true` | One engine only, `youtube_video_transcript`, and only when `yt-dlp` comes back with nothing for a single video Autopilot wants to read. **Off by default** — it reads the same captions yt-dlp does and charges per search | that video is simply not read |
 
 ### Which model writes the copy
 
@@ -163,9 +163,12 @@ video it is spoken.
 The transcript module keeps two sources, and they are not interchangeable.
 `yt-dlp` is the one that runs: no key, no charge, and its `json3` tracks carry the
 per-word offsets everything here depends on. SerpApi's `youtube_video_transcript`
-engine is the fallback, ported from the original tool, and it charges per search —
-so it is only reached for a single video Autopilot wants to read that yt-dlp
-could not, and never for the dozens a supercut reads in one run. Its answer is
+engine is the fallback, ported from the original tool, and it charges per search.
+It is **off unless `useSerpApi: true`** is set, because it reads the same YouTube
+captions yt-dlp reads — if YouTube has none, neither has SerpApi — and the only
+gap it ever filled was a throttled fetch, which now backs off and retries
+instead. Even switched on it is reached only for a single video Autopilot wants
+to read, never for the dozens a supercut reads in one run. Its answer is
 lines rather than words, so its words are spread evenly across each line: wrong by
 a fraction of a second rather than by a line.
 

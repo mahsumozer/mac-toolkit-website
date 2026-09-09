@@ -61,6 +61,10 @@ const GEMINI_KEY = key("geminiApiKey", "GEMINI_API_KEY");
 // SerpApi is the fallback transcript source, ported from the user's own
 // youtube-subtitles tool; yt-dlp covers most videos without it.
 const SERPAPI_KEY = key("serpApiKey", "SERPAPI_API_KEY");
+// Off unless asked for. It reads the same captions yt-dlp does, charges per
+// search, and since caption fetches learned to back off on a 429 it has almost
+// nothing left to add. Set `useSerpApi: true` in the config to put it back.
+const USE_SERPAPI = config.useSerpApi === true;
 
 // Wikimedia rejects generic or contactless User-Agents with a 429, so every
 // outbound request identifies the tool and where to complain about it.
@@ -1383,7 +1387,7 @@ async function fetchSitePage(target) {
 
 // What a video says, with timings. Cached by video id: the same trending upload
 // is read by every concept in a campaign and a fetch is a couple of seconds.
-const readVideo = (url, lang = "en", { allowSerpApi = true } = {}) =>
+const readVideo = (url, lang = "en", { allowSerpApi = USE_SERPAPI } = {}) =>
   fetchTranscript(url, { run, tmpDir: join(TMP, "subs"), cacheDir: join(TMP, "subs-cache"), serpApiKey: SERPAPI_KEY, lang, allowSerpApi });
 
 function autopilotTools(job) {
@@ -2155,6 +2159,7 @@ server.listen(PORT, "127.0.0.1", () => {
   console.log(`  copy         : ${COPY_PROVIDER === "none" ? "no key (offline templates will be used)" : `${COPY_PROVIDER} · ${COPY_PROVIDER === "deepseek" ? DEEPSEEK_MODEL : MODEL}`}`);
   console.log(`  Pexels       : ${PEXELS_KEY ? "ready" : "no key (Wikimedia Commons fallback)"}`);
   console.log(`  voice        : ${GEMINI_KEY ? `Gemini · ${GEMINI_TTS_MODEL}` : ELEVEN_KEY ? "ElevenLabs" : "macOS `say`"}`);
+  console.log(`  transcripts  : yt-dlp${SERPAPI_KEY ? (USE_SERPAPI ? " + SerpApi fallback (paid)" : " (SerpApi key present but off)") : ""}`);
   console.log(`  Giphy        : ${GIPHY_KEY ? "ready" : "no key (GIF search disabled)"}`);
   console.log(`  library      : ${relative(SITE, LIB)}`);
 });

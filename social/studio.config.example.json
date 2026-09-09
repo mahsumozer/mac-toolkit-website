@@ -10,5 +10,6 @@
   "elevenLabsApiKey": "",
   "geminiApiKey": "",
   "geminiTtsModel": "gemini-3.1-flash-tts-preview",
-  "serpApiKey": ""
+  "serpApiKey": "",
+  "useSerpApi": false
 }
