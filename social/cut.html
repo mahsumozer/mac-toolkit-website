@@ -87,9 +87,17 @@
               <input type="checkbox" id="cut-speak" />
               Speak the gaps
             </label>
+            <button class="button button-ghost button-small" id="cut-history-toggle" type="button">History</button>
             <button class="button button-accent auto-go" id="cut-go" type="submit">Cut it</button>
           </div>
         </form>
+        <section class="cut-history" id="cut-history" hidden>
+          <header class="cut-history-head">
+            <h2>What you have cut before</h2>
+            <button class="button button-ghost button-small" id="cut-history-clear" type="button">Clear</button>
+          </header>
+          <div class="cut-history-list" id="cut-history-list"></div>
+        </section>
       </section>
 
       <section class="auto-run" id="cut-run" hidden>

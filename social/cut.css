@@ -84,3 +84,95 @@
 .cut-chip.is-playing small {
   color: rgba(255, 255, 255, 0.7);
 }
+
+/* ------------------------------------------------------------------ history */
+
+/* Every run is worth keeping: the subject and the line are the hard part, and
+   the second attempt at a script is usually the first one with one word
+   changed. Kept in this browser only — there is nobody else to share it with. */
+.cut-history {
+  max-width: 720px;
+  margin: 22px auto 0;
+  text-align: left;
+}
+
+.cut-history-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.cut-history-head h2 {
+  margin: 0;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+}
+
+.cut-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+
+.cut-past {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 11px 13px;
+  border-radius: 13px;
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+}
+
+.cut-past-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cut-past-script {
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.cut-past-meta {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.cut-past-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.cut-past-drop {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
+  padding: 6px;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.cut-past-drop:hover {
+  background: rgba(179, 38, 30, 0.1);
+  color: var(--bad);
+}
+
+.cut-history-empty {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--muted);
+}

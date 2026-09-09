@@ -376,6 +376,18 @@ What is still missing after the hunt is never dropped. It stays in the script as
 gap, shown in the strip in red, and is either typed on screen or spoken by the
 studio's own voice, depending on the switch.
 
+### History
+
+**History** next to *Cut it* opens what has been cut before on this machine: the
+subject, the line, the switches it ran under, and how it went (`12/12 words, 8
+clips`). Each one has **Add**, which puts those settings back in the form and
+stops there — the reason to reach for an old prompt is almost always to change
+one word in it, and a button that re-ran the whole thing would take three minutes
+to undo. The same subject and line run twice is one entry, moved back to the top.
+
+It lives in the browser's own storage, so it is per-machine and disappears with
+the site data; there is nobody else to share a local workbench's prompt list with.
+
 ### Cutting and laying out
 
 Each clip is one `yt-dlp --download-sections` with `--force-keyframes-at-cuts`,

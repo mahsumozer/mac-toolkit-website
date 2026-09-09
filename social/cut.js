@@ -82,6 +82,132 @@ function progress(fraction, note) {
   $("#cut-progress-note").textContent = note || "";
 }
 
+/* ----------------------------------------------------------------- history */
+
+// Past runs, in this browser. The subject and the line are the hard part of a
+// supercut and the second attempt is usually the first one with a word changed,
+// so every run is kept with the settings it ran under — and Add puts them back
+// in the form without starting anything.
+const HISTORY_KEY = "supercut.history";
+const HISTORY_MAX = 40;
+
+function loadHistory() {
+  try {
+    const list = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveHistory(list) {
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(list.slice(0, HISTORY_MAX)));
+  } catch {}
+  renderHistory();
+}
+
+function currentSettings() {
+  return {
+    topic: $("#cut-topic").value.trim(),
+    script: $("#cut-script").value.trim(),
+    videoCount: $("#cut-count").value,
+    lang: $("#cut-lang").value,
+    cutCost: $("#cut-feel").value,
+    captions: $("#cut-captions").checked,
+    speak: $("#cut-speak").checked,
+  };
+}
+
+function rememberRun(settings) {
+  // The same line run twice is one entry, moved back to the top: a history full
+  // of the same script is a history nobody reads.
+  const list = loadHistory().filter((entry) => !(entry.topic === settings.topic && entry.script === settings.script));
+  list.unshift({ ...settings, at: Date.now(), id: `${Date.now()}` });
+  saveHistory(list);
+  return list[0].id;
+}
+
+function recordOutcome(id, outcome) {
+  const list = loadHistory();
+  const entry = list.find((item) => item.id === id);
+  if (!entry) return;
+  entry.outcome = outcome;
+  saveHistory(list);
+}
+
+// Put a past run back in the form. Deliberately does not start it: the reason to
+// reach for an old prompt is usually to change one word in it.
+function applySettings(entry) {
+  $("#cut-topic").value = entry.topic || "";
+  $("#cut-script").value = entry.script || "";
+  if (entry.videoCount) $("#cut-count").value = entry.videoCount;
+  if (entry.lang) $("#cut-lang").value = entry.lang;
+  if (entry.cutCost) $("#cut-feel").value = entry.cutCost;
+  $("#cut-captions").checked = entry.captions !== false;
+  $("#cut-speak").checked = Boolean(entry.speak);
+  $("#cut-script").focus();
+  toast("Loaded — change what you like, then Cut it");
+}
+
+const FEEL_LABEL = { "2.2": "long takes", "1": "balanced", "0.6": "chopped" };
+
+function renderHistory() {
+  const list = loadHistory();
+  const wrap = $("#cut-history-list");
+  wrap.innerHTML = "";
+  if (!list.length) {
+    wrap.innerHTML = `<p class="cut-history-empty">Nothing yet — the runs you make are kept here.</p>`;
+    return;
+  }
+
+  for (const entry of list) {
+    const card = document.createElement("article");
+    card.className = "cut-past";
+
+    const body = document.createElement("div");
+    body.className = "cut-past-body";
+    const script = document.createElement("span");
+    script.className = "cut-past-script";
+    script.textContent = entry.script;
+    const meta = document.createElement("span");
+    meta.className = "cut-past-meta";
+    const when = new Date(entry.at || Date.now());
+    meta.textContent = [
+      `“${entry.topic}”`,
+      `${entry.videoCount || 12} videos`,
+      entry.lang && entry.lang !== "auto" ? entry.lang : "auto",
+      FEEL_LABEL[String(entry.cutCost)] || "balanced",
+      entry.captions === false ? "no captions" : "captions",
+      entry.speak ? "spoken gaps" : null,
+      entry.outcome ? `→ ${entry.outcome}` : null,
+      when.toLocaleDateString(undefined, { day: "numeric", month: "short" }) + " " + when.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    body.append(script, meta);
+
+    const actions = document.createElement("div");
+    actions.className = "cut-past-actions";
+    const add = document.createElement("button");
+    add.type = "button";
+    add.className = "button button-dark button-small";
+    add.textContent = "Add";
+    add.addEventListener("click", () => applySettings(entry));
+    const drop = document.createElement("button");
+    drop.type = "button";
+    drop.className = "cut-past-drop";
+    drop.title = "Forget this one";
+    drop.setAttribute("aria-label", "Forget this one");
+    drop.textContent = "✕";
+    drop.addEventListener("click", () => saveHistory(loadHistory().filter((item) => item.id !== entry.id)));
+    actions.append(add, drop);
+
+    card.append(body, actions);
+    wrap.appendChild(card);
+  }
+}
+
 /* ------------------------------------------------------------------- strip */
 
 // The script as the pieces it became, in reading order, so the joins and the
@@ -302,6 +428,9 @@ async function run(event) {
   const script = $("#cut-script").value.trim();
   if (!topic || !script) return;
 
+  const settings = currentSettings();
+  const historyId = rememberRun(settings);
+
   state.running = true;
   state.result = null;
   $("#cut-go").disabled = true;
@@ -334,6 +463,7 @@ async function run(event) {
     });
 
     state.result = result;
+    recordOutcome(historyId, `${result.stats.found}/${result.stats.words} words, ${result.stats.clips} clips`);
     renderStrip(result.segments);
     if (result.missing.length) log(`nobody says: ${result.missing.join(", ")} — ${$("#cut-speak").checked ? "spoken by the studio instead" : "shown as type"}`, "is-error");
 
@@ -382,6 +512,16 @@ async function init() {
       at += span;
     });
   }, 120);
+
+  renderHistory();
+  $("#cut-history-toggle").addEventListener("click", () => {
+    const panel = $("#cut-history");
+    panel.hidden = !panel.hidden;
+    if (!panel.hidden) renderHistory();
+  });
+  $("#cut-history-clear").addEventListener("click", () => {
+    if (loadHistory().length && window.confirm("Forget every past run on this machine?")) saveHistory([]);
+  });
 
   $("#cut-form").addEventListener("submit", run);
   $("#cut-render").addEventListener("click", renderCut);
