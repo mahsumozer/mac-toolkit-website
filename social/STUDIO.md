@@ -351,6 +351,15 @@ A candidate is rejected when its span is longer than two seconds a word: that
 means the speaker paused mid-phrase, or the captions drifted, and the cut will
 sound wrong.
 
+### Finding enough to cut from
+
+Plenty of uploads have no captions at all, and a thin pool is what makes a cut
+stutter. So the search does not stop at one page: while there are fewer captioned
+videos than the run needs, the subject is asked for again in the shapes that tend
+to return people talking — `<subject> review`, `tips`, `explained`, `guide`,
+`tutorial` — and the new ones are read before the match is built. English is where
+this rarely has to fire; a Turkish run leans on it.
+
 ### Hunting the missing words
 
 The first pool rarely says everything. Every word nobody said is chased through

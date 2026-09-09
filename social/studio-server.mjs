@@ -1667,6 +1667,24 @@ async function runSupercut(payload, job) {
   job.stage = "Reading them";
   let sources = await readAll([...pool.values()], { lang, job });
   say(`${sources.length} of them have captions — ${sources.reduce((n, s) => n + s.words.length, 0).toLocaleString()} words to cut from`);
+
+  // Plenty of uploads have no captions at all, and a thin pool is what makes a
+  // cut stutter. So the search does not stop at one page: it keeps asking, in
+  // the shapes that tend to return people talking, until there is enough to cut
+  // from or the shapes run out.
+  const TARGET = Math.max(6, Math.round((Number(payload.videoCount) || 12) * 0.6));
+  const TOP_UPS = [(t) => `${t} review`, (t) => `${t} tips`, (t) => `${t} explained`, (t) => `${t} guide`, (t) => `${t} tutorial`];
+  for (let round = 0; sources.length < TARGET && round < TOP_UPS.length; round++) {
+    job.stage = `Looking for more captions (${sources.length}/${TARGET})`;
+    const before = pool.size;
+    await gather(TOP_UPS[round](topic), 8);
+    if (pool.size === before) continue;
+    const fresh = [...pool.values()].filter((video) => !sources.some((source) => source.video.url === video.url));
+    if (!fresh.length) continue;
+    const had = sources.length;
+    sources = sources.concat(await readAll(fresh, { lang }));
+    say(`searched again — ${sources.length - had} more with captions, ${sources.length} in the pool`);
+  }
   if (!sources.length) throw new Error("None of those videos have captions to cut from — try a broader subject");
 
   job.stage = "Matching the script";
