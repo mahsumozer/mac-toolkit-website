@@ -480,9 +480,12 @@ Timer Apps EVER!" at 4:48.
 
 What is still missing after the hunt is never dropped. It stays in the script as
 a gap, shown in the strip in red — and a gap is no longer a black frame. Each one
-gets a **picture**: a two-and-a-half second slice of a video that came up while
-hunting that very word, so it is at least about the right thing, cut from a
-moment where somebody is talking (the transcript says where). It goes on muted —
+gets a **picture**: a two-and-a-half second slice cut from a moment where somebody
+is talking (the transcript says where). It comes from the *subject's* videos
+rather than from the word's own search — hunting a brand name drags in whatever
+YouTube thought you meant, and "MacKit" returned a video about Mackie mixers,
+which under the word is worse than no picture at all. A video actually about the
+subject is always defensible. Several gaps in one line draw different videos. It goes on muted —
 someone else's sentence under our own word is two voices at once — with the words
 on screen and, with the switch on, the studio's voice saying them.
 

@@ -2107,10 +2107,17 @@ async function runSupercut(payload, job) {
     job.stage = "Finding something to show";
     for (const gap of gaps.slice(0, 4)) {
       const wanted = tokenize(gap.text).map((token) => token.norm);
-      const source =
-        sources.find((item) => wanted.includes(item.video.foundFor)) ||
-        sources.find((item) => item.video.onTopic !== false) ||
-        sources[0];
+      // The subject first, the word's own search second. Hunting a brand name
+      // drags in whatever YouTube thought you meant — "MacKit" returns a video
+      // about Mackie mixers — and a picture from the wrong world under a word is
+      // worse than a picture of the right one. A video actually about the
+      // subject is always defensible.
+      const onTopic = sources.filter((item) => item.video.onTopic !== false);
+      const hunted = sources.filter((item) => wanted.includes(item.video.foundFor) && item.video.onTopic !== false);
+      const shelf = hunted.length ? hunted : onTopic.length ? onTopic : sources;
+      // Not always the same one: several gaps in a line should not all be shown
+      // over the same face.
+      const source = shelf[Math.floor(Math.random() * shelf.length)];
       if (!source) continue;
       // A moment with speech in it: a title card or a silent intro makes a poor
       // bed for a voice, and the transcript says exactly where the talking is.
