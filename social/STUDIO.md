@@ -384,6 +384,19 @@ seconds early — the whole point of cutting on a transcript. Clips are cached b
 url and start time, so re-running a script costs nothing for the words it already
 has.
 
+YouTube refuses a good share of downloads with *"Sign in to confirm you're not a
+bot"*, and **which player client is asked decides whether it happens**: on a
+refused video, `web`, `tv` and `web_safari` were all challenged and `android`
+downloaded it without complaint. So a refused download is retried as
+`android`, then `ios`, then `tv_embedded` before it is believed. Autopilot's
+footage downloads go through the same ladder.
+
+And when a video will not come down at all, the word is not lost: every other
+mouth that says the same run travels with the choice as an alternate, and the cut
+falls back to the next one, saying which video it took it from. On the run that
+proved it, six of nine clips had failed the bot check outright; afterwards all
+nine came down, one of them from its alternate.
+
 The page lays them end to end: each clip is a full-frame layer starting where the
 last one finished, with no trimming, because the file *is* the word. The word
 being spoken is drawn over it, and the strip above the log lights up chip by chip

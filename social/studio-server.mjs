@@ -914,8 +914,7 @@ async function fetchFootage(item, job) {
     // thread each frame, and AV1 stutters there). A `height<=1080` filter looks
     // right and is not — on a vertical 1080x1920 clip the height is 1920, so it
     // throws away every good format and leaves a 480p one behind.
-    await run(
-      "yt-dlp",
+    await ytdlpDownload(
       [
         "-f",
         "bv*+ba/b",
@@ -928,8 +927,8 @@ async function fetchFootage(item, job) {
         ...(item.section ? ["--download-sections", `*${item.section}`, "--force-keyframes-at-cuts"] : []),
         "-o",
         target,
-        item.url,
       ],
+      item.url,
       {
         onStderr(text) {
           const match = /(\d+(?:\.\d+)?)%/.exec(text);
@@ -1576,6 +1575,27 @@ const CUTS = join(LIB, "videos", "cuts");
 // One clip, cut to the second. `--force-keyframes-at-cuts` re-encodes the edges
 // so the cut lands on the word rather than on the nearest keyframe, which can be
 // several seconds early — the whole point of cutting on a transcript.
+// YouTube refuses a share of downloads with "Sign in to confirm you're not a
+// bot", and which client is asked decides whether that happens: the default web
+// player is challenged where the mobile ones are waved through. Measured on a
+// refused video — web, tv and web_safari all failed, android downloaded it.
+const PLAYER_CLIENTS = [null, "android", "ios", "tv_embedded"];
+const BOT_CHECK = /not a bot|sign in to confirm|403: forbidden|please sign in/i;
+
+async function ytdlpDownload(args, url, { onStderr } = {}) {
+  let last = null;
+  for (const client of PLAYER_CLIENTS) {
+    try {
+      await run("yt-dlp", [...args, ...(client ? ["--extractor-args", `youtube:player_client=${client}`] : []), url], { onStderr });
+      return client;
+    } catch (error) {
+      last = error;
+      if (!BOT_CHECK.test(String(error.message || error))) throw error;
+    }
+  }
+  throw last;
+}
+
 async function cutSection(item, job) {
   await fs.mkdir(CUTS, { recursive: true });
   const target = join(CUTS, `${slugify(`${item.text}-${Math.round(item.start)}`).slice(0, 40)}-${createHash("sha1").update(`${item.url}${item.start}`).digest("hex").slice(0, 6)}.mp4`);
@@ -1583,22 +1603,24 @@ async function cutSection(item, job) {
     await fs.access(target);
     return target;
   } catch {}
-  await run("yt-dlp", [
-    "-f",
-    "bv*+ba/b",
-    "-S",
-    "res:1080,vcodec:h264,ext:mp4",
-    "--merge-output-format",
-    "mp4",
-    "--no-playlist",
-    "--no-warnings",
-    "--download-sections",
-    `*${item.start}-${item.end}`,
-    "--force-keyframes-at-cuts",
-    "-o",
-    target,
+  await ytdlpDownload(
+    [
+      "-f",
+      "bv*+ba/b",
+      "-S",
+      "res:1080,vcodec:h264,ext:mp4",
+      "--merge-output-format",
+      "mp4",
+      "--no-playlist",
+      "--no-warnings",
+      "--download-sections",
+      `*${item.start}-${item.end}`,
+      "--force-keyframes-at-cuts",
+      "-o",
+      target,
+    ],
     item.url,
-  ]);
+  );
   await recordSource(basename(target), { url: item.url, title: item.title || "", provider: "youtube", query: "supercut", section: `${item.start}-${item.end}` });
   return target;
 }
@@ -1743,10 +1765,23 @@ async function runSupercut(payload, job) {
   const clips = cut.segments.filter((segment) => segment.kind === "clip");
   let done = 0;
   for (const clip of clips) {
-    clip.path = await cutSection(clip, job).catch((error) => {
-      say(`could not cut "${clip.text}" (${String(error.message).slice(0, 80)})`, { role: "tool-error" });
-      return null;
-    });
+    // The first choice, then whoever else said the same words. A refused
+    // download is not a reason to lose the line.
+    const takes = [clip, ...(clip.alternates || [])];
+    for (const [index, take] of takes.entries()) {
+      try {
+        clip.path = await cutSection({ ...take, text: clip.text }, job);
+        if (index > 0) {
+          Object.assign(clip, { url: take.url, title: take.title, start: take.start, end: take.end, span: take.span });
+          say(`"${clip.text}" would not download — took it from ${String(take.title).slice(0, 40)} instead`);
+        }
+        break;
+      } catch (error) {
+        if (index === takes.length - 1) {
+          say(`could not cut "${clip.text}" from any of ${takes.length} videos (${String(error.message).split("\n")[0].slice(0, 70)})`, { role: "tool-error" });
+        }
+      }
+    }
     done++;
     job.progress = 0.5 + (0.5 * done) / clips.length;
     job.stage = `Cutting ${done} of ${clips.length}`;

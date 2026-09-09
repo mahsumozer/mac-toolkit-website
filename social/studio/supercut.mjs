@@ -153,7 +153,7 @@ export function buildCut(tokens, sources, { maxRun = 8, cutCost = 1 } = {}) {
   for (let i = 0; i < n; i++) {
     for (let length = Math.min(maxRun, n - i); length >= 1; length--) {
       const run = tokens.slice(i, i + length).map((token) => token.norm);
-      let best = null;
+      const candidates = [];
       for (const source of sources) {
         for (const at of findRun(source, run)) {
           const clip = clipFor(source, at, length);
@@ -162,10 +162,27 @@ export function buildCut(tokens, sources, { maxRun = 8, cutCost = 1 } = {}) {
           // with a thumb on the scale for videos that are actually about the
           // subject.
           const air = Math.max(0, clip.span - length * 0.42) + (source.onTopic ? 0 : OFF_TOPIC_AIR);
-          if (!best || air < best.air) best = { source, at, length, clip, air };
+          candidates.push({ source, at, length, clip, air });
         }
       }
-      if (best) options[i].push(best);
+      if (!candidates.length) continue;
+      candidates.sort((a, b) => a.air - b.air);
+      const best = candidates[0];
+      // Every other mouth that says the same words, kept in case the first one
+      // will not download: YouTube asks a good share of them to prove they are
+      // not a robot.
+      best.alternates = candidates
+        .slice(1)
+        .filter((other) => other.source.video.url !== best.source.video.url)
+        .slice(0, 3)
+        .map((other) => ({
+          url: other.source.video.url,
+          title: other.source.video.title,
+          start: other.clip.start,
+          end: other.clip.end,
+          span: other.clip.span,
+        }));
+      options[i].push(best);
     }
   }
 
@@ -191,9 +208,12 @@ export function buildCut(tokens, sources, { maxRun = 8, cutCost = 1 } = {}) {
       i = step.next;
       continue;
     }
-    const { source, clip, length } = step.take;
+    const { source, clip, length, alternates } = step.take;
     segments.push({
       kind: "clip",
+      // The runners-up travel with the choice: a download can fail, and a second
+      // mouth saying the same words beats a hole in the script.
+      alternates: alternates || [],
       text: tokens
         .slice(i, i + length)
         .map((token) => token.raw)
