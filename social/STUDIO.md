@@ -430,8 +430,8 @@ free.
 ### Knowing when to stop chasing a word
 
 A brand name is a word nobody says, and chasing it through all six shapes spends
-the budget the findable words need. Two rounds that bring back nothing new to
-read and the word is set aside — it still gets its filler, and the hunt spends
+the budget the findable words need. Two rounds in which new videos are read and
+the word is still not in them and it is set aside — it still gets its filler, and the hunt spends
 what is left on words that can actually be found. If only set-aside words remain,
 the run does not bother asking for more videos; and if more are granted anyway,
 the searches deepen, which is a different search, so the set-aside words get
@@ -539,7 +539,14 @@ proved it, six of nine clips had failed the bot check outright; afterwards all
 nine came down, one of them from its alternate.
 
 The page lays them end to end: each clip is a full-frame layer starting where the
-last one finished, with no trimming, because the file *is* the word. The word
+last one finished, with no trimming, because the file *is* the word — and the
+slot is the file's own measured length rather than what the transcript said. A
+slot longer than its clip has to be filled with something, and both answers are
+wrong: looping says the word twice, freezing holds a still through the silence.
+Every layer is collected first and the composition set once, since adding them
+one at a time re-syncs the media pool and redraws the whole canvas on each call,
+which is what left a paragraph's worth of clips sitting on a black canvas for
+minutes. The word
 being spoken is drawn over it, and the strip above the log lights up chip by chip
 as the playhead crosses it. Render goes through the same `/render-video` as
 everything else, so the result lands in `studio/out/` with its `project.json`.

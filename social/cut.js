@@ -511,18 +511,19 @@ async function buildComposition(result) {
   }
 
   const duration = Math.max(1.5, Number(at.toFixed(3)));
-  editor.setComposition({ duration, layers });
 
   for (const track of audio) {
-    editor.addLayer(
-      audioLayer({ name: track.path.split("/").pop(), path: track.path, src: track.src, duration: track.duration }, { start: track.start, end: track.start + track.duration }),
-      { select: false },
+    layers.push(
+      audioLayer(
+        { name: track.path.split("/").pop(), path: track.path, src: track.src, duration: track.duration },
+        { start: track.start, end: track.start + track.duration },
+      ),
     );
   }
 
   if (withCaptions) {
     for (const caption of captions) {
-      editor.addLayer(
+      layers.push(
         textLayer(caption.text, {
           isCaption: true,
           style: caption.gap ? "sticker-accent" : "sticker-white",
@@ -533,11 +534,15 @@ async function buildComposition(result) {
           start: Number(caption.start.toFixed(3)),
           end: Number(caption.end.toFixed(3)),
         }),
-        { select: false },
       );
     }
   }
 
+  // One composition, set once. Adding layers one at a time re-syncs the media
+  // pool and redraws the whole 1080x1920 canvas on every call, so a paragraph —
+  // forty-seven clips and as many captions — spent minutes doing the same work
+  // a hundred times over before it could show anything.
+  editor.setComposition({ duration, layers });
   editor.select(null);
   editor.draw();
   return duration;

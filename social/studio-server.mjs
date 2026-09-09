@@ -1117,18 +1117,33 @@ async function renderComposition(spec, job) {
       let index;
       if (layer.type === "gif") index = addInput(["-ignore_loop", "0", "-t", span, "-i", layer.path]);
       else if (layer.type === "image") index = addInput(["-loop", "1", "-t", span, "-i", layer.path]);
-      else index = addInput(["-stream_loop", "-1", "-ss", String(layer.trim || 0), "-t", span, "-i", layer.path]);
+      // No looping in a strip. A clip that comes back a few frames shorter than
+      // the transcript said would start again to fill the gap, and in a strip
+      // that repeat is not hidden behind an enable window — it is in the video,
+      // saying the word twice.
+      else index = addInput(["-ss", String(layer.trim || 0), "-t", span, "-i", layer.path]);
 
       const filters = [];
       if (crop.sw && crop.sh) filters.push(`crop=${Math.round(crop.sw)}:${Math.round(crop.sh)}:${Math.round(crop.sx || 0)}:${Math.round(crop.sy || 0)}`);
       // Every segment has to agree on size, aspect, rate and pixel format, or
       // concat refuses them.
-      filters.push(`scale=${COMP_W}:${COMP_H}`, "setsar=1", "fps=30", "format=yuv420p", `trim=duration=${span}`, "setpts=PTS-STARTPTS");
+      // A short clip holds its last frame instead of starting over, so the
+      // segment still fills the time the captions were timed against.
+      filters.push(
+        `scale=${COMP_W}:${COMP_H}`,
+        "setsar=1",
+        "fps=30",
+        "format=yuv420p",
+        `tpad=stop_mode=clone:stop_duration=${span}`,
+        `trim=duration=${span}`,
+        "setpts=PTS-STARTPTS",
+      );
       chain.push(`[${index}:v]${filters.join(",")}[s${parts.length}]`);
       parts.push(`[s${parts.length}]`);
 
       if (layer.type === "video" && Number(layer.volume) > 0 && (await hasAudio(layer.path))) {
-        const audio = [`volume=${Number(layer.volume)}`, `atrim=0:${span}`, "asetpts=PTS-STARTPTS"];
+        // Silence rather than the word again, for the same reason.
+        const audio = [`volume=${Number(layer.volume)}`, `apad=whole_dur=${span}`, `atrim=0:${span}`, "asetpts=PTS-STARTPTS"];
         if (start > 0.01) audio.push(`adelay=delays=${Math.round(start * 1000)}:all=1`);
         chain.push(`[${index}:a]${audio.join(",")}[a${step}]`);
         audioParts.push(`[a${step}]`);
@@ -2019,8 +2034,10 @@ async function runSupercut(payload, job) {
       continue;
     }
     let grew = false;
+    const triedThisRound = [];
     for (const word of stillMissing.slice(0, 8)) {
       hunted.add(`${word}:${round}`);
+      triedThisRound.push(word);
       job.stage = `Hunting "${word}"`;
       const at = tokens.findIndex((token) => token.raw === word);
       // Punctuation belongs to the script, not to the search: "Pomodoro," in
@@ -2029,14 +2046,10 @@ async function runSupercut(payload, job) {
       const neighbour = at >= 0 && tokens[at + 1] ? tokens[at + 1].norm : "";
       const before = pool.size;
       await gather(SHAPES[round](plain, neighbour), depth, false, plain);
-      const nothingNew = () => {
-        const count = (fruitless.get(word) || 0) + 1;
-        fruitless.set(word, count);
-        if (count >= FRUITLESS_LIMIT) {
-          givenUp.add(word);
-          say(`“${word}” turns up nothing new — leaving it to the filler and spending the budget elsewhere`);
-        }
-      };
+      // A search that returns nothing new is a dead end for this shape, but it
+      // says nothing about the word: the counting that matters happens after the
+      // round, when the new videos have been read.
+      const nothingNew = () => {};
       if (pool.size === before) {
         nothingNew();
         continue;
@@ -2061,7 +2074,28 @@ async function runSupercut(payload, job) {
     const before = cut.missing.length;
     cut = solve();
     if (cut.missing.length < before) say(`found ${before - cut.missing.length} more of them`);
+
+    // The honest measure of a fruitless round: new videos were read and the word
+    // still is not in them. Counting rounds that found no new videos measured
+    // the search engine instead, and a brand name kept coming back because every
+    // round did find videos — just never one that says it.
+    for (const word of triedThisRound) {
+      if (!cut.missing.includes(word)) {
+        fruitless.delete(word);
+        continue;
+      }
+      const count = (fruitless.get(word) || 0) + 1;
+      fruitless.set(word, count);
+      if (count >= FRUITLESS_LIMIT) {
+        givenUp.add(word);
+        say(`“${word}” is not said in ${count} rounds of videos — leaving it to the filler and spending the budget elsewhere`);
+      }
+    }
     if (!cut.missing.length) break;
+    if (cut.missing.every((word) => givenUp.has(word))) {
+      say(`nothing left worth hunting — ${cut.missing.length} word${cut.missing.length === 1 ? "" : "s"} will be shown over a related clip`);
+      break;
+    }
   }
 
   // Now that the holes are filled, the joins. A phrase that came back in pieces
@@ -2152,6 +2186,13 @@ async function runSupercut(payload, job) {
     for (const [index, take] of takes.entries()) {
       try {
         clip.path = await cutSection({ ...take, text: clip.text }, job);
+        // What came down is what plays. yt-dlp cuts on keyframes and re-encodes
+        // the edges, so a clip can arrive a little shorter or longer than the
+        // transcript's timings said — and a slot longer than its clip has to be
+        // filled with something, which is either the word said twice or a frozen
+        // frame. Neither is an edit. The real duration becomes the slot.
+        const real = await probeDuration(clip.path).catch(() => 0);
+        if (real > 0.05) clip.span = Number(real.toFixed(3));
         if (index > 0) {
           Object.assign(clip, { url: take.url, title: take.title, start: take.start, end: take.end, span: take.span });
           say(`"${clip.text}" would not download — took it from ${String(take.title).slice(0, 40)} instead`);
