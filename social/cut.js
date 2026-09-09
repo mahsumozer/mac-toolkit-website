@@ -321,6 +321,7 @@ async function run(event) {
         script,
         videoCount: Number($("#cut-count").value) || 12,
         cutCost: Number($("#cut-feel").value) || 1,
+        lang: $("#cut-lang").value,
       }),
     });
 

@@ -23,7 +23,7 @@ import { runAgent, toolSchemas, buildBrief } from "./studio/agent.mjs";
 import { runAutopilot } from "./studio/autopilot.mjs";
 import { screenshotSite } from "./studio/shot.mjs";
 import { trendingNow } from "./studio/trends.mjs";
-import { fetchTranscript, condense, opening } from "./studio/transcript.mjs";
+import { fetchTranscript, condense, opening, guessLanguage } from "./studio/transcript.mjs";
 import { tokenize, indexSource, buildCut, searchPhrases } from "./studio/supercut.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -1383,8 +1383,8 @@ async function fetchSitePage(target) {
 
 // What a video says, with timings. Cached by video id: the same trending upload
 // is read by every concept in a campaign and a fetch is a couple of seconds.
-const readVideo = (url) =>
-  fetchTranscript(url, { run, tmpDir: join(TMP, "subs"), cacheDir: join(TMP, "subs-cache"), serpApiKey: SERPAPI_KEY });
+const readVideo = (url, lang = "en", { allowSerpApi = true } = {}) =>
+  fetchTranscript(url, { run, tmpDir: join(TMP, "subs"), cacheDir: join(TMP, "subs-cache"), serpApiKey: SERPAPI_KEY, lang, allowSerpApi });
 
 function autopilotTools(job) {
   const photoResults = new Map();
@@ -1601,15 +1601,21 @@ async function cutSection(item, job) {
 
 // Transcripts for a list of videos, a few at a time. Every one is a yt-dlp call,
 // and forty at once is how a laptop stops answering.
-async function readAll(videos, job) {
+async function readAll(videos, { lang = "en", job } = {}) {
   const sources = [];
   const queue = [...videos];
   const workers = Array.from({ length: 4 }, async () => {
     while (queue.length) {
       const video = queue.shift();
       try {
-        const transcript = await readVideo(video.url);
-        if (transcript.words && transcript.words.length) {
+        // A supercut reads dozens of videos a run and SerpApi charges per
+        // search, so the paid fallback stays for the one-video reads Autopilot
+        // does and never fires here.
+        const transcript = await readVideo(video.url, lang, { allowSerpApi: false });
+        // A translated caption track is words nobody said. It is fine for
+        // understanding a video and useless for cutting one, so it never becomes
+        // a source here.
+        if (transcript.words && transcript.words.length && transcript.original !== false) {
           sources.push(indexSource(video, transcript.words, { onTopic: video.onTopic !== false }));
           if (job) job.progress = Math.min(0.5, sources.length / Math.max(videos.length, 1) / 2);
         }
@@ -1629,6 +1635,8 @@ async function runSupercut(payload, job) {
   if (!topic) throw new Error("Pick a subject to cut from — 'macbook', 'coffee', 'formula one'");
   if (!script) throw new Error("Write the line you want assembled");
 
+  const lang = payload.lang && payload.lang !== "auto" ? payload.lang : guessLanguage(script);
+
   job.stage = "Finding videos";
   const pool = new Map();
   const gather = async (query, limit, onTopic = true) => {
@@ -1639,15 +1647,21 @@ async function runSupercut(payload, job) {
     return results.length;
   };
   await gather(topic, Number(payload.videoCount) || 12);
+  // A subject typed in English cannot supply Turkish words, so when the script
+  // is not English the subject is searched again with a word that pulls that
+  // language's own videos up.
+  const LANGUAGE_SEED = { tr: "inceleme", de: "test", fr: "avis", es: "reseña", it: "recensione", pt: "análise" };
   // Videos found because someone says the phrase, not because they are about the
   // subject. This is what lets the solver take four words in one go instead of
   // stitching four singles.
+  if (lang !== "en" && LANGUAGE_SEED[lang]) await gather(`${topic} ${LANGUAGE_SEED[lang]}`, 8);
   const phrases = searchPhrases(script);
   for (const phrase of phrases) await gather(`"${phrase}"`, 4, false);
   say(`${pool.size} videos — "${topic}" plus ${phrases.length} phrase searches (${phrases.map((p) => `"${p}"`).join(", ")})`);
+  if (lang !== "en") say(`the script reads as ${lang}: only videos actually spoken in ${lang} can supply its words, so translated caption tracks are ignored`);
 
   job.stage = "Reading them";
-  let sources = await readAll([...pool.values()], job);
+  let sources = await readAll([...pool.values()], { lang, job });
   say(`${sources.length} of them have captions — ${sources.reduce((n, s) => n + s.words.length, 0).toLocaleString()} words to cut from`);
   if (!sources.length) throw new Error("None of those videos have captions to cut from — try a broader subject");
 
@@ -1656,22 +1670,48 @@ async function runSupercut(payload, job) {
   const cutCost = Number(payload.cutCost) || 1;
   let cut = buildCut(tokens, sources, { cutCost });
 
-  // A word nobody in the first pool says gets hunted on its own. This is what
-  // turns "we could not find pomodoro" into a clip of someone saying pomodoro.
-  const hunted = [];
-  for (const word of cut.missing.slice(0, 4)) {
-    job.stage = `Hunting "${word}"`;
-    const before = pool.size;
-    await gather(`${topic} ${word}`, 4);
-    await gather(word, 3, false);
-    const fresh = [...pool.values()].filter((video) => !sources.some((source) => source.video.url === video.url));
-    if (!fresh.length) continue;
-    const extra = await readAll(fresh, null);
-    sources = sources.concat(extra);
-    hunted.push(word);
-    say(`hunted "${word}" through ${pool.size - before} more videos`);
+  // A word nobody in the first pool says gets hunted on its own, and the hunt
+  // does not stop at one search: a word that is missing is missing until it is
+  // found, so each one is chased through several shapes of query and the match
+  // is rebuilt after every round.
+  const SHAPES = [
+    (word) => `"${word}"`,
+    (word) => `${topic} ${word}`,
+    (word, neighbour) => (neighbour ? `"${word} ${neighbour}"` : `${word} nedir`),
+    (word) => `${word} ${lang === "tr" ? "anlatım" : "explained"}`,
+  ];
+  const hunted = new Set();
+  for (let round = 0; round < SHAPES.length; round++) {
+    const stillMissing = cut.missing.filter((word) => !hunted.has(`${word}:${round}`));
+    if (!stillMissing.length) break;
+    let grew = false;
+    for (const word of stillMissing.slice(0, 8)) {
+      hunted.add(`${word}:${round}`);
+      job.stage = `Hunting "${word}"`;
+      const at = tokens.findIndex((token) => token.raw === word);
+      const neighbour = at >= 0 && tokens[at + 1] ? tokens[at + 1].raw : "";
+      const before = pool.size;
+      await gather(SHAPES[round](word, neighbour), 5, false);
+      if (pool.size === before) continue;
+      const fresh = [...pool.values()].filter((video) => !sources.some((source) => source.video.url === video.url));
+      if (!fresh.length) continue;
+      // A Turkish script still says "clipboard" and "cleaning mode". Those words
+      // are English wherever they are spoken, so when a missing word is plain
+      // ASCII the hunt reads its videos as English as well — the cut is a
+      // patchwork of voices either way, and a word found in the wrong language
+      // is still the word.
+      const alsoEnglish = lang !== "en" && /^[\x20-\x7E]+$/.test(word);
+      sources = sources.concat(await readAll(fresh, { lang }));
+      if (alsoEnglish) sources = sources.concat(await readAll(fresh, { lang: "en" }));
+      grew = true;
+      say(`hunted "${word}" through ${pool.size - before} more videos`);
+    }
+    if (!grew) continue;
+    const before = cut.missing.length;
+    cut = buildCut(tokens, sources, { cutCost });
+    if (cut.missing.length < before) say(`found ${before - cut.missing.length} more of them`);
+    if (!cut.missing.length) break;
   }
-  if (hunted.length) cut = buildCut(tokens, sources, { cutCost });
 
   job.stage = "Cutting";
   const clips = cut.segments.filter((segment) => segment.kind === "clip");
@@ -1692,6 +1732,7 @@ async function runSupercut(payload, job) {
   return {
     topic,
     script,
+    lang,
     segments: cut.segments.filter((segment) => segment.kind !== "clip" || segment.path),
     missing: cut.missing,
     stats: cut.stats,

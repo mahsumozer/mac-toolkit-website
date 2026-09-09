@@ -40,7 +40,7 @@ fallback, so the studio is usable with none of them:
 | `geminiApiKey` | Voiceover — the default speaker | ElevenLabs if its key is set, otherwise macOS `say` |
 | `elevenLabsApiKey` | Voiceover, when there is no Gemini key | macOS `say`, offered as a voice list in the render panel |
 | `giphyApiKey` | GIF and sticker search | GIF search is disabled; everything else works |
-| `serpApiKey` | Transcripts for videos YouTube publishes no captions for | `yt-dlp`'s own caption fetch, which covers most videos |
+| `serpApiKey` | One engine only, `youtube_video_transcript`, and only when `yt-dlp` comes back with nothing for a single video Autopilot wants to read | that video is simply not read |
 
 ### Which model writes the copy
 
@@ -140,6 +140,34 @@ enough on its own.
    best one, and the model is a far better editor of its own work than an author
    of it. If this pass fails the run carries on with the first drafts — a failed
    edit is not a failed run.
+
+### Which language, and which track
+
+A caption track in language X is not the same thing as a video *spoken* in X.
+YouTube offers machine translations of everything into everything, and cutting on
+those produces clips whose audio never said those words. So the fetch asks for
+`<lang>-orig,<lang>` and reports which arrived: `-orig` is the track YouTube
+labels "(Original)", and only original tracks are allowed to be *cut* from.
+Translations are still fine for *reading* a video, which is all Autopilot needs.
+
+The script's language is guessed from its own letters and stopwords, and decides
+which tracks are fetched. A Turkish line cannot be cut out of English videos, so
+the subject is searched again with a word that surfaces that language's own
+uploads (`inceleme`, `test`, `reseña`). Mixed scripts are normal — "clipboard,
+Pomodoro … ve daha fazlasını" — so a missing word that is plain ASCII is also
+hunted through English captions, since "clipboard" is the same word in whatever
+video it is spoken.
+
+### What SerpApi is actually for
+
+The transcript module keeps two sources, and they are not interchangeable.
+`yt-dlp` is the one that runs: no key, no charge, and its `json3` tracks carry the
+per-word offsets everything here depends on. SerpApi's `youtube_video_transcript`
+engine is the fallback, ported from the original tool, and it charges per search —
+so it is only reached for a single video Autopilot wants to read that yt-dlp
+could not, and never for the dozens a supercut reads in one run. Its answer is
+lines rather than words, so its words are spread evenly across each line: wrong by
+a fraction of a second rather than by a line.
 
 ### Reading the video before cutting it
 
@@ -325,9 +353,10 @@ sound wrong.
 
 ### Hunting the missing words
 
-The first pool rarely says everything. Every word nobody said gets searched for on
-its own — `<subject> <word>`, then the bare word — and the pool grows before the
-match is rebuilt. That is what turns "we could not find pomodoro" into a clip of
+The first pool rarely says everything. Every word nobody said is chased through
+four shapes of search — the quoted word, `<subject> <word>`, the word with its
+neighbour, and the word plus "explained" — round after round, rebuilding the match
+each time and stopping when nothing is missing or nothing new can be found. That is what turns "we could not find pomodoro" into a clip of
 someone saying *pomodoro*: on the verified run it found it in "Best Pomodoro
 Timer Apps EVER!" at 4:48.
 

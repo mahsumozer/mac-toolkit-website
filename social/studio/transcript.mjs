@@ -145,20 +145,36 @@ async function serpApiTranscript(url, { apiKey, lang = "en" }) {
       return { start, end: Number(chunk.end_time ?? chunk.end ?? start + 2), text: String(chunk.snippet || "").trim() };
     })
     .filter((cue) => cue.text);
-  return { cues, title: data.video_title || "", source: "serpapi" };
+  // SerpApi answers with lines, not words. Spreading a line's words across its
+  // own duration is wrong by a fraction of a second rather than by a line, which
+  // is the difference between a transcript that can be cut from and one that
+  // can only be read.
+  const words = [];
+  for (const cue of cues) {
+    const parts = cue.text.split(/\s+/).filter(Boolean);
+    const step = parts.length ? (cue.end - cue.start) / parts.length : 0;
+    parts.forEach((part, i) => {
+      const at = cue.start + step * i;
+      words.push({ t: Number(at.toFixed(3)), end: Number((at + step).toFixed(3)), text: part });
+    });
+  }
+  return { cues, words, title: data.video_title || "", source: "serpapi", approximate: true };
 }
 
 async function ytdlpTranscript(url, { run, tmpDir, lang = "en" }) {
   await fs.mkdir(tmpDir, { recursive: true });
   const id = videoId(url);
-  // One language, not "en.*": asking for every English variant downloads three
-  // files and earns a 429 on the third.
+  // `<lang>-orig` is the track YouTube labels "(Original)": the words actually
+  // spoken. Plain `<lang>` on a foreign video is a machine translation of them —
+  // fine for understanding what a video is about, useless for cutting, because
+  // the mouth never said those words. Both are asked for and which one arrived
+  // is reported.
   await run("yt-dlp", [
     "--skip-download",
     "--write-subs",
     "--write-auto-subs",
     "--sub-langs",
-    lang,
+    `${lang}-orig,${lang}`,
     "--sub-format",
     "json3/vtt",
     "--no-warnings",
@@ -168,11 +184,13 @@ async function ytdlpTranscript(url, { run, tmpDir, lang = "en" }) {
   ]);
   const names = await fs.readdir(tmpDir);
   const mine = names.filter((name) => name.startsWith(id));
-  const pick = mine.find((name) => name.endsWith(".json3")) || mine.find((name) => name.endsWith(".vtt"));
-  if (!pick) return { cues: [], title: "", source: "yt-dlp" };
+  const prefer = [`.${lang}-orig.json3`, `.${lang}.json3`, `.${lang}-orig.vtt`, `.${lang}.vtt`];
+  const pick = prefer.map((suffix) => mine.find((name) => name.endsWith(suffix))).find(Boolean);
+  if (!pick) return { cues: [], words: [], title: "", source: "yt-dlp", original: false };
+  const original = pick.includes(`${lang}-orig.`);
   const body = await fs.readFile(join(tmpDir, pick), "utf8");
-  if (!pick.endsWith(".json3")) return { cues: parseVtt(body), words: [], title: "", source: "yt-dlp" };
-  return { cues: parseJson3(body), words: wordsFromJson3(body), title: "", source: "yt-dlp" };
+  if (!pick.endsWith(".json3")) return { cues: parseVtt(body), words: [], title: "", source: "yt-dlp", original };
+  return { cues: parseJson3(body), words: wordsFromJson3(body), title: "", source: "yt-dlp", original };
 }
 
 /**
@@ -181,19 +199,22 @@ async function ytdlpTranscript(url, { run, tmpDir, lang = "en" }) {
  * Cached on disk by video id, because the same trending video is read by every
  * concept in a campaign and a fetch is ten seconds.
  */
-export async function fetchTranscript(url, { run, tmpDir, cacheDir, serpApiKey, lang = "en" }) {
+export async function fetchTranscript(url, { run, tmpDir, cacheDir, serpApiKey, lang = "en", allowSerpApi = true }) {
   const id = videoId(url);
-  const cacheFile = cacheDir ? join(cacheDir, `${id}.json`) : null;
+  // The language is part of the key: the same video read as Turkish and as
+  // English are two different transcripts, and one must never be served as the
+  // other.
+  const cacheFile = cacheDir ? join(cacheDir, `${id}.${lang}.json`) : null;
   if (cacheFile) {
     const cached = await fs.readFile(cacheFile, "utf8").then(JSON.parse, () => null);
     if (cached) return cached;
   }
 
-  let result = { cues: [], words: [], title: "", source: "none" };
+  let result = { cues: [], words: [], title: "", source: "none", original: false };
   try {
     result = await ytdlpTranscript(url, { run, tmpDir: join(tmpDir, id), lang });
   } catch {}
-  if (!result.cues.length && serpApiKey) {
+  if (!result.cues.length && serpApiKey && allowSerpApi) {
     try {
       result = await serpApiTranscript(url, { apiKey: serpApiKey, lang });
     } catch (error) {
@@ -208,6 +229,26 @@ export async function fetchTranscript(url, { run, tmpDir, cacheDir, serpApiKey, 
     await fs.writeFile(cacheFile, JSON.stringify(payload));
   }
   return payload;
+}
+
+// Enough to tell apart the languages this tool gets pointed at. Not a language
+// detector — a decision about which caption track to ask for.
+const LANGUAGE_HINTS = [
+  { lang: "tr", letters: /[ğışçöüİĞŞÇÖÜ]/g, words: /\b(ve|daha|bir|için|ile|bu|çok|var|olarak|hepsi|tek)\b/gi },
+  { lang: "de", letters: /[äöüß]/g, words: /\b(und|der|die|das|nicht|mit|für)\b/gi },
+  { lang: "fr", letters: /[àâçéèêëîïôùûœ]/g, words: /\b(le|la|les|des|avec|pour|dans)\b/gi },
+  { lang: "es", letters: /[áéíóúñ¿¡]/g, words: /\b(el|la|los|las|para|con|una)\b/gi },
+  { lang: "it", letters: /[àèéìòù]/g, words: /\b(il|lo|gli|per|con|una|che)\b/gi },
+];
+
+export function guessLanguage(text) {
+  const body = String(text || "");
+  let best = { lang: "en", score: 0 };
+  for (const hint of LANGUAGE_HINTS) {
+    const score = (body.match(hint.letters) || []).length * 2 + (body.match(hint.words) || []).length;
+    if (score > best.score) best = { lang: hint.lang, score };
+  }
+  return best.score >= 2 ? best.lang : "en";
 }
 
 /** The first words, which is where a video's hook lives. */
