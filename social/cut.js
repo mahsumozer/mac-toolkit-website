@@ -707,6 +707,7 @@ function renderAsk(job) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ jobId: state.jobId, reads }),
       });
+      log(reads ? `asked for ${reads} more videos` : "cutting what it has", "is-done");
     } catch (error) {
       log(`could not answer: ${error.message}`, "is-error");
     }
@@ -785,11 +786,14 @@ async function run(event) {
     state.jobId = jobId;
     let shown = 0;
     const result = await pollJob(jobId, (job) => {
-      if (job.awaiting) renderAsk(job);
       phase(job.stage || job.status);
       progress(job.progress || 0, job.stage || "");
+      // The backlog first, then the question: a poll tick usually carries both,
+      // and asking above the lines that led to it reads as though the answer
+      // was ignored.
       for (const message of (job.messages || []).slice(shown)) log(message.text, message.role === "tool-error" ? "is-error" : "is-done");
       shown = (job.messages || []).length;
+      if (job.awaiting) renderAsk(job);
     });
 
     state.result = result;
