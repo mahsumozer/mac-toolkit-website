@@ -399,6 +399,25 @@ already on disk by then, so it is the searching over again with different
 numbers rather than the whole job. The seed is kept with the run in history, so
 **Add** brings the same take back while Another take asks for a different one.
 
+### When a phrase comes back in pieces
+
+A phrase the solver could not find whole is not missing — it is assembled, and
+"keyboard cleaning mode" out of three mouths is three people. So after the words
+are found, one repair pass runs.
+
+The model is asked how people *actually say* the phrase: nobody says "Mac
+application", everybody says "Mac app". Both the phrase and those wordings are
+then searched for as quoted phrases and the new videos read. If a wording comes
+whole out of one mouth where the original could not, it is used — and the caption
+becomes what was really said, since the alternative is type that disagrees with
+the audio. The swap is reported in the feed and travels back in the result as
+`said: [{ wrote, said }]`.
+
+What this costs is seconds, not money: a search is about a second and a half, a
+caption read about one with three in flight, so repairing a phrase is ten to
+twenty-five seconds and one model call. Everything it uses — yt-dlp, captions — is
+free.
+
 ### Finding enough to cut from
 
 Plenty of uploads have no captions at all, and a thin pool is what makes a cut

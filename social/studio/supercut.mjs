@@ -230,20 +230,38 @@ export function buildCutInChunks(script, chunks, sources, options = {}) {
   const usable = (chunks || []).filter((chunk) => tokenize(chunk).length);
   if (!usable.length || !splitCovers(script, usable)) return buildCut(tokenize(script), sources, options);
 
-  const all = { segments: [], missing: [], broken: [] };
+  const variants = options.variants || {};
+  const all = { segments: [], missing: [], broken: [], said: [] };
   for (const [index, chunk] of usable.entries()) {
-    const cut = buildCut(tokenize(chunk), sources, {
-      ...options,
-      wholeFirst: true,
-      // Each phrase draws its own numbers; one seed for all of them would make
-      // every chunk lean the same way.
-      seed: (Number(options.seed) || 1) + index * 7919,
-    });
+    // Each phrase draws its own numbers; one seed for all of them would make
+    // every chunk lean the same way.
+    const seed = (Number(options.seed) || 1) + index * 7919;
+    const whole = (text) => buildCut(tokenize(text), sources, { ...options, wholeFirst: true, seed });
+
+    let cut = whole(chunk);
+    const wanted = tokenize(chunk).length;
+
+    // "Mac application" is not a thing anybody says; "Mac app" is. When the
+    // phrase as written has to be assembled out of several mouths, a wording
+    // that means the same and comes whole out of one is the better clip — so
+    // the variants are tried, and what was actually said becomes the caption.
+    if (cut.segments.length > 1 && wanted > 1) {
+      for (const variant of variants[chunk] || []) {
+        if (!tokenize(variant).length) continue;
+        const attempt = whole(variant);
+        if (attempt.segments.length === 1 && attempt.segments[0].kind === "clip") {
+          cut = attempt;
+          all.said.push({ wrote: chunk, said: variant });
+          break;
+        }
+      }
+    }
+
     all.segments.push(...cut.segments);
     all.missing.push(...cut.missing);
-    // Reported, not acted on: a phrase that had to be assembled out of several
-    // mouths is not missing, but it is not what was asked for either.
-    if (cut.segments.length > 1 && tokenize(chunk).length > 1) all.broken.push(chunk);
+    // Reported: a phrase that still had to be assembled out of several mouths is
+    // not missing, but it is not what was asked for either.
+    if (cut.segments.length > 1 && wanted > 1) all.broken.push(chunk);
   }
   spreadSources(all.segments);
   const clips = all.segments.filter((segment) => segment.kind === "clip");

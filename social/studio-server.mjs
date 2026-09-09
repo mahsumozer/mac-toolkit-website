@@ -1722,6 +1722,39 @@ async function splitScript(script, topic) {
   }
 }
 
+const VARIANT_SYSTEM = `You give the other ways people actually say a phrase, as json.
+
+The phrase has to be found in the wild, in somebody's video, said in one breath. "Mac application" is not something anyone says; "Mac app" is. Your job is to offer the wordings that mean the same and are far likelier to be spoken.
+
+Rules:
+- Same meaning, same register, similar length. Two or three per phrase, best first.
+- Spoken English, not written: contractions and everyday nouns beat formal ones.
+- Never change what is being claimed, never add a word that carries new meaning, and never offer a phrase that is merely related.
+- If the phrase is already the natural way to say it, return an empty list for it.
+- Return only a json object: {"variants": {"the phrase": ["another way", "one more"]}}`;
+
+async function phraseVariants(phrases, topic) {
+  if (COPY_PROVIDER === "none" || !phrases.length) return {};
+  const prompt = [
+    `These phrases had to be assembled out of several people's mouths because nobody says them whole${topic ? `, in videos about ${topic}` : ""}:`,
+    ...phrases.map((phrase) => `- ${phrase}`),
+    ``,
+    `Return json in exactly this shape:`,
+    JSON.stringify({ variants: { "Mac application": ["Mac app", "macOS app"], "and more,": [] } }, null, 2),
+  ].join("\n");
+  try {
+    const answer = COPY_PROVIDER === "deepseek" ? await deepseekJson(VARIANT_SYSTEM, prompt) : await claudeJson(`${VARIANT_SYSTEM}\n\n${prompt}`, null);
+    const out = {};
+    for (const [phrase, list] of Object.entries(answer.variants || {})) {
+      if (!phrases.includes(phrase)) continue;
+      out[phrase] = (Array.isArray(list) ? list : []).map((item) => String(item).trim()).filter(Boolean).slice(0, 3);
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
 async function runSupercut(payload, job) {
   job.messages = [];
   const say = (text, extra = {}) => job.messages.push({ at: Date.now(), role: "tool-result", tool: "supercut", text, ...extra });
@@ -1797,7 +1830,8 @@ async function runSupercut(payload, job) {
   // line should not get the same faces, and one person who liked a take should
   // be able to ask for it again.
   const seed = Number(payload.seed) || Math.floor(Math.random() * 1e9);
-  const solve = () => (chunks ? buildCutInChunks(script, chunks, sources, { cutCost, seed }) : buildCut(tokens, sources, { cutCost, seed }));
+  const variants = {};
+  const solve = () => (chunks ? buildCutInChunks(script, chunks, sources, { cutCost, seed, variants }) : buildCut(tokens, sources, { cutCost, seed }));
   let cut = solve();
 
   // A word nobody in the first pool says gets hunted on its own, and the hunt
@@ -1883,6 +1917,40 @@ async function runSupercut(payload, job) {
     if (!cut.missing.length) break;
   }
 
+  // Now that the holes are filled, the joins. A phrase that came back in pieces
+  // gets one repair pass: someone is asked for the wordings people actually say —
+  // nobody says "Mac application", everybody says "Mac app" — and both the phrase
+  // and those wordings are searched for. Three mouths saying "keyboard cleaning
+  // mode" is three people; one mouth is a sentence.
+  if (chunks && (cut.broken || []).length && budget.left > 0) {
+    const broken = cut.broken.slice(0, 4);
+    job.stage = "Looking for those phrases whole";
+    const suggested = await phraseVariants(broken, topic);
+    for (const [phrase, list] of Object.entries(suggested)) if (list.length) variants[phrase] = list;
+    if (Object.keys(suggested).some((phrase) => suggested[phrase].length)) {
+      say(`other ways to say them: ${Object.entries(suggested).filter(([, l]) => l.length).map(([p, l]) => `“${p}” → ${l.map((v) => `“${v}”`).join(", ")}`).join("; ")}`);
+    }
+
+    const before = pool.size;
+    for (const phrase of broken) {
+      for (const query of [phrase, ...(variants[phrase] || [])]) {
+        const plain = tokenize(query).map((token) => token.norm).join(" ");
+        if (plain.split(" ").length < 2) continue;
+        await gather(`"${plain}"`, 5, false);
+      }
+    }
+    const fresh = [...pool.values()].filter((video) => !sources.some((source) => source.video.url === video.url));
+    if (fresh.length) {
+      sources = sources.concat(await readAll(fresh, { lang, budget }));
+      say(`searched ${pool.size - before} videos for those phrases whole`);
+    }
+    const wasBroken = cut.broken.length;
+    cut = solve();
+    const fixed = wasBroken - (cut.broken || []).length;
+    if (fixed > 0) say(`${fixed} phrase${fixed === 1 ? "" : "s"} now come${fixed === 1 ? "s" : ""} from one mouth`);
+    for (const swap of cut.said || []) say(`“${swap.wrote}” is said as “${swap.said}” — taken whole rather than stitched`);
+  }
+
   job.stage = "Cutting";
   const clips = cut.segments.filter((segment) => segment.kind === "clip");
   let done = 0;
@@ -1917,6 +1985,8 @@ async function runSupercut(payload, job) {
     script,
     lang,
     seed,
+    said: cut.said || [],
+    broken: cut.broken || [],
     segments: cut.segments.filter((segment) => segment.kind !== "clip" || segment.path),
     missing: cut.missing,
     stats: cut.stats,
