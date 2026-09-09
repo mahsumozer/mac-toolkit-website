@@ -1627,9 +1627,16 @@ async function cutSection(item, job) {
 
 // Transcripts for a list of videos, a few at a time. Every one is a yt-dlp call,
 // and forty at once is how a laptop stops answering.
-async function readAll(videos, { lang = "en", job } = {}) {
+// How many videos one run may ever read. Without it a stubborn word — one that
+// four search shapes keep not finding — can pull two hundred uploads through the
+// caption fetcher, and the run stops being minutes and starts being a coffee.
+const MAX_READS_PER_RUN = 100;
+
+async function readAll(videos, { lang = "en", job, budget } = {}) {
   const sources = [];
-  const queue = [...videos];
+  const allowance = budget ? Math.max(0, budget.left) : videos.length;
+  const queue = [...videos].slice(0, allowance);
+  if (budget) budget.left -= queue.length;
   // Three at a time, staggered. Four simultaneous caption fetches is what earns
   // the 429 in the first place, and a read that has to be retried costs more
   // than the one that was never throttled.
@@ -1726,8 +1733,9 @@ async function runSupercut(payload, job) {
   if (lang !== "en") say(`the script reads as ${lang}: only videos actually spoken in ${lang} can supply its words, so translated caption tracks are ignored`);
 
   job.stage = "Reading them";
-  let sources = await readAll([...pool.values()], { lang, job });
-  say(`${sources.length} of them have captions — ${sources.reduce((n, s) => n + s.words.length, 0).toLocaleString()} words to cut from`);
+  const budget = { left: MAX_READS_PER_RUN };
+  let sources = await readAll([...pool.values()], { lang, job, budget });
+  say(`${sources.length} of them have captions — ${sources.reduce((n, s) => n + s.words.length, 0).toLocaleString()} words to cut from (${budget.left} of ${MAX_READS_PER_RUN} reads left)`);
 
   // Plenty of uploads have no captions at all, and a thin pool is what makes a
   // cut stutter. So the search does not stop at one page: it keeps asking, in
@@ -1743,7 +1751,7 @@ async function runSupercut(payload, job) {
     const fresh = [...pool.values()].filter((video) => !sources.some((source) => source.video.url === video.url));
     if (!fresh.length) continue;
     const had = sources.length;
-    sources = sources.concat(await readAll(fresh, { lang }));
+    sources = sources.concat(await readAll(fresh, { lang, budget }));
     say(`searched again — ${sources.length - had} more with captions, ${sources.length} in the pool`);
   }
   if (!sources.length) throw new Error("None of those videos have captions to cut from — try a broader subject");
@@ -1772,6 +1780,10 @@ async function runSupercut(payload, job) {
   for (let round = 0; round < SHAPES.length; round++) {
     const stillMissing = cut.missing.filter((word) => !hunted.has(`${word}:${round}`));
     if (!stillMissing.length) break;
+    if (budget.left <= 0) {
+      say(`stopped hunting at ${MAX_READS_PER_RUN} videos read — ${cut.missing.length} word${cut.missing.length === 1 ? "" : "s"} still missing`, { role: "tool-error" });
+      break;
+    }
     let grew = false;
     for (const word of stillMissing.slice(0, 8)) {
       hunted.add(`${word}:${round}`);
@@ -1789,8 +1801,8 @@ async function runSupercut(payload, job) {
       // patchwork of voices either way, and a word found in the wrong language
       // is still the word.
       const alsoEnglish = lang !== "en" && /^[\x20-\x7E]+$/.test(word);
-      sources = sources.concat(await readAll(fresh, { lang }));
-      if (alsoEnglish) sources = sources.concat(await readAll(fresh, { lang: "en" }));
+      sources = sources.concat(await readAll(fresh, { lang, budget }));
+      if (alsoEnglish) sources = sources.concat(await readAll(fresh, { lang: "en", budget }));
       grew = true;
       say(`hunted "${word}" through ${pool.size - before} more videos`);
     }

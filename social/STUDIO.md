@@ -389,6 +389,20 @@ to return people talking — `<subject> review`, `tips`, `explained`, `guide`,
 `tutorial` — and the new ones are read before the match is built. English is where
 this rarely has to fire; a Turkish run leans on it.
 
+### What one run is allowed to do
+
+A run has a budget: **100 videos read**, shared by the first pool, the top-ups
+and the hunt. Without it a stubborn word — one that four search shapes keep not
+finding — pulls two hundred uploads through the caption fetcher and the run stops
+being minutes. When the budget runs out the hunt stops and says so, and whatever
+is still missing becomes a gap.
+
+The other limits, for reference: the subject search returns what the page asks
+for (8 to 24), each phrase search 4, each top-up round 8, each hunt 5; uploads
+over forty minutes are skipped; a clip covers at most 8 words and is rejected if
+it runs longer than two seconds a word; three alternates are kept per clip;
+captions are read three videos at a time; the history drawer keeps 40 runs.
+
 ### Hunting the missing words
 
 The first pool rarely says everything. Every word nobody said is chased through
