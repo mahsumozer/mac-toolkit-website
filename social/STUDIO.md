@@ -90,6 +90,21 @@ moment earlier has not measured itself yet. Those layers were silently dropped �
 the first AI render was captions over black. `editor.whenReady()` now waits for
 them before the freeze.
 
+## Output
+
+`out.html`, its own page. The studio's Output tab is untouched and still there;
+this is the same folder read through the same endpoints, on a page that opens in
+a moment instead of behind the whole editor — because a finished post is looked
+at far more often than it is edited, and Autopilot and Supercut both write here
+too.
+
+Every render is a card: the video plays in place (or the carousel's cards, with
+the rest along a strip), ⤢ opens it full size, and under it sit **Download** —
+the mp4, or the folder zipped — the caption in a box with **Copy caption**,
+**Show in Finder**, and **Delete**, which says in as many words that it removes
+the folder from disk for good. A filter narrows it to videos or carousels, and
+the header counts what is there.
+
 ## Autopilot
 
 `auto.html`, its own page rather than a tab. AI mode asks six questions and

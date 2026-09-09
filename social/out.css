@@ -1,0 +1,118 @@
+/* Output — its own page rather than a tab inside the studio, because a finished
+   post is looked at far more often than it is edited, and reaching it should not
+   mean loading the whole studio first. The cards are auto.css's. */
+
+.out-main {
+  max-width: 1240px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.out-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding-top: 26px;
+}
+
+.out-title {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  font-weight: 800;
+}
+
+.out-sub {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.out-empty {
+  padding: 40px 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.out-when {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* The expand button on a card's media, and the sheet it opens: a 1080x1920 post
+   judged in a 280px card is a post nobody has actually seen. */
+.out-expand {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border: 0;
+  border-radius: 9px;
+  padding: 5px 8px;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--paper);
+  background: rgba(5, 5, 5, 0.55);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.14s var(--ease);
+}
+
+.auto-card:hover .out-expand,
+.out-expand:focus-visible {
+  opacity: 1;
+}
+
+.auto-card-media {
+  position: relative;
+}
+
+.out-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  background: rgba(5, 5, 5, 0.82);
+  backdrop-filter: blur(6px);
+}
+
+.out-lightbox-body {
+  max-width: min(94vw, 560px);
+  max-height: 88vh;
+  display: flex;
+}
+
+.out-lightbox-body video,
+.out-lightbox-body img {
+  max-width: 100%;
+  max-height: 88vh;
+  border-radius: 14px;
+  background: #101010;
+}
+
+.out-lightbox-close {
+  position: absolute;
+  top: 18px;
+  right: 22px;
+  border: 0;
+  background: none;
+  color: var(--paper);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 10px;
+}
+
+.out-lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.out-trash {
+  margin-left: auto;
+}
