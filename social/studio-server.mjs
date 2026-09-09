@@ -1055,17 +1055,101 @@ async function renderComposition(spec, job) {
     return inputs.length - 1;
   };
 
-  // A generated black base means an empty region is black rather than whatever
-  // the first layer happened to leave there.
-  const baseIndex = addInput(["-f", "lavfi", "-i", `color=c=black:s=${COMP_W}x${COMP_H}:r=30`]);
   const chain = [];
-  chain.push(`[${baseIndex}:v]setsar=1[v0]`);
-  let videoLabel = "v0";
+  let videoLabel = "";
+  // A generated black base means an empty region is black rather than whatever
+  // the first layer happened to leave there. It is only created when something
+  // will actually be laid on it: an input whose output nobody consumes is a
+  // filter graph ffmpeg refuses outright.
+  const blackBase = () => {
+    if (videoLabel) return videoLabel;
+    const baseIndex = addInput(["-f", "lavfi", "-i", `color=c=black:s=${COMP_W}x${COMP_H}:r=30`]);
+    chain.push(`[${baseIndex}:v]setsar=1[vbase]`);
+    videoLabel = "vbase";
+    return videoLabel;
+  };
 
   const audioParts = [];
   let step = 0;
 
+  // A supercut is a strip: full-frame pictures, one after another, none of them
+  // over any other. Sent through the general path each one becomes its own
+  // overlay onto a black base — a chain a hundred long for a paragraph, every
+  // link compositing 1080x1920 pixels a frame. Concatenating them instead is
+  // the same picture for a fraction of the work, so the strip case is detected
+  // and taken that way; anything laid out on top of anything else falls through
+  // to the general path unchanged.
+  const pictures = layers.filter((layer) => layer.type !== "text" && layer.type !== "audio");
+  const fullFrame = (layer) => {
+    const rect = layer.rect || { x: layer.x, y: layer.y, w: layer.w, h: layer.h };
+    return (
+      Math.abs((rect.x || 0)) < 2 &&
+      Math.abs((rect.y || 0)) < 2 &&
+      Math.abs((rect.w || 0) - COMP_W) < 2 &&
+      Math.abs((rect.h || 0) - COMP_H) < 2 &&
+      !layer.blur &&
+      (layer.opacity ?? 1) >= 1
+    );
+  };
+  const strip = [...pictures].sort((a, b) => (a.start || 0) - (b.start || 0));
+  const isStrip =
+    pictures.length > 1 &&
+    strip.every((layer, i) => fullFrame(layer) && (i === 0 || (layer.start || 0) >= (strip[i - 1].end || 0) - 0.05));
+
+  if (isStrip) {
+    job.stage = "Joining the strip";
+    const parts = [];
+    let at = 0;
+    for (const layer of strip) {
+      const start = Number(layer.start) || 0;
+      const end = Math.min(Number(layer.end) || duration, duration);
+      if (end <= start) continue;
+      // A hole between two clips — a gap nobody found a picture for — is filled
+      // with black rather than left for concat to close, which would slide
+      // everything after it out of time with the captions.
+      if (start - at > 0.03) {
+        const blackIndex = addInput(["-f", "lavfi", "-t", (start - at).toFixed(3), "-i", `color=c=black:s=${COMP_W}x${COMP_H}:r=30`]);
+        chain.push(`[${blackIndex}:v]setsar=1,format=yuv420p[s${parts.length}]`);
+        parts.push(`[s${parts.length}]`);
+      }
+      const span = (end - Math.max(start, at)).toFixed(3);
+      const crop = layer.crop || {};
+      let index;
+      if (layer.type === "gif") index = addInput(["-ignore_loop", "0", "-t", span, "-i", layer.path]);
+      else if (layer.type === "image") index = addInput(["-loop", "1", "-t", span, "-i", layer.path]);
+      else index = addInput(["-stream_loop", "-1", "-ss", String(layer.trim || 0), "-t", span, "-i", layer.path]);
+
+      const filters = [];
+      if (crop.sw && crop.sh) filters.push(`crop=${Math.round(crop.sw)}:${Math.round(crop.sh)}:${Math.round(crop.sx || 0)}:${Math.round(crop.sy || 0)}`);
+      // Every segment has to agree on size, aspect, rate and pixel format, or
+      // concat refuses them.
+      filters.push(`scale=${COMP_W}:${COMP_H}`, "setsar=1", "fps=30", "format=yuv420p", `trim=duration=${span}`, "setpts=PTS-STARTPTS");
+      chain.push(`[${index}:v]${filters.join(",")}[s${parts.length}]`);
+      parts.push(`[s${parts.length}]`);
+
+      if (layer.type === "video" && Number(layer.volume) > 0 && (await hasAudio(layer.path))) {
+        const audio = [`volume=${Number(layer.volume)}`, `atrim=0:${span}`, "asetpts=PTS-STARTPTS"];
+        if (start > 0.01) audio.push(`adelay=delays=${Math.round(start * 1000)}:all=1`);
+        chain.push(`[${index}:a]${audio.join(",")}[a${step}]`);
+        audioParts.push(`[a${step}]`);
+        step++;
+      }
+      at = end;
+    }
+    if (parts.length) {
+      chain.push(`${parts.join("")}concat=n=${parts.length}:v=1:a=0[vstrip]`);
+      chain.push(`[vstrip]format=rgba[v${step}]`);
+      videoLabel = `v${step}`;
+      step++;
+    }
+    // Whatever the strip did not cover is black, and the captions go over the
+    // strip rather than over a base nobody drew on.
+    if (!videoLabel) blackBase();
+  }
+
   for (const layer of layers) {
+    // The strip has already been joined; only what sits on top of it is left.
+    if (isStrip && layer.type !== "text" && layer.type !== "audio") continue;
     const start = Number(layer.start) || 0;
     const end = Number(layer.end) || duration;
     if (end <= 0 || start >= duration) continue;
@@ -1081,7 +1165,7 @@ async function renderComposition(spec, job) {
       // frame and overlay stops compositing long before its window comes round.
       index = addInput(["-loop", "1", "-i", file]);
       chain.push(`[${index}:v]format=rgba${layer.opacity < 1 ? `,colorchannelmixer=aa=${layer.opacity}` : ""}[l${step}]`);
-      chain.push(`[${videoLabel}][l${step}]overlay=0:0:enable='between(t,${start.toFixed(3)},${end.toFixed(3)})'[v${step + 1}]`);
+      chain.push(`[${blackBase()}][l${step}]overlay=0:0:enable='between(t,${start.toFixed(3)},${end.toFixed(3)})'[v${step + 1}]`);
       videoLabel = `v${step + 1}`;
       step++;
       continue;
@@ -1132,7 +1216,7 @@ async function renderComposition(spec, job) {
 
     chain.push(`[${index}:v]${filters.join(",")}[l${step}]`);
     chain.push(
-      `[${videoLabel}][l${step}]overlay=${Math.round(rect.x)}:${Math.round(rect.y)}:enable='between(t,${start.toFixed(3)},${end.toFixed(3)})'[v${step + 1}]`,
+      `[${blackBase()}][l${step}]overlay=${Math.round(rect.x)}:${Math.round(rect.y)}:enable='between(t,${start.toFixed(3)},${end.toFixed(3)})'[v${step + 1}]`,
     );
     videoLabel = `v${step + 1}`;
 

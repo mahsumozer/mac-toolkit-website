@@ -753,6 +753,27 @@ The same ⤢ opens rendered videos and image slides on the Output tab, and stock
 or library photos on the Image post tab. **Hear it** auditions the chosen macOS
 voice on your actual hook line, and **Play** auditions a music track.
 
+### The strip: why a supercut renders in seconds
+
+A supercut is not a composition, it is a **strip**: full-frame pictures one after
+another, none of them over any other. Sent through the general path each one
+became its own `overlay` onto a black base — a chain a hundred links long for a
+paragraph, every link compositing 1080×1920 pixels a frame. Nine clips and nine
+captions took 33.5 seconds to render 5.9 seconds of video.
+
+So the renderer detects that shape — every picture full-frame, unblurred, opaque,
+and none of them overlapping in time — and `concat`s them instead, with a black
+segment inserted where nothing covers the timeline so the captions do not slide
+out of time. Only the captions are then overlaid. The same cut renders in **4.5
+seconds**.
+
+Anything laid out on top of anything else — every Autopilot composition, anything
+built by hand in the video tab — fails that test and takes the general path
+exactly as before. The black base is created lazily, because an input whose
+output nobody consumes is a filter graph ffmpeg refuses outright: building it
+unconditionally is what made the first attempt at this exit 234 with a
+zero-length file.
+
 ### How the preview stays honest
 
 Every layer carries an explicit source **crop** and an explicit destination
