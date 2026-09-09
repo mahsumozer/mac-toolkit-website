@@ -1630,7 +1630,7 @@ async function cutSection(item, job) {
 // How many videos one run may ever read. Without it a stubborn word — one that
 // four search shapes keep not finding — can pull two hundred uploads through the
 // caption fetcher, and the run stops being minutes and starts being a coffee.
-const MAX_READS_PER_RUN = 200;
+const MAX_READS_PER_RUN = Number(process.env.SUPERCUT_MAX_READS) || 200;
 // When the budget runs out with words still missing the job does not end: it
 // stops and asks, because the alternative is a hole in the finished video and
 // nothing the person can do about it. The page answers with more reads or with

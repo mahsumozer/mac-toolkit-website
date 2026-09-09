@@ -683,7 +683,7 @@ async function suggestTopic() {
 // is answered.
 let askedAt = 0;
 
-function renderAsk(job) {
+function renderAsk(job, jobId) {
   const ask = job.awaiting;
   if (!ask || ask.asked === askedAt) return;
   askedAt = ask.asked;
@@ -699,13 +699,21 @@ function renderAsk(job) {
   const row = document.createElement("div");
   row.className = "cut-ask-row";
   const answer = async (reads, button) => {
+    if (state.jobId !== jobId) {
+      log("that question belonged to an earlier run", "is-error");
+      for (const other of row.querySelectorAll("button")) other.disabled = true;
+      return;
+    }
     for (const other of row.querySelectorAll("button")) other.disabled = true;
     button.classList.add("is-chosen");
     try {
+      // The run this question belongs to, captured when it was asked. Reading
+      // the current job at click time answers for whichever run happens to be
+      // going, which is the wrong one the moment a second run has started.
       await api("/supercut/continue", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ jobId: state.jobId, reads }),
+        body: JSON.stringify({ jobId, reads }),
       });
       log(reads ? `asked for ${reads} more videos` : "cutting what it has", "is-done");
     } catch (error) {
@@ -793,7 +801,7 @@ async function run(event) {
       // was ignored.
       for (const message of (job.messages || []).slice(shown)) log(message.text, message.role === "tool-error" ? "is-error" : "is-done");
       shown = (job.messages || []).length;
-      if (job.awaiting) renderAsk(job);
+      if (job.awaiting) renderAsk(job, jobId);
     });
 
     state.result = result;
