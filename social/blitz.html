@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Mac Kit · Blitz</title>
+    <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="social.css" />
+    <link rel="stylesheet" href="studio.css" />
+    <link rel="stylesheet" href="auto.css" />
+    <link rel="stylesheet" href="blitz.css" />
+  </head>
+  <body class="hub-body">
+    <div class="toast-region" id="toast-region" aria-live="polite"></div>
+
+    <header class="hub-header">
+      <a class="brand" href="../index.html">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+        </span>
+        <span>Mac Kit</span>
+      </a>
+      <span class="hub-title">Blitz</span>
+      <nav class="hub-nav">
+        <a class="hub-nav-link" href="index.html">Queue</a>
+        <a class="hub-nav-link" href="studio.html">Studio</a>
+        <a class="hub-nav-link" href="auto.html">Autopilot</a>
+        <a class="hub-nav-link" href="cut.html">Supercut</a>
+        <a class="hub-nav-link is-current" href="blitz.html">Blitz</a>
+        <a class="hub-nav-link" href="out.html">Output</a>
+        <a class="hub-nav-link" href="editor.html">Editor</a>
+      </nav>
+      <span class="server-pill" id="server-pill" data-state="checking">Checking server…</span>
+    </header>
+
+    <main class="hub-main blitz-main">
+      <!-- ============================================================= hunt -->
+      <section class="auto-launch blitz-launch" id="blitz-launch">
+        <h1 class="auto-h1">Wear the shape of a video that already worked.</h1>
+        <p class="auto-sub">
+          Give it a product's address and the TikTok accounts whose posts keep landing. It reads the site, works out
+          what the thing actually does, reads what those creators burn over their own face — or say, when nothing is
+          written — and writes that product's version in the same shape, same opener, same beats, same lowercase, over
+          its own footage. The skeleton is theirs. Every word in it comes off the site.
+        </p>
+
+        <form class="auto-form blitz-form" id="blitz-form" autocomplete="off">
+          <div class="auto-urlrow">
+            <input
+              class="auto-url"
+              id="blitz-url"
+              type="url"
+              inputmode="url"
+              placeholder="https://usemackit.com"
+              spellcheck="false"
+            />
+            <button class="button button-accent auto-go" id="blitz-go" type="submit">Hunt</button>
+          </div>
+          <div class="blitz-fields">
+            <label class="blitz-field">
+              <span>Accounts to read <em>— optional; @ is TikTok, a youtube.com link is that channel's shorts</em></span>
+              <input id="blitz-handles" type="text" placeholder="@handle, @handle" />
+            </label>
+            <label class="blitz-field">
+              <span>Search both for <em>— optional; empty and the site decides</em></span>
+              <input id="blitz-queries" type="text" placeholder="mac tips, menu bar app" />
+            </label>
+          </div>
+          <div class="auto-knobs">
+            <label class="auto-knob">
+              Nothing longer than
+              <select id="blitz-length">
+                <option value="45">45 seconds</option>
+                <option value="90" selected>90 seconds</option>
+                <option value="180">3 minutes</option>
+              </select>
+            </label>
+            <label class="auto-knob">
+              Per source
+              <select id="blitz-per">
+                <option value="4">4</option>
+                <option value="6" selected>6</option>
+                <option value="10">10</option>
+              </select>
+            </label>
+            <label class="auto-knob auto-knob-check">
+              <input type="checkbox" id="blitz-fresh" />
+              Ignore the cache
+            </label>
+          </div>
+        </form>
+
+        <div class="blitz-feed" id="blitz-feed" hidden></div>
+      </section>
+
+      <!-- ============================================================= deck -->
+      <section class="blitz-deck" id="blitz-deck" hidden>
+        <header class="blitz-deck-head">
+          <h2 id="blitz-deck-title">What is moving</h2>
+          <p class="blitz-deck-note" id="blitz-deck-note"></p>
+        </header>
+        <div class="blitz-columns">
+          <div class="blitz-column">
+            <h3 class="blitz-column-head"><span>TikTok</span><small id="blitz-count-tiktok"></small></h3>
+            <div class="blitz-cards" id="blitz-cards-tiktok"></div>
+          </div>
+          <div class="blitz-column">
+            <h3 class="blitz-column-head"><span>YouTube Shorts</span><small id="blitz-count-youtube"></small></h3>
+            <div class="blitz-cards" id="blitz-cards-youtube"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ stage -->
+      <section class="blitz-stage" id="blitz-stage" hidden>
+        <!-- left — what it was taken from -->
+        <div class="blitz-card blitz-from">
+          <h2>Remixed from</h2>
+          <div class="blitz-from-body">
+            <div class="blitz-from-media">
+              <video id="blitz-source-video" playsinline loop muted preload="metadata"></video>
+              <a class="blitz-mute blitz-source-download" id="blitz-source-download" download hidden aria-label="Download the source" title="Download">
+                <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M6 11l6 6 6-6M4 21h16"/></svg>
+              </a>
+              <button class="blitz-mute blitz-source-sound" id="blitz-source-sound" type="button" aria-label="Unmute" title="Sound">
+                <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="m22 9-6 6M16 9l6 6"/></svg>
+              </button>
+              <div class="blitz-metrics">
+                <span class="blitz-metric" id="blitz-metric-likes" title="Likes">
+                  <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9A5.4 5.4 0 0 1 12 6.3 5.4 5.4 0 0 1 21.6 12c-2.1 4.4-9.6 9-9.6 9z"/></svg>
+                  <b>—</b>
+                </span>
+                <span class="blitz-metric" id="blitz-metric-views" title="Views">
+                  <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1.6 12S5.5 5 12 5s10.4 7 10.4 7-3.9 7-10.4 7S1.6 12 1.6 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <b>—</b>
+                </span>
+              </div>
+            </div>
+            <p class="blitz-from-title" id="blitz-source-title"></p>
+            <div class="blitz-chips" id="blitz-source-chips"></div>
+            <a class="blitz-source-link" id="blitz-source-link" target="_blank" rel="noreferrer"></a>
+            <details class="blitz-read" id="blitz-read" hidden>
+              <summary>What it says on screen</summary>
+              <p class="blitz-read-wall" id="blitz-read-wall"></p>
+              <p class="blitz-read-note" id="blitz-read-note"></p>
+            </details>
+          </div>
+        </div>
+
+        <!-- right — ours -->
+        <div class="blitz-ours">
+          <div class="blitz-pills" id="blitz-pills">
+            <span class="blitz-pill" id="blitz-pill-shape">—</span>
+            <span class="blitz-pill is-accent" id="blitz-pill-angle">—</span>
+          </div>
+          <button class="blitz-why-toggle" id="blitz-why-toggle" type="button" aria-expanded="false">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 3a5 5 0 0 0-5 5c0 1.6.7 2.6 1.5 3.5S10 13.4 10 15h4c0-1.6.7-2.6 1.5-3.5S17 9.6 17 8a5 5 0 0 0-5-5z"/>
+              <path d="M10 18h4M10.5 21h3"/>
+            </svg>
+            Why this content?
+          </button>
+
+          <div class="blitz-phone">
+            <canvas class="blitz-canvas" id="blitz-canvas" width="1080" height="1920"></canvas>
+            <p class="blitz-phone-empty" id="blitz-phone-empty">Pick one on the left and it builds itself here.</p>
+            <button class="blitz-mute" id="blitz-play" type="button" aria-label="Play">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+            </button>
+          </div>
+
+          <div class="blitz-why" id="blitz-why" hidden>
+            <h3>Why this content?</h3>
+            <ul id="blitz-why-list"></ul>
+          </div>
+
+          <div class="blitz-actions">
+            <button class="button button-ghost button-small" id="blitz-again" type="button">Write it again</button>
+            <button class="button button-ghost button-small" id="blitz-swap" type="button">Other footage</button>
+            <button class="button button-dark button-small" id="blitz-edit" type="button">Edit the text</button>
+            <button class="button button-accent button-small" id="blitz-render" type="button">Render</button>
+          </div>
+
+          <div class="blitz-music">
+            <label class="blitz-music-pick">
+              <span>Music</span>
+              <select id="blitz-music"><option value="">None</option></select>
+            </label>
+            <button class="button button-ghost button-small" id="blitz-music-silly" type="button">Something silly</button>
+            <label class="blitz-music-vol">
+              <input id="blitz-musicvol" type="range" min="0" max="1" step="0.05" value="0.5" />
+            </label>
+          </div>
+          <p class="blitz-music-credit" id="blitz-music-credit" hidden></p>
+
+          <div class="blitz-textwrap" id="blitz-textwrap" hidden>
+            <textarea id="blitz-text" rows="4" spellcheck="false" placeholder="the words that go over the video"></textarea>
+            <p class="blitz-texthint">Typing here re-sizes and re-places the block, so what is on the phone is what lands in the file.</p>
+          </div>
+
+          <div class="blitz-footage" id="blitz-footage" hidden>
+            <div class="blitz-footage-head">
+              <input id="blitz-footage-q" type="text" placeholder="what should be behind the words" />
+              <button class="button button-ghost button-small" id="blitz-footage-go" type="button">Search</button>
+            </div>
+            <div class="blitz-footage-strip" id="blitz-footage-strip"></div>
+          </div>
+
+          <div class="auto-progress blitz-progress" id="blitz-progress" hidden>
+            <div class="auto-progress-track"><div class="auto-progress-fill" id="blitz-progress-fill"></div></div>
+            <span class="auto-progress-note" id="blitz-progress-note"></span>
+          </div>
+
+          <div class="blitz-result" id="blitz-result" hidden>
+            <video id="blitz-result-video" controls playsinline></video>
+            <div class="btn-row">
+              <a class="button button-dark button-small" id="blitz-download" download>Download</a>
+              <button class="button button-ghost button-small" id="blitz-reveal" type="button">Show in Finder</button>
+            </div>
+            <p class="blitz-caption" id="blitz-result-caption"></p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- the deck's enlarge: one video, big, with its sound and its link -->
+    <div class="blitz-lightbox" id="blitz-lightbox" hidden>
+      <div class="blitz-lightbox-back" id="blitz-lightbox-back"></div>
+      <div class="blitz-lightbox-card">
+        <video id="blitz-lightbox-video" controls playsinline loop></video>
+        <div class="blitz-lightbox-side">
+          <p class="blitz-lightbox-title" id="blitz-lightbox-title"></p>
+          <div class="blitz-chips" id="blitz-lightbox-chips"></div>
+          <div class="btn-row">
+            <button class="button button-accent button-small" id="blitz-lightbox-remix" type="button">Remix this</button>
+            <a class="button button-ghost button-small" id="blitz-lightbox-open" target="_blank" rel="noreferrer">Open on the site ↗</a>
+            <button class="button button-ghost button-small" id="blitz-lightbox-close" type="button">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script type="module" src="blitz.js"></script>
+  </body>
+</html>

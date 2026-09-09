@@ -61,7 +61,8 @@ export function shapeOf(item) {
   return { format: null, hook: hookPattern(item.title), beats: null };
 }
 
-const jsonLines = (text) =>
+// Shared with blitz.mjs, which reads the same yt-dlp output a line at a time.
+export const jsonLines = (text) =>
   String(text || "")
     .split("\n")
     .filter(Boolean)

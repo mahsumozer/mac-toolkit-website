@@ -18,7 +18,7 @@
 import fs from "node:fs/promises";
 import { join } from "node:path";
 
-/** Ported from extract_video_id() in transcript.py. */
+/** Ported from extract_video_id() in transcript.py, with TikTok added for Blitz. */
 export function videoId(url) {
   const parsed = new URL(String(url).trim());
   if (parsed.hostname === "youtu.be") return parsed.pathname.replace(/^\//, "").split("/")[0];
@@ -27,8 +27,14 @@ export function videoId(url) {
     if (parsed.pathname.startsWith("/shorts/")) return parsed.pathname.split("/shorts/")[1].split("/")[0];
     if (parsed.pathname.startsWith("/embed/")) return parsed.pathname.split("/embed/")[1].split("/")[0];
   }
-  throw new Error(`Not a YouTube address: ${url}`);
+  if (isTikTok(url)) {
+    const match = /\/video\/(\d+)/.exec(parsed.pathname);
+    if (match) return `tt${match[1]}`;
+  }
+  throw new Error(`Not a YouTube or TikTok address: ${url}`);
 }
+
+export const isTikTok = (url) => /(^|\.)tiktok\.com$/.test(new URL(String(url).trim()).hostname);
 
 // YouTube's json3: events with a start, a duration and text split into segments.
 // Empty events are the scroll-up placeholders auto-captions are full of.
@@ -88,9 +94,15 @@ export function parseVtt(text) {
   for (const block of blocks) {
     const match = /(\d{2}:\d{2}:\d{2}\.\d{3})\s+-->\s+(\d{2}:\d{2}:\d{2}\.\d{3})/.exec(block);
     if (!match) continue;
-    const body = block
-      .split("\n")
-      .slice(1)
+    // The text is whatever follows the timing line — found by looking for it,
+    // not by assuming it is line one. YouTube puts a cue identifier before it;
+    // TikTok's header is followed by three newlines, so its first block opens
+    // with a blank line and "line one" was the timestamp itself, which then
+    // went into the transcript as words.
+    const lines = block.split("\n");
+    const timing = lines.findIndex((line) => line.includes("-->"));
+    const body = lines
+      .slice(timing + 1)
       .join(" ")
       .replace(/<[^>]*>/g, "")
       .replace(/\s+/g, " ")
@@ -169,17 +181,20 @@ const RETRY_AFTER = [1200, 4000, 9000];
 async function ytdlpTranscript(url, { run, tmpDir, lang = "en" }) {
   await fs.mkdir(tmpDir, { recursive: true });
   const id = videoId(url);
+  const tiktok = isTikTok(url);
   // `<lang>-orig` is the track YouTube labels "(Original)": the words actually
   // spoken. Plain `<lang>` on a foreign video is a machine translation of them —
   // fine for understanding what a video is about, useless for cutting, because
   // the mouth never said those words. Both are asked for and which one arrived
-  // is reported.
+  // is reported. TikTok has one track per video, in the creator's language,
+  // coded the long way (`eng-US`) — so it is asked for by prefix, and vtt is
+  // the only format it has.
   const args = [
     "--skip-download",
     "--write-subs",
     "--write-auto-subs",
     "--sub-langs",
-    `${lang}-orig,${lang}`,
+    tiktok ? `${lang}.*` : `${lang}-orig,${lang}`,
     "--sub-format",
     "json3/vtt",
     "--no-warnings",
@@ -202,11 +217,17 @@ async function ytdlpTranscript(url, { run, tmpDir, lang = "en" }) {
     }
   }
   const names = await fs.readdir(tmpDir);
-  const mine = names.filter((name) => name.startsWith(id));
+  // yt-dlp names the file by the site's own id, which for TikTok is the bare
+  // number; the `tt` in ours is only there so the cache cannot confuse the two.
+  const fileId = tiktok ? id.slice(2) : id;
+  const mine = names.filter((name) => name.startsWith(fileId));
   const prefer = [`.${lang}-orig.json3`, `.${lang}.json3`, `.${lang}-orig.vtt`, `.${lang}.vtt`];
-  const pick = prefer.map((suffix) => mine.find((name) => name.endsWith(suffix))).find(Boolean);
+  const pick =
+    prefer.map((suffix) => mine.find((name) => name.endsWith(suffix))).find(Boolean) ||
+    mine.find((name) => new RegExp(`\\.${lang}[A-Za-z-]*\\.vtt$`).test(name));
   if (!pick) return { cues: [], words: [], title: "", source: "yt-dlp", original: false };
-  const original = pick.includes(`${lang}-orig.`);
+  // A TikTok track is the creator's own, so it is original by definition.
+  const original = tiktok || pick.includes(`${lang}-orig.`);
   const body = await fs.readFile(join(tmpDir, pick), "utf8");
   if (!pick.endsWith(".json3")) return { cues: parseVtt(body), words: [], title: "", source: "yt-dlp", original };
   return { cues: parseJson3(body), words: wordsFromJson3(body), title: "", source: "yt-dlp", original };

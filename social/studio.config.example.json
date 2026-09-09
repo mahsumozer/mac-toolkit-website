@@ -10,6 +10,8 @@
   "elevenLabsApiKey": "",
   "geminiApiKey": "",
   "geminiTtsModel": "gemini-3.1-flash-tts-preview",
+  "_geminiVisionModel": "Blitz reads a short's on-screen text with this. Leave it out and it tries gemini-3.5-flash, then gemini-flash-latest, then gemini-2.5-flash.",
+  "geminiVisionModel": "",
   "serpApiKey": "",
   "useSerpApi": false
 }

@@ -580,20 +580,24 @@ const trim = (value, max) => (typeof value === "string" && value.length > max ? 
  * tool-calling completion. `toolImpls` are the producer's hands. `onEvent` gets
  * chat-shaped progress, so the page can show the run rather than a spinner.
  */
-export async function runAutopilot({ url, count = 3, mix, voices, voiceover = true, fetchPage, json, agentCall, toolImpls, hasGiphy, trends, readVideo, onEvent, onPhase }) {
-  const say = (text, extra = {}) => onEvent({ role: "assistant", text, ...extra });
-  const log = (text, extra = {}) => onEvent({ role: "tool-result", tool: extra.tool || "autopilot", text, ...extra });
-
-  /* recon */
+/**
+ * The first two passes on their own: read the site, turn it into a fact sheet.
+ *
+ * Split out because Blitz needs exactly this and nothing else after it. A
+ * second copy of the recon would drift from this one inside a week, and the
+ * fact sheet is the thing that stops a post inventing a feature — there has to
+ * be one of it.
+ */
+export async function readBrand({ url, fetchPage, json, onPhase = () => {}, onLog = () => {} }) {
   onPhase("Reading the site");
   const first = extractPage(await fetchPage(url), url);
   const pages = [first];
   for (const href of pickFollowUps(first.links, url)) {
     try {
       pages.push(extractPage(await fetchPage(href), href));
-      log(`read ${new URL(href).pathname || "/"}`);
+      onLog(`read ${new URL(href).pathname || "/"}`);
     } catch (error) {
-      log(`could not read ${href}: ${error.message}`, { role: "tool-error", tool: "read" });
+      onLog(`could not read ${href}: ${error.message}`, { role: "tool-error", tool: "read" });
     }
   }
   const images = [];
@@ -602,9 +606,8 @@ export async function runAutopilot({ url, count = 3, mix, voices, voiceover = tr
   // rather than guessing a path, because a guessed path that 404s is a
   // screenshot of Chrome's error screen sitting in a finished post.
   const pageUrls = pages.map((page) => page.url);
-  log(`${pages.length} page${pages.length === 1 ? "" : "s"} read from ${new URL(url).hostname}, ${images.length} pictures found on them`);
+  onLog(`${pages.length} page${pages.length === 1 ? "" : "s"} read from ${new URL(url).hostname}, ${images.length} pictures found on them`);
 
-  /* brand */
   onPhase("Working out what this product is");
   const brand = await json(BRAND_SYSTEM, brandPrompt(pages));
   brand.url = brand.url || url;
@@ -612,6 +615,31 @@ export async function runAutopilot({ url, count = 3, mix, voices, voiceover = tr
   if (!Array.isArray(brand.features) || !brand.features.length) {
     throw new Error(`Nothing readable at ${url} — the page may render its text with JavaScript, which this cannot see.`);
   }
+  return { brand, pages, pageUrls, images };
+}
+
+/**
+ * What to search for, taken off the fact sheet rather than a fixed list: what
+ * is moving in one niche says nothing about another, and both callers are
+ * pointed at whatever product someone pasted.
+ */
+export function trendQueries(brand) {
+  const queries = [
+    ...(brand.keywords || []).slice(0, 3),
+    ...(brand.category ? [brand.category] : []),
+    ...(brand.audience || []).slice(0, 1).map((line) => String(line).split(/[,.]/)[0]),
+  ]
+    .map((query) => String(query || "").trim())
+    .filter((query) => query.length > 2 && query.split(/\s+/).length <= 5);
+  return [...new Set(queries)];
+}
+
+export async function runAutopilot({ url, count = 3, mix, voices, voiceover = true, fetchPage, json, agentCall, toolImpls, hasGiphy, trends, readVideo, onEvent, onPhase }) {
+  const say = (text, extra = {}) => onEvent({ role: "assistant", text, ...extra });
+  const log = (text, extra = {}) => onEvent({ role: "tool-result", tool: extra.tool || "autopilot", text, ...extra });
+
+  /* recon + brand */
+  const { brand, pageUrls, images } = await readBrand({ url, fetchPage, json, onPhase, onLog: log });
   say(`${brand.name}: ${brand.oneLiner || brand.category || ""}`.trim(), { kind: "brand", brand });
   log(`${brand.features.length} features taken off the site${brand.priceLine ? `, ${brand.priceLine}` : ""}`);
 
@@ -622,15 +650,8 @@ export async function runAutopilot({ url, count = 3, mix, voices, voiceover = tr
   let moving = [];
   if (trends) {
     onPhase("Seeing what is moving");
-    const queries = [
-      ...(brand.keywords || []).slice(0, 3),
-      ...(brand.category ? [brand.category] : []),
-      ...(brand.audience || []).slice(0, 1).map((line) => String(line).split(/[,.]/)[0]),
-    ]
-      .map((query) => String(query || "").trim())
-      .filter((query) => query.length > 2 && query.split(/\s+/).length <= 5);
     try {
-      moving = await trends([...new Set(queries)]);
+      moving = await trends(trendQueries(brand));
       log(
         moving.length
           ? `${moving.length} trending records, fastest ${moving[0].velocity.toLocaleString()} views/day: "${moving[0].title}"`

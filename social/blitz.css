@@ -1,0 +1,865 @@
+/* Blitz — its own page, layered on social.css (tokens, buttons, header),
+   studio.css (nav, server pill) and auto.css (the hero, the knobs, the progress
+   bar). Nothing here restyles any of them.
+
+   The page is two columns on purpose: what was borrowed from stays on screen
+   beside what was made from it, at the same size, so the two can be compared
+   without scrolling. A shape you cannot see next to your own copy is a shape
+   you cannot judge. */
+
+.blitz-main {
+  max-width: 1240px;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+
+/* ---------------------------------------------------------------- the hunt */
+
+.blitz-launch {
+  padding-bottom: 0;
+}
+
+.blitz-form {
+  max-width: 760px;
+}
+
+.blitz-fields {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  text-align: left;
+}
+
+@media (max-width: 720px) {
+  .blitz-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
+.blitz-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.blitz-field em {
+  font-style: normal;
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+.blitz-field input {
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--ink);
+  padding: 11px 15px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+  outline: none;
+  transition: border-color 0.16s var(--ease), box-shadow 0.16s var(--ease);
+}
+
+.blitz-field input:focus {
+  border-color: rgba(5, 5, 5, 0.4);
+  box-shadow: 0 0 0 4px rgba(5, 5, 5, 0.06);
+}
+
+.blitz-go {
+  margin-left: auto;
+}
+
+.blitz-feed {
+  margin: 16px auto 0;
+  max-width: 680px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.blitz-feed div::before {
+  content: "· ";
+}
+
+/* ---------------------------------------------------------------- the deck */
+
+.blitz-deck-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.blitz-deck-head h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.blitz-deck-note {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.blitz-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .blitz-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+.blitz-column-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.blitz-column-head small {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.blitz-column-empty {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 18px 16px;
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.blitz-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+/* A card is a place to look before deciding, so nothing on it commits: the
+   picture plays on hover, the corner buttons open sound, size and the source,
+   and only the button at the bottom starts a remix. */
+.blitz-cardbtn {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper-2);
+  overflow: hidden;
+  text-align: left;
+  transition: border-color 0.16s var(--ease), transform 0.16s var(--ease), box-shadow 0.16s var(--ease);
+}
+
+.blitz-cardbtn:hover {
+  border-color: rgba(5, 5, 5, 0.34);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(5, 5, 5, 0.08);
+}
+
+.blitz-cardbtn.is-picked {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(245, 148, 29, 0.22);
+}
+
+.blitz-cardmedia {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  background: rgba(5, 5, 5, 0.08);
+  cursor: pointer;
+}
+
+/* 9:16 in a grid of thumbnails is too tall to scan; this is the top of one. */
+.blitz-cardmedia img,
+.blitz-cardmedia video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.blitz-cardmedia video {
+  opacity: 0;
+  transition: opacity 0.2s var(--ease);
+}
+
+.blitz-cardmedia.is-playing video {
+  opacity: 1;
+}
+
+.blitz-cardmedia.is-loading::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  animation: blitz-spin 0.8s linear infinite;
+}
+
+@keyframes blitz-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.blitz-cardctl {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.16s var(--ease);
+}
+
+.blitz-cardbtn:hover .blitz-cardctl,
+.blitz-cardbtn:focus-within .blitz-cardctl {
+  opacity: 1;
+}
+
+.blitz-cardctl button,
+.blitz-cardctl a {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 999px;
+  background: rgba(5, 5, 5, 0.55);
+  color: #fff;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  cursor: pointer;
+}
+
+.blitz-cardctl button:hover,
+.blitz-cardctl a:hover {
+  background: rgba(5, 5, 5, 0.8);
+}
+
+.blitz-cardctl button.is-on {
+  background: var(--accent);
+  color: #050505;
+}
+
+.blitz-cardbtn-body {
+  padding: 0 11px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.blitz-cardbtn-remix {
+  margin-top: 2px;
+  align-self: flex-start;
+}
+
+.blitz-cardbtn-title {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.35;
+  font-weight: 600;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.blitz-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.blitz-chip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  background: rgba(5, 5, 5, 0.03);
+  font-variant-numeric: tabular-nums;
+}
+
+.blitz-chip.is-hot {
+  color: var(--ink);
+  border-color: rgba(245, 148, 29, 0.55);
+  background: rgba(245, 148, 29, 0.14);
+}
+
+.blitz-chip.is-tiktok {
+  color: var(--ink);
+  border-color: rgba(5, 5, 5, 0.3);
+}
+
+/* --------------------------------------------------------------- the stage */
+
+.blitz-stage {
+  /* The header is sticky, so a plain scrollIntoView parks the pills underneath
+     it — the two words naming what was borrowed are the first thing to read. */
+  scroll-margin-top: 92px;
+  display: grid;
+  grid-template-columns: minmax(280px, 460px) 1fr;
+  gap: 34px;
+  align-items: start;
+}
+
+@media (max-width: 940px) {
+  .blitz-stage {
+    grid-template-columns: 1fr;
+  }
+}
+
+.blitz-card {
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.blitz-card > h2 {
+  margin: 0;
+  padding: 18px 20px 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.blitz-from-body {
+  padding: 16px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.blitz-from-media {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(5, 5, 5, 0.9);
+}
+
+.blitz-from-media video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 9 / 16;
+  object-fit: cover;
+}
+
+.blitz-source-sound {
+  left: auto;
+  right: 12px;
+  top: 12px;
+}
+
+.blitz-source-download {
+  left: auto;
+  right: 58px;
+  top: 12px;
+  text-decoration: none;
+}
+
+.blitz-source-sound.is-on {
+  background: var(--accent);
+  color: #050505;
+}
+
+/* The like and view counts sit where the app itself puts them, because that is
+   how this video was read when it was scrolled past — the numbers are part of
+   why the shape is worth taking. */
+.blitz-metrics {
+  position: absolute;
+  right: 10px;
+  bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: center;
+  color: #fff;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+}
+
+.blitz-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.blitz-metric svg {
+  padding: 8px;
+  border-radius: 999px;
+  background: rgba(5, 5, 5, 0.42);
+  box-sizing: content-box;
+}
+
+.blitz-from-title {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 600;
+}
+
+.blitz-source-link {
+  font-size: 12px;
+  color: var(--muted);
+  word-break: break-all;
+}
+
+.blitz-source-link:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+.blitz-read summary {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.blitz-read summary:hover {
+  color: var(--ink);
+}
+
+.blitz-read-wall {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(5, 5, 5, 0.04);
+}
+
+.blitz-read-note {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+/* ----------------------------------------------------------------- ours */
+
+.blitz-ours {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.blitz-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+.blitz-pill {
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 7px 15px;
+  border-radius: 999px;
+  background: rgba(5, 5, 5, 0.06);
+  color: var(--muted);
+}
+
+.blitz-pill.is-accent {
+  background: rgba(245, 148, 29, 0.1);
+  border: 1px solid rgba(245, 148, 29, 0.6);
+  color: #a45c00;
+}
+
+.blitz-why-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 7px 15px;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 148, 29, 0.65);
+  background: var(--paper-2);
+  color: var(--ink);
+  transition: background 0.16s var(--ease), border-color 0.16s var(--ease);
+}
+
+.blitz-why-toggle:hover {
+  background: rgba(245, 148, 29, 0.1);
+}
+
+.blitz-why-toggle[aria-expanded="true"] {
+  background: rgba(245, 148, 29, 0.16);
+}
+
+/* The phone is a frame, not a skin: it exists so the canvas is judged at the
+   size it will be watched at. */
+.blitz-phone {
+  position: relative;
+  width: min(340px, 82vw);
+  aspect-ratio: 9 / 16;
+  border-radius: 26px;
+  overflow: hidden;
+  background: #0b0b0d;
+  box-shadow: 0 22px 60px rgba(5, 5, 5, 0.28), 0 2px 0 rgba(255, 255, 255, 0.05) inset;
+}
+
+.blitz-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.blitz-phone-empty {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  display: grid;
+  place-items: center;
+  padding: 0 32px;
+  text-align: center;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.blitz-mute {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 999px;
+  background: rgba(5, 5, 5, 0.5);
+  color: #fff;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.blitz-mute:hover {
+  background: rgba(5, 5, 5, 0.7);
+}
+
+.blitz-why {
+  width: 100%;
+  max-width: 520px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper-2);
+  padding: 14px 18px;
+}
+
+.blitz-why h3 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+}
+
+.blitz-why ul {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.blitz-why b {
+  font-variant-numeric: tabular-nums;
+}
+
+.blitz-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+/* ------------------------------------------------------------- the footage */
+
+.blitz-footage {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.blitz-footage-head {
+  display: flex;
+  gap: 8px;
+}
+
+.blitz-footage-head input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 13.5px;
+  padding: 9px 13px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+  color: var(--ink);
+  outline: none;
+}
+
+.blitz-footage-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+}
+
+.blitz-shot {
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--paper-2);
+  transition: border-color 0.16s var(--ease), transform 0.16s var(--ease);
+}
+
+.blitz-shot:hover {
+  border-color: rgba(5, 5, 5, 0.34);
+  transform: translateY(-2px);
+}
+
+.blitz-shot img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+}
+
+.blitz-shot span {
+  display: block;
+  padding: 5px 7px 7px;
+  font-size: 10.5px;
+  line-height: 1.3;
+  color: var(--muted);
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.blitz-shot:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* -------------------------------------------------------------- the result */
+
+.blitz-progress {
+  width: 100%;
+  max-width: 520px;
+}
+
+.blitz-result {
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+
+.blitz-result video {
+  width: 100%;
+  border-radius: 16px;
+  background: #0b0b0d;
+  display: block;
+}
+
+.blitz-caption {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* ------------------------------------------------------------- the retype */
+
+.blitz-textwrap {
+  width: 100%;
+  max-width: 520px;
+}
+
+.blitz-textwrap textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+  color: var(--ink);
+  resize: vertical;
+  outline: none;
+}
+
+.blitz-textwrap textarea:focus {
+  border-color: rgba(5, 5, 5, 0.4);
+  box-shadow: 0 0 0 4px rgba(5, 5, 5, 0.06);
+}
+
+.blitz-texthint {
+  margin: 6px 0 0;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+/* ---------------------------------------------------------------- the music */
+
+.blitz-music {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.blitz-music-pick {
+  flex: 1;
+  min-width: 180px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.blitz-music-pick select {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+}
+
+.blitz-music-vol {
+  display: flex;
+  align-items: center;
+  width: 110px;
+}
+
+.blitz-music-vol input {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.blitz-music-credit {
+  width: 100%;
+  max-width: 520px;
+  margin: -4px 0 0;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+/* ------------------------------------------------------------- the enlarge */
+
+.blitz-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.blitz-lightbox-back {
+  position: absolute;
+  inset: 0;
+  background: rgba(5, 5, 5, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.blitz-lightbox-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(240px, 42vh) minmax(220px, 320px);
+  gap: 20px;
+  align-items: start;
+  padding: 18px;
+  border-radius: 20px;
+  background: var(--paper-2);
+  box-shadow: 0 30px 80px rgba(5, 5, 5, 0.4);
+  max-width: min(92vw, 860px);
+}
+
+@media (max-width: 700px) {
+  .blitz-lightbox-card {
+    grid-template-columns: 1fr;
+  }
+}
+
+.blitz-lightbox-card video {
+  width: 100%;
+  aspect-ratio: 9 / 16;
+  max-height: 78vh;
+  border-radius: 14px;
+  background: #0b0b0d;
+  display: block;
+}
+
+.blitz-lightbox-side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.blitz-lightbox-title {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.4;
+  font-weight: 600;
+}

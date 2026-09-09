@@ -99,12 +99,70 @@ captions and a voiceover on the timeline, render. No AI mode, no image posts —
 the plain editor.
 
 Nothing is duplicated to get it. The page *is* the studio's markup and
-`studio.js` drives it unchanged; `editor.css` hides the two panels this page does
-not offer, and an inline script sets the hash to `#video` before the script runs
-so the image editor never flashes past on the way in. The panels are hidden
-rather than deleted because studio.js wires every tab on load and would fall over
-on a missing one — and a second copy of two thousand lines would drift from the
-original inside a week.
+`studio.js` drives it unchanged; `editor.js` waits for the studio's init to make
+the video tab current, then moves the finished pieces into an editor's shell —
+a rail of tools down the left, the tool's panel beside it, the canvas on a dark
+stage in the middle, the selected layer on the right, time along the bottom.
+Moving a node keeps its listeners, which is the only reason a second editor can
+exist without becoming a second thing to maintain. `editor.css` is the site's
+own palette over that shell. The tab strip is removed only *after* the studio
+has shown the video tab: build first and `showTab` finds no tab, leaves the
+image panel current and every keyboard shortcut — they all check which panel is
+active — is dead on the page.
+
+The rail: **Upload** (files from this Mac — videos and music land in Clips,
+pictures in Stills, and the file is put on the canvas as it lands; `.mp4 .mov
+.m4v .webm`, `.png .jpg .webp`, `.mp3 .m4a .wav .aiff` — anything else is
+refused with a 415 and the reason in the toast, rather than saved where no
+shelf would list it), **Recordings**, **Clips**, **Stills**, **GIFs**,
+**Footage** (YouTube / Pexels search), **Text**, **Audio**, **Export**. A card
+is on the canvas the moment it is clicked; drag it onto the stage to place it
+yourself.
+
+What the inspector does to a layer, every item drawn by the canvas *and*
+reproduced by ffmpeg (see *How the preview stays honest*):
+
+- **Speed** 0.25×–4× for clips. Changing it keeps the same stretch of footage
+  on the timeline, so at 2× the bar halves and at 0.5× it doubles — past the
+  end of the composition the composition grows to fit (it is never clamped:
+  clamping ate footage, and a clip slowed then sped back up came back shorter
+  each time). Splitting and head-trimming a sped clip move its in-point by
+  time × speed. In the preview the seek tolerance scales with the speed and a
+  seek is followed by a short cool-down, or a 4× clip played as a stutter of
+  seeks. A detached track keeps its clip's pace.
+- **Volume** is greyed out, with "no sound in this clip", when the file has no
+  audio track (`/library` now reports `audio` per clip) — most screen
+  recordings. A clip added from a shelf or an upload arrives with its sound on.
+- **Opacity**, **Fade in / Fade out** (picture and sound together).
+- **Rotate** to the degree, **90°**, mirror **↔ ↕**. Text can be rotated too.
+- **Brightness, Contrast, Saturation, Hue**, with *Black & white* and *Reset*.
+- **Detach audio**: the clip's sound on a track of its own, trimmed and timed
+  exactly as the picture was, and the picture muted.
+- Geometry, fit, blur, volume, start/end/trim as before.
+
+On the timeline head: **Size** (9:16 · 16:9 · 1:1 — the frame every page
+composes in; layers are carried across when it changes), **Backdrop** (the
+colour under every layer), **Length**, **Zoom**. Under *Export*: frame rate
+(24/30/60) and quality (best/good/small → crf 17/20/26).
+
+The shell itself: the timeline's height is a drag on its top edge (remembered
+in `localStorage`, `ed-dock-height`), and its scroll areas fill whatever height
+it has rather than the studio's three-row cap. Picture bars carry a filmstrip
+of their own still. The panel head has a filter box over any shelf of cards.
+The inspector is three pages — **Layout · Timing · Adjust** — built by moving
+the studio's rows (the speed/opacity row is split between the last two); the
+page you were on is remembered. Toasts rise at the top of the stage, not over
+the timeline. Below 1100px the panel floats over the stage and the inspector
+stays. Every button lets go of focus after a click, so <kbd>Space</kbd> plays
+rather than clicking Delete again. Play stops at the end of the content — the
+latest end of any layer — and goes back to the start; it no longer runs on
+over black to the composition's length and loops forever.
+
+Keys, with the canvas focused: <kbd>Space</kbd> play/pause, <kbd>S</kbd> split,
+<kbd>⌘Z</kbd> / <kbd>⇧⌘Z</kbd> undo/redo, <kbd>⌘D</kbd> duplicate, arrows nudge
+(⇧ for 10px), <kbd>,</kbd> <kbd>.</kbd> a frame back/forward, <kbd>Home</kbd>
+<kbd>End</kbd>, <kbd>⌫</kbd> delete. Undo is a stack of whole compositions,
+snapshotted a quarter-second after the editor goes quiet, so a drag is one step.
 
 ## Output
 
@@ -585,34 +643,65 @@ everything else, so the result lands in `studio/out/` with its `project.json`.
 ## Blitz
 
 `blitz.html`. Remix (`remix.html`) does this to titles: a fast hook becomes a
-skeleton and the skeleton is filled with our own claims. Blitz does it to the
-thing short-form actually rewards — the wall of text a creator burns over their
-own face, the "just watched a girl in my lecture …" block that *is* the video.
+skeleton and the skeleton is filled with claims out of `formats.json`. Blitz
+does it to the thing short-form actually rewards — the wall of text a creator
+burns over their own face, the "just watched a girl in my lecture …" block that
+*is* the video — and it does it **for whatever address you paste**, the way
+Autopilot does, rather than only for this app.
+
+```
+https://www.raycast.com   +   a TikTok doing 860K views a day   →   Raycast's version of that post
+```
 
 The rule is Remix's rule. What is borrowed is the **shape**: the opener's
 grammar, the number of beats, the cadence, the lowercase, where it stops. Never
-the sentence, never the subject, and never a frame — the clip under our words is
-our own footage, fetched during the run.
+the sentence, never the subject, and never a frame — the clip under the words is
+footage fetched during the run.
 
-Three steps, three routes, because they cost three different things.
+The link does two jobs. `readBrand()` — the recon and brand passes lifted out of
+`autopilot.mjs`, so there is one implementation of them and not two — turns the
+site into a fact sheet, and that fact sheet is both **what to search for** (its
+keywords and category, since what is moving in one niche says nothing about
+another) and **the only place a claim may come from**. It is kept for a day per
+address: four page fetches and a model call, and one link is usually hunted
+several times in a sitting. With no link, this app's own `formats.json` is
+folded into the same shape, so nothing downstream has to know which of the two
+it got.
+
+Then three steps, three routes, because they cost three different things.
 
 ### 1. Hunt
 
 `POST /blitz/hunt` → `hunt()` in `studio/blitz.mjs`. Two ways in, and the second
 exists because of what the first cannot do.
 
-A **phrase** is searched on YouTube through its results page rather than
-`ytsearch:`. The search extractor returns long-form almost exclusively — forty
-results for "mac tips" and not one of them under ninety seconds — and yt-dlp
-drops the `sp` parameter that would ask YouTube for Shorts, so the results page
-is the only form that mixes short-form in at all.
+A **phrase** is searched through the **Shorts tab** of YouTube's results page —
+`?search_query=…&sp=EgIYAQ==` — because nothing else returns any. `ytsearch:`
+came back with forty results for "mac tips" and not one of them under ninety
+seconds; the plain results page with none; the Shorts tab with eleven. yt-dlp
+does pass `sp` through, and the same query with and without it comes back with
+two different sets of videos. YouTube still mixes long videos into that tab, so
+the duration filter stays. If that pass comes back thinner than asked for, the
+phrase is searched again without the filter, which costs ten seconds and is
+skipped when the first pass was enough.
 
-An **account** is the reliable path, and the more honest unit: the shape being
+On TikTok the same phrase has no search to go to. Every direct road is closed:
+yt-dlp's tag and search extractors are broken, TikTok's own search page answers
+a headless browser with a slider puzzle, and Bing hands an automated session a
+page of decoy results with the query quietly ignored. What works is
+**DuckDuckGo in a real Chrome**, asked for `site:tiktok.com <phrase>` —
+`studio/tiksearch.mjs` drives it over the DevTools protocol the way `shot.mjs`
+does, with a desktop user-agent said out loud, since headless Chrome's own
+string is what earns the challenge page. It hands back the video and profile
+addresses the index holds for the phrase. The videos are read in one yt-dlp
+pass (a single TikTok read carries views, likes, the timestamp and the cover);
+the profiles — up to four — join the accounts that were typed, since a creator
+who turned up for the phrase is exactly the kind of account worth reading.
+
+An **account** is the other way in, and the more honest unit: the shape being
 borrowed belongs to somebody who posts it every day, not to one lucky video. A
 bare `@name` is read as TikTok, a link with `youtube.com` in it as that
-channel's `/shorts` tab, which is nothing but shorts. TikTok cannot be searched
-by phrase at all — yt-dlp's tag and search extractors are broken and the API is
-closed — so there it is accounts or nothing.
+channel's `/shorts` tab, which is nothing but shorts.
 
 Ranked by **velocity**, views per day, for the reason `trends.mjs` gives: a
 video that took three years to reach a million is not a trend. A TikTok listing
@@ -620,6 +709,17 @@ needs no second pass — the flat entries already carry views, likes and the
 timestamp — while YouTube needs one, because a flat entry has no upload date and
 without a date there is no velocity. Cached for six hours; the tick box under
 the field skips the cache.
+
+### The deck
+
+A card is a place to look before deciding, so nothing on it commits. Hovering
+the picture plays the clip — fetched on the first hover through `POST
+/blitz/clip`, the same 720p file the read will use, so a video looked at here
+is already on disk when it is picked. The corner buttons open its sound, a
+lightbox with the video large, and the source on its own site. Only **Remix
+this** — on the card, or in the lightbox — starts a remix; a click anywhere
+else is a look, not a choice. The source in the left pane plays muted so two
+soundtracks never start at once, and has the same sound button.
 
 ### 2. Read it off the picture
 
@@ -633,8 +733,23 @@ asked what they say.
 The prompt spends most of its length on what to *ignore*: the @handle, the
 like/comment/share counts, the music ticker, the Follow button, the watermark
 and word-by-word auto-subtitles are all things the app drew, not things the
-creator wrote. A video with nothing written on it is not a failure — it has no
-shape to lend, `onScreen` comes back false and its own caption is used instead.
+creator wrote.
+
+A video with nothing written on it is not a failure, because a short lends its
+shape three ways and the read tries them in order. With a caption block, the
+block is the shape. Without one, the transcript is fetched — the same
+`readVideo` Autopilot and Supercut use, cached by video id — and the shape is
+how it is **said**: the spoken opener, where it turns, how it lands, condensed
+to a line per six seconds so the model can see the beats. With neither, the
+only shape on offer is the title's — its count, its "X vs Y", its "stop doing
+…" — and the answer is a line in that pattern, the length of a title, not a
+wall of text conjured from nowhere. The left pane says which of the three it
+got, and the pill reads "wall of text", "spoken hook" or "title only".
+
+The brief's json example carries no real words, only a description of each
+key. The first time a source had no text of its own, the model borrowed the
+example's sentence instead of the video's — "just watched a designer grab a
+screenshot …" turned up under a video about nothing of the kind.
 
 The vision model is a list, not a name (`GEMINI_VISION_MODELS`, first entry
 overridable with `geminiVisionModel`): the flash models answer "high demand"
@@ -649,9 +764,10 @@ thrown away with the rest of tmp.
 
 `POST /blitz/adapt`, one text call, answered in the request because the page has
 nothing to show while it waits. The model is given the source block, what its
-shape does, and the fact bank — `formats.json` → `painFixes` and `positioning` —
-and told: borrow the skeleton, and write nothing that is not in the bank. It
-returns our block, the angle that becomes the pill, a caption, hashtags, a
+shape does, and the fact sheet the link produced — features, price line,
+audience, proofs, tone, and the `avoid` list of claims the site does not support
+— and told: borrow the skeleton, and write nothing that is not on the sheet. It
+returns the block, the angle that becomes the pill, a caption, hashtags, a
 sentence naming what it borrowed, and two or three words to search for footage.
 
 **Why this content?** is composed by the page, not by the model. The velocity,
@@ -676,9 +792,42 @@ steps down until the text clears the lower half. Retyping it rebuilds rather
 than redraws, since both the size and the position depend on how many lines it
 wraps to.
 
-Only the seconds that end up on screen are downloaded for the bed —
-`--download-sections` on the footage fetch — which is the difference between a
-run of six seconds and one of ninety.
+The bed comes from the **library first**: its portrait backgrounds
+(`bg-*.mp4`) and the app's own recordings, any of them at random, because the
+same background under every post is the tell that a feed was made by a script.
+A YouTube clip was the wrong default — a tutorial cropped to portrait, with its
+own captions fighting ours, or a black frame — so the search is still there
+under **Other footage** but is no longer what goes on first. Landscape clips
+are left out: a 16:9 recording cropped to 9:16 is a strip of the middle of
+somebody's screen. When a clip is fetched, only the seconds that end up on
+screen are downloaded — `--download-sections` on the footage fetch — which is
+the difference between a run of six seconds and one of ninety.
+
+The block is written by a person, not a brand. The brief says so in as many
+words — the product is not the subject of the first sentence, it turns up once
+and late, no price in the block, none of the phrases a company writes — and
+the first draft is checked for exactly those tells. A draft that opens with
+the product's name, carries a price, or says "here's what that actually means"
+goes back with the offence named, because a second pass is far cheaper than a
+rendered ad. The type is sized to the length: a two-word line gets 118px, a
+wall steps down until it clears the lower half of the frame, and nothing goes
+below 44.
+
+### Music
+
+The row under the phone. **Something silly** asks Openverse — the audio
+counterpart of the Wikimedia fallback for photos: a CC index over Jamendo and
+Freesound, no key, every hit carrying its licence — for one of a dozen goofy
+words (`funny`, `kazoo`, `polka`, `chiptune` …), picks any of the first few
+long enough to cover the post, downloads it into `library/music/` with a line
+in `sources.json`, and puts it on. `GET /music/search`, `POST /music/fetch`.
+Only `by`, `by-sa`, `cc0` and `pdm` get through: `license_type=commercial`
+still lets ND in, and a track under a video is a derivative work.
+
+The track is an **audio layer** on the composition rather than a render-time
+setting, so the preview plays what the file will carry and there is one
+description of the post; the slider changes the layer's level in place. The
+credit line under the row is what to paste into the caption.
 
 ## Image posts
 
@@ -783,6 +932,11 @@ layer list, with the clips in grey, the stills in green and the text in orange.
 - Click the ruler to scrub, <kbd>Space</kbd> plays. **Length** and the *Length*
   slider in block 5 are the same number: layers that ran to the old end follow
   the new one, anything deliberately cut short keeps its own timing.
+- **Size** turns the frame (9:16, 16:9, 1:1). `COMP_W`/`COMP_H` are live
+  bindings from `composition.js`, so every module composes in the new frame;
+  the layers already on the canvas are stretched into it and a project
+  remembers which frame it was saved in. **Backdrop** is the colour under
+  everything.
 
 Two things the render has to do for a layer that does not begin at zero, and
 neither is visible until something is moved or split: the clip is padded at the
@@ -924,7 +1078,22 @@ page paints each one onto a transparent 1080×1920 frame and ships that PNG, so
 the type in the file is the same pixels you dragged.
 
 That is also why only effects ffmpeg can reproduce are drawn in the preview —
-blur is in, rounded corners are out until the render can match them.
+each one below has its twin, in the order both sides apply them:
+
+| in the canvas | in the render |
+| --- | --- |
+| `speed` — the clock runs faster, `playbackRate` while playing | `setpts=PTS/speed`, `atempo` chained in 2× steps for the sound |
+| `blur(px)` | `gblur=sigma=px/2` |
+| `contrast()`, `saturate()`, `hue-rotate()` | `eq=contrast:saturation`, `hue=h` |
+| `brightness()` (a channel multiply) | `colorchannelmixer=rr:gg:bb` |
+| `scale(-1,1)` / `scale(1,-1)` | `hflip` / `vflip` |
+| `rotate()` about the drawn picture's centre | `rotate=a:ow=rotw(a):oh=roth(a)`, then `overlay=x=cx-w/2:y=cy-h/2` |
+| `globalAlpha` × opacity × fade ramps | `colorchannelmixer=aa`, `fade=…:alpha=1` (`afade` for sound) |
+| backdrop fill | `color=c=0xRRGGBB` as the base and the strip's gap filler |
+
+Rounded corners are out until the render can match them. The strip fast path
+takes only untreated full-frame pictures; a rotated, faded or colour-graded
+layer falls through to the general path.
 
 Captions being PNGs rather than `drawtext` is not only about fidelity: this
 machine's Homebrew ffmpeg is built without libfreetype, so `drawtext` does not
@@ -938,7 +1107,7 @@ rather than stacking on it. Move or retime any of them afterwards. With a
 voiceover the clip length comes from the audio, so captions and speech cannot
 drift apart.
 
-The preview is silent — audio is mixed at render.
+Clips and voiceovers are heard in the preview at each layer's level (one `<video>` per source, so two layers on the same file play at the louder one); only the music bed is mixed at render.
 
 ### Output, and going back to it
 
@@ -984,7 +1153,8 @@ social/
     agent.mjs                              AI mode's tool loop
     autopilot.mjs                          Autopilot's five passes and its producer
     trends.mjs                             velocity-ranked trends + the hook classifier
-    blitz.mjs                              hunts short-form, reads its on-screen text, adapts the shape
+    blitz.mjs                              hunts short-form, reads its on-screen text, adapts the shape to a fact sheet
+    tiksearch.mjs                          TikTok by phrase — DuckDuckGo in a real Chrome, since nothing else answers
     transcript.mjs                         what a video says, with timings (yt-dlp, then SerpApi)
     supercut.mjs                           finds a script's words inside those transcripts
     freeze.js                              canvas -> render spec, shared by every page
