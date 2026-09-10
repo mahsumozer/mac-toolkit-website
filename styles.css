@@ -262,7 +262,7 @@ svg {
 .hero h1 {
   margin: 0;
   max-width: 900px;
-  font-size: clamp(46px, 6.3vw, 94px);
+  font-size: clamp(38px, 5.1vw, 76px);
   font-weight: 760;
   line-height: 0.88;
   letter-spacing: -0.075em;
@@ -272,8 +272,8 @@ svg {
   max-width: 650px;
   margin: 30px 0 0;
   color: var(--soft-black);
-  font-size: clamp(18px, 1.8vw, 23px);
-  line-height: 1.42;
+  font-size: clamp(16px, 1.45vw, 20px);
+  line-height: 1.45;
   letter-spacing: -0.035em;
 }
 
@@ -4897,7 +4897,7 @@ body.show-mac-handoff .mac-handoff:focus-within {
   }
 
   .hero h1 {
-    font-size: clamp(40px, 11vw, 72px);
+    font-size: clamp(34px, 9vw, 58px);
   }
 
   .desktop-strip {
