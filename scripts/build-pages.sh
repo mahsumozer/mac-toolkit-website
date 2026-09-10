@@ -13,6 +13,10 @@ cp _headers public/
 cp _redirects public/
 cp accessibility.html public/
 cp app.js public/
+cp cleanshot-x-alternative.html public/
+cp istat-menus-alternative.html public/
+cp paste-app-alternative.html public/
+cp permute-alternative.html public/
 cp index.html public/
 cp pricing.html public/
 cp privacy.html public/

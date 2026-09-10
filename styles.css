@@ -5686,3 +5686,133 @@ body.show-mac-handoff .mac-handoff:focus-within {
     transform: none;
   }
 }
+
+/* Footer label in front of the comparison links, so "Compare CleanShot X"
+   does not read as one four-word link. */
+.footer-links-label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* ---------------------------------------------------------------------------
+   Comparison pages (/cleanshot-x-alternative and friends). These reuse the
+   legal-page prose layout and only add what prose cannot express: a headline
+   that does not shout like the legal hero, h3 question headings, and a
+   two-column table that has to survive a phone. Additive only — nothing above
+   is touched.
+   -------------------------------------------------------------------------- */
+.vs-hero h1 {
+  font-size: clamp(34px, 5vw, 62px);
+  max-width: 20ch;
+}
+
+.vs-content {
+  max-width: 880px;
+}
+
+.vs-content h3 {
+  margin: 26px 0 8px;
+  font-size: 18px;
+  line-height: 1.25;
+  letter-spacing: -0.03em;
+}
+
+.vs-content h3:first-of-type {
+  margin-top: 0;
+}
+
+.vs-content strong {
+  color: var(--ink);
+  font-weight: 750;
+}
+
+.vs-content ul {
+  display: grid;
+  gap: 10px;
+}
+
+/* The prose link rule (.legal-content a) outranks .button-dark on
+   specificity, which paints the dark pill's label black on black. Restore the
+   button's own colours and drop the prose underline. */
+.vs-content .button {
+  margin: 18px 8px 0 0;
+  text-decoration: none;
+}
+
+.vs-content .button-dark {
+  color: var(--white);
+}
+
+.vs-content .button-light {
+  color: var(--ink);
+}
+
+/* The table is the one thing on the page allowed to scroll sideways. */
+.vs-table-wrap {
+  overflow-x: auto;
+  margin: 0 0 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper-2);
+  -webkit-overflow-scrolling: touch;
+}
+
+.vs-table {
+  width: 100%;
+  min-width: 520px;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+
+.vs-table th,
+.vs-table td {
+  padding: 12px 16px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line);
+  line-height: 1.45;
+}
+
+.vs-table tr:last-child th,
+.vs-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.vs-table thead th {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* Our own column is the one the reader is here to find. */
+.vs-table thead th:nth-child(2) {
+  color: var(--ink);
+}
+
+.vs-table tbody th {
+  font-weight: 750;
+  color: var(--ink);
+  width: 34%;
+}
+
+.vs-table tbody td {
+  color: var(--soft-black);
+}
+
+.vs-table tbody td:first-of-type {
+  color: var(--ink);
+  font-weight: 620;
+}
+
+@media (max-width: 640px) {
+  .vs-table th,
+  .vs-table td {
+    padding: 10px 12px;
+  }
+}
