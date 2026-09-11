@@ -2462,7 +2462,7 @@
     document.querySelectorAll("[data-download]").forEach((link) => {
       link.addEventListener("click", (event) => {
         event.preventDefault();
-        document.getElementById("download")?.scrollIntoView({ behavior: "smooth" });
+        document.getElementById("pay-once")?.scrollIntoView({ behavior: "smooth" });
       });
     });
   }
