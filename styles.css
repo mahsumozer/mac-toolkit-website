@@ -804,10 +804,12 @@ body.show-mac-handoff .mac-handoff:focus-within {
   opacity: 1;
 }
 
-/* No picture yet is not the same as nothing: a grey pane with the camera
-   crossed out, and pressing it is how the camera gets asked for. */
+/* No picture yet is not the same as nothing: a pane with the camera crossed
+   out, and pressing it is how the camera gets asked for. Kept the panel's own
+   dark glass, only lifted off black, so an empty mirror reads as part of the
+   app rather than as a grey hole cut in the hero. */
 .mirror-frame:not(.is-live) {
-  background: rgba(112, 112, 122, 0.44);
+  background: rgba(42, 42, 48, 0.54);
 }
 
 .mirror-blind {
