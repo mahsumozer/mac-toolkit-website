@@ -885,6 +885,7 @@
       ghost = null;
       leaving.classList.remove("is-visible");
       window.setTimeout(() => leaving.remove(), 400);
+      if (label && !dismissed) label.textContent = "Your turn — click anything in it.";
     }
 
     [panel, strip].forEach((target) => {
@@ -892,12 +893,20 @@
       target.addEventListener("pointerdown", dismiss);
       target.addEventListener("keydown", dismiss);
     });
-    document.addEventListener("pointerdown", stop, true);
-    document.addEventListener("keydown", stop, true);
+    // Only the app itself counts as taking over — the panel, the menu bar and
+    // whatever the panel has put out on the hero. Reading the page, following
+    // a link or hitting Download is not an answer to the invitation, and the
+    // demo has no business stopping for any of it.
+    const MINE = ".hero-window, .desktop-strip, .sticky-layer, .draw-canvas, .draw-bar, .clean-veil, .shot-tray";
+    function handover(event) {
+      const target = event.target;
+      if (target && target.closest && target.closest(MINE)) stop(event);
+    }
+    document.addEventListener("pointerdown", handover, true);
+    document.addEventListener("keydown", handover, true);
+    // The pointer reaching the panel is the whole point of the thing, so it is
+    // also the end of it: from here the panel is the visitor's.
     panel.addEventListener("pointerenter", stop);
-    document.addEventListener("visibilitychange", () => {
-      if (document.hidden) stop();
-    });
 
     // A finger has no cursor to borrow, a narrow layout has no room for one,
     // and a visitor who asked for less motion did not ask for this.
@@ -970,6 +979,27 @@
       search.blur();
     }
 
+    // The menu bar can only be telling one story at a time: a recording clock
+    // and a focus clock running side by side there reads as a bug rather than
+    // as two tools. Whichever the ghost starts puts the other one out, in the
+    // same click, so the bar is seen handing over rather than filling up.
+    const RUNNING = {
+      "screenshot": {
+        on: () => !!cardOf("screenshot")?.classList.contains("is-recording"),
+        off: () => cardOf("screenshot").querySelector("[data-shot='record']").click(),
+      },
+      "pomodoro": {
+        on: () => document.getElementById("focus-toggle")?.textContent.trim() === "Pause",
+        off: () => document.getElementById("focus-toggle").click(),
+      },
+    };
+
+    function takeTheBar(widget) {
+      Object.keys(RUNNING).forEach((other) => {
+        if (other !== widget && RUNNING[other].on()) RUNNING[other].off();
+      });
+    }
+
     // Every tool the panel holds, as something to watch it do. `undo` is the
     // way back out of the ones that stay on — it runs if a visitor takes the
     // panel over mid-demo, so nothing is left locked, recording or ticking.
@@ -988,7 +1018,10 @@
         // moving after the ghost has gone, and the button now says Stop, which
         // is a better invitation than anything written under the panel.
         run: async (card) => {
-          if (await tap(card.querySelector("[data-shot='record']"), 620)) await wait(1600);
+          const starting = !card.classList.contains("is-recording");
+          if (!(await tap(card.querySelector("[data-shot='record']"), 620))) return;
+          if (starting) takeTheBar("screenshot");
+          await wait(1600);
         },
       },
       {
@@ -1005,7 +1038,11 @@
         // Left running, so the clock is still counting down — in the card and
         // in the menu bar — long after the demo is over.
         run: async (card) => {
-          if (await tap(card.querySelector("#focus-toggle"), 620)) await wait(1800);
+          const button = card.querySelector("#focus-toggle");
+          const starting = button.textContent.trim() === "Start";
+          if (!(await tap(button, 620))) return;
+          if (starting) takeTheBar("pomodoro");
+          await wait(1800);
         },
       },
       {
@@ -1055,7 +1092,13 @@
         // be dragged and written in — so this one is deliberately not undone.
         // Two of them, because one note reads as a picture and a second one
         // landing beside it is the moment it stops looking like a screenshot.
+        // Once the hero is carrying a few, the card tidies them instead of
+        // adding to the pile.
         run: async (card) => {
+          if (document.querySelectorAll(".sticky-note").length >= 4) {
+            if (await tap(card.querySelector("[data-sticky='list']"), 620)) await wait(1200);
+            return;
+          }
           const make = card.querySelector("[data-sticky='new']");
           if (!(await tap(make, 620))) return;
           await wait(800);
@@ -1140,30 +1183,46 @@
       panel.classList.add("is-demoing");
       await wait(340);
 
-      // Two tools, drawn fresh on every visit, so the panel is never seen doing
-      // the same thing twice and no one tool has to be the one that sells it.
-      const pool = CASES.slice();
-      const first = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
-      const rest = pool.filter((item) => item.widget !== first.widget);
-      const second = rest[Math.floor(Math.random() * rest.length)];
-
-      await play(first);
-      if (!stopped) {
-        await wait(700);
-        await play(second);
+      // It works its way through every tool in a shuffled order rather than
+      // drawing each one fresh, so nothing comes up twice before the rest have
+      // had a turn — and the same card never goes twice across the seam
+      // between two shuffles.
+      let queue = [];
+      let last = null;
+      function next() {
+        if (!queue.length) {
+          queue = CASES.slice();
+          for (let i = queue.length - 1; i > 0; i -= 1) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [queue[i], queue[j]] = [queue[j], queue[i]];
+          }
+          if (queue.length > 1 && queue[0].widget === last) [queue[0], queue[1]] = [queue[1], queue[0]];
+        }
+        last = queue[0].widget;
+        return queue.shift();
       }
 
-      if (stopped) return;
-      if (label && !dismissed) label.textContent = "Your turn — click anything in it.";
-      stop();
+      // It keeps going for as long as nobody comes near it. There is no point
+      // working the panel for a tab nobody is looking at or a hero that has
+      // been scrolled past, so it waits those out rather than counting them.
+      while (!stopped) {
+        while (!stopped && (document.hidden || !onScreen)) await wait(600);
+        if (stopped) break;
+        await play(next());
+        if (stopped) break;
+        await wait(2400);
+      }
     }
 
     // On the way in, every time. Nothing is remembered between visits: a panel
     // that only introduces itself once is a panel most people never see move.
+    let onScreen = false;
+    let started = false;
     const watcher = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
-        if (!entry.isIntersecting) return;
-        watcher.disconnect();
+        onScreen = entry.isIntersecting;
+        if (!onScreen || started) return;
+        started = true;
         panel.classList.add("is-demoing");
         window.setTimeout(run, 1600);
       });
