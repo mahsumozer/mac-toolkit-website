@@ -914,7 +914,7 @@
     // whatever the panel has put out on the hero. Reading the page, following
     // a link or hitting Download is not an answer to the invitation, and the
     // demo has no business stopping for any of it.
-    const MINE = ".hero-window, .desktop-strip, .sticky-layer, .draw-canvas, .draw-bar, .clean-veil, .shot-tray";
+    const MINE = ".hero-window, .desktop-strip, .sticky-layer, .draw-canvas, .draw-bar, .clean-veil, .shot-tray, .mirror-frame";
     function handover(event) {
       // The demo draws by sending the canvas the same events a hand would, and
       // the canvas is one of its own. Only a real hand ends it.
@@ -1273,10 +1273,21 @@
       {
         widget: "mirror",
         query: "mirror",
-        // Searched for and left alone: switching it on asks for the camera, and
-        // nothing here should ask a visitor for their camera.
-        search: true,
-        run: async () => { await wait(1500); },
+        // Switched on, never asked. With no gesture behind it the frame comes
+        // up blind — the camera crossed out — so the tool is shown without a
+        // permission prompt nobody invited. Switched back off after, like the
+        // veil: a grey pane parked on the hero is not a tool being shown.
+        unless: ".mirror-frame",
+        run: async (card) => {
+          const toggle = card.querySelector(".mock-switch");
+          if (!(await tap(toggle, 620))) return;
+          await wait(2400);
+          if (await tap(toggle, 240)) await wait(500);
+        },
+        undo: () => {
+          const box = cardOf("mirror")?.querySelector(".mock-toggle");
+          if (box && box.classList.contains("is-on")) box.querySelector(".mock-switch").click();
+        },
       },
       {
         widget: "system-stats",
@@ -1761,9 +1772,15 @@
     video.muted = true;
     video.playsInline = true;
     video.setAttribute("aria-label", "Camera preview");
-    const note = document.createElement("p");
+    // With no picture the frame is not empty: it is the camera, crossed out,
+    // and pressing it is how the camera gets asked for.
+    const blind = document.createElement("button");
+    blind.type = "button";
+    blind.className = "mirror-blind";
+    blind.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m2 2 20 20"></path><path d="M7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16"></path><path d="M9.5 4h5L17 7h3a2 2 0 0 1 2 2v7.5"></path><path d="M14.12 15.12A3 3 0 1 1 9.88 10.88"></path></svg>';
+    const note = document.createElement("span");
     note.className = "mirror-note";
-    note.textContent = "Starting the camera…";
+    blind.appendChild(note);
     const grip = document.createElement("i");
     grip.className = "mirror-grip";
     grip.setAttribute("aria-hidden", "true");
@@ -1783,11 +1800,12 @@
     close.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>';
     bar.append(shoot, close);
 
-    frame.append(video, note, bar, grip);
+    frame.append(video, blind, bar, grip);
     hero.appendChild(frame);
 
     let stream = null;
     let free = false;
+    let asking = false;
 
     const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
     const ceiling = () => Math.round(strip.getBoundingClientRect().bottom - hero.getBoundingClientRect().top);
@@ -1918,30 +1936,75 @@
       frame.classList.remove("is-live");
     }
 
-    async function start() {
+    function blindWith(text) {
+      note.textContent = text;
+      frame.classList.remove("is-live");
+    }
+
+    async function allowed() {
+      if (!navigator.permissions || !navigator.permissions.query) return false;
+      try {
+        return (await navigator.permissions.query({ name: "camera" })).state === "granted";
+      } catch {
+        return false;
+      }
+    }
+
+    async function ask() {
+      if (asking || stream) return;
+      asking = true;
+      blindWith("Starting the camera…");
+      let opened = null;
+      try {
+        opened = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+      } catch {
+        asking = false;
+        // Refused, the frame stays where it is rather than vanishing: the
+        // answer can change, and when it does there is something here to fill.
+        blindWith("Camera access is off. Allow it, then press here.");
+        return;
+      }
+      asking = false;
+      // Switched off again while the browser was still asking.
+      if (!box.classList.contains("is-on")) {
+        opened.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      stream = opened;
+      video.srcObject = stream;
+      frame.classList.add("is-live");
+    }
+
+    function start() {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         revert();
         showToast("The camera needs a secure connection.");
         return;
       }
       place();
-      note.textContent = "Starting the camera…";
+      blindWith("Camera off. Press to turn it on.");
       frame.hidden = false;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
-      } catch {
-        stop();
-        revert();
-        showToast("Camera access is off.");
+      // A camera prompt belongs to whoever asked for it. A real press can raise
+      // one; the hero's own demonstration flipping this switch cannot, so it
+      // leaves the frame sitting there blind until somebody wants the picture.
+      // Where the camera was allowed already there is nothing to ask.
+      if (navigator.userActivation && !navigator.userActivation.isActive) {
+        allowed().then((yes) => { if (yes && box.classList.contains("is-on")) ask(); });
         return;
       }
-      // Switched off again while the browser was still asking.
-      if (!box.classList.contains("is-on")) {
-        stop();
-        return;
-      }
-      video.srcObject = stream;
-      frame.classList.add("is-live");
+      ask();
+    }
+
+    blind.addEventListener("click", ask);
+
+    // Given the camera later — from the address bar, say — it fills itself in
+    // rather than waiting to be switched off and on again.
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions.query({ name: "camera" }).then((status) => {
+        status.addEventListener("change", () => {
+          if (status.state === "granted" && box.classList.contains("is-on")) ask();
+        });
+      }).catch(() => {});
     }
 
     toggle.addEventListener("click", () => {
