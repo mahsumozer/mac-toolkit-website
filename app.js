@@ -643,8 +643,10 @@
     }
 
     async function tick() {
-      // Nothing rotates while the panel is put away from the status item.
+      // Nothing rotates while the panel is put away from the status item, or
+      // while the ghost cursor is on its way to a card it expects to find.
       if (busy || paused || searching || document.hidden || surface.classList.contains("is-closed")) return;
+      if (surface.classList.contains("is-demoing")) return;
       const pool = cards.filter((c) => c.hidden).sort(byOldest);
       const visible = cards.filter((c) => !c.hidden && !held(c)).sort(byOldest);
       if (!pool.length || !visible.length) return;
@@ -819,6 +821,354 @@
     lockHeight();
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(lockHeight);
     window.setInterval(tick, INTERVAL);
+  }
+
+  // Visitors read the hero panel as a recording of the app and never touch it,
+  // so it has to introduce itself twice: a line under the panel saying the
+  // buttons are real, and — while nobody has taken over — a ghost cursor that
+  // works two of them, which is the part people believe. Any real input hands
+  // the panel straight back over.
+  function initPanelInvite() {
+    const hero = document.querySelector(".hero");
+    const panel = document.getElementById("hero-panel");
+    const invite = document.getElementById("panel-invite");
+    if (!hero || !panel || !invite) return;
+
+    const label = invite.querySelector("[data-panel-invite-text]");
+    const search = panel.querySelector("[data-mock-search] input");
+    const strip = document.querySelector(".desktop-strip");
+    const coarse = window.matchMedia("(hover: none)").matches;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (coarse && label) label.textContent = "This panel is live — tap anything in it.";
+
+    let ghost = null;
+    let stopped = false;
+    let dismissed = false;
+    let typing = false;
+    let undoing = [];
+
+    const wait = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
+
+    // The invite only steps aside once the panel itself has been used; a click
+    // anywhere else on the page is not an answer to it.
+    function dismiss() {
+      if (dismissed) return;
+      dismissed = true;
+      invite.classList.add("is-done");
+    }
+
+    function stop(event) {
+      if (stopped) return;
+      stopped = true;
+      panel.classList.remove("is-demoing");
+      // A timer left running or a recording left going is the point; a veil or
+      // a drawing canvas over the whole hero is not, so those go back — except
+      // for someone whose first move is a stroke on the canvas, who is taking
+      // the tool over rather than interrupting it, and keeps it.
+      const target = event && event.target;
+      const onCanvas = target && target.closest && !!target.closest(".draw-canvas, .draw-bar");
+      undoing.splice(0).forEach(({ widget, back }) => {
+        if (onCanvas && widget === "screen-draw") return;
+        back();
+      });
+      // A half-typed search is the one thing the ghost leaves behind that a
+      // visitor would have to undo.
+      if (typing && search) {
+        typing = false;
+        search.value = "";
+        search.dispatchEvent(new Event("input", { bubbles: true }));
+        search.blur();
+      }
+      if (!ghost) return;
+      const leaving = ghost;
+      ghost = null;
+      leaving.classList.remove("is-visible");
+      window.setTimeout(() => leaving.remove(), 400);
+    }
+
+    [panel, strip].forEach((target) => {
+      if (!target) return;
+      target.addEventListener("pointerdown", dismiss);
+      target.addEventListener("keydown", dismiss);
+    });
+    document.addEventListener("pointerdown", stop, true);
+    document.addEventListener("keydown", stop, true);
+    panel.addEventListener("pointerenter", stop);
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) stop();
+    });
+
+    // A finger has no cursor to borrow, a narrow layout has no room for one,
+    // and a visitor who asked for less motion did not ask for this.
+    if (coarse || reduceMotion || window.innerWidth < 960) return;
+
+    // Wide controls — the search bar — are clicked near their start rather
+    // than dead centre, where a hand would go.
+    function place(el, ghostEl) {
+      const box = hero.getBoundingClientRect();
+      const at = el.getBoundingClientRect();
+      const x = at.width > 150 ? at.left + 46 : at.left + at.width / 2;
+      ghostEl.style.transform = `translate3d(${Math.round(x - box.left)}px, ${Math.round(at.top - box.top + at.height / 2)}px, 0)`;
+    }
+
+    async function moveTo(el, ms) {
+      ghost.style.transition = `transform ${ms}ms cubic-bezier(0.33, 0.06, 0.14, 1)`;
+      place(el, ghost);
+      await wait(ms);
+    }
+
+    async function tap(el, travel) {
+      if (stopped || !el || el.hidden || (el.closest(".mock-card") || {}).hidden) return false;
+      await moveTo(el, travel || 620);
+      if (stopped) return false;
+      ghost.classList.add("is-pressing");
+      await wait(150);
+      ghost.classList.remove("is-pressing");
+      el.click();
+      await wait(160);
+      return !stopped;
+    }
+
+    async function type(text) {
+      for (const letter of text) {
+        if (stopped) return;
+        search.value += letter;
+        search.dispatchEvent(new Event("input", { bubbles: true }));
+        await wait(110);
+      }
+    }
+
+    const cardOf = (widget) => panel.querySelector(`.mock-card[data-widget="${widget}"]`);
+    const pick = (list) => list[Math.floor(Math.random() * list.length)];
+
+    // A card the rotation happens to be showing is used where it stands; one
+    // that is put away is fetched the way a visitor would fetch it, through the
+    // panel's own search.
+    async function reveal(widget, query, forceSearch) {
+      const card = cardOf(widget);
+      if (!card) return null;
+      if (!forceSearch && !card.hidden) return card;
+      if (!search) return null;
+      if (!(await tap(search, 640))) return null;
+      search.focus({ preventScroll: true });
+      typing = true;
+      await type(query);
+      await wait(820);
+      return stopped || card.hidden ? null : card;
+    }
+
+    async function restoreSearch() {
+      if (!typing || !search) return;
+      const clear = panel.querySelector(".mock-search-clear");
+      if (!stopped && clear && !clear.hidden) await tap(clear, 380);
+      typing = false;
+      if (search.value) {
+        search.value = "";
+        search.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      search.blur();
+    }
+
+    // Every tool the panel holds, as something to watch it do. `undo` is the
+    // way back out of the ones that stay on — it runs if a visitor takes the
+    // panel over mid-demo, so nothing is left locked, recording or ticking.
+    const CASES = [
+      {
+        widget: "screenshot",
+        query: "screenshot",
+        run: async (card) => {
+          if (await tap(card.querySelector("[data-shot='full']"), 620)) await wait(1200);
+        },
+      },
+      {
+        widget: "screenshot",
+        query: "record",
+        // Left running: the red badge and the clock in the menu bar keep
+        // moving after the ghost has gone, and the button now says Stop, which
+        // is a better invitation than anything written under the panel.
+        run: async (card) => {
+          if (await tap(card.querySelector("[data-shot='record']"), 620)) await wait(1600);
+        },
+      },
+      {
+        widget: "clipboard",
+        query: "clipboard",
+        run: async (card) => {
+          const rows = Array.from(card.querySelectorAll("[data-copy]"));
+          if (await tap(pick(rows), 620)) await wait(1100);
+        },
+      },
+      {
+        widget: "pomodoro",
+        query: "focus",
+        // Left running, so the clock is still counting down — in the card and
+        // in the menu bar — long after the demo is over.
+        run: async (card) => {
+          if (await tap(card.querySelector("#focus-toggle"), 620)) await wait(1800);
+        },
+      },
+      {
+        widget: "color-picker",
+        query: "color",
+        run: async (card) => {
+          const away = Array.from(card.querySelectorAll("[data-color-format]"))
+            .filter((pill) => pill.dataset.colorFormat !== "hex");
+          if (await tap(pick(away), 620)) await wait(1400);
+        },
+      },
+      {
+        widget: "caffeine",
+        query: "awake",
+        // Left on, the way it would be left on for a download: the card keeps
+        // saying the display stays awake.
+        run: async (card) => {
+          if (await tap(card.querySelector(".mock-switch"), 620)) await wait(1600);
+        },
+      },
+      {
+        widget: "convert",
+        query: "convert",
+        run: async (card) => {
+          const chips = Array.from(card.querySelectorAll("[data-convert-chips] button"))
+            .filter((chip) => !chip.disabled && !chip.classList.contains("is-selected"));
+          if (chips.length && !(await tap(pick(chips), 620))) return;
+          await wait(500);
+          if (await tap(card.querySelector("[data-convert-run]"), 300)) await wait(1500);
+        },
+      },
+      {
+        widget: "new-file",
+        query: "new file",
+        run: async (card) => {
+          if (!(await tap(card.querySelector("#mock-file-create"), 620))) return;
+          await wait(700);
+          const places = Array.from(panel.querySelectorAll(".mock-place-menu.is-open [role='menuitem']"));
+          if (places.length && (await tap(pick(places), 420))) await wait(1100);
+        },
+        undo: () => panel.querySelector(".mock-place-menu")?.classList.remove("is-open"),
+      },
+      {
+        widget: "sticky-notes",
+        query: "sticky",
+        // The notes walk out of the panel and onto the page, where they stay to
+        // be dragged and written in — so this one is deliberately not undone.
+        // Two of them, because one note reads as a picture and a second one
+        // landing beside it is the moment it stops looking like a screenshot.
+        run: async (card) => {
+          const make = card.querySelector("[data-sticky='new']");
+          if (!(await tap(make, 620))) return;
+          await wait(800);
+          if (await tap(make, 240)) await wait(1100);
+        },
+      },
+      {
+        widget: "clean-mode",
+        query: "clean",
+        // Keyboard only: the trackpad lock swallows clicks, which is exactly
+        // what a visitor being invited to click should not run into. Unlike
+        // the timer or the recording, this one is switched back off — its veil
+        // sits over the whole hero, and nothing should be left dimmed.
+        run: async (card) => {
+          if (!(await tap(card.querySelector("[data-clean='keyboard']"), 620))) return;
+          await wait(2200);
+          if (await tap(card.querySelector("[data-clean-unlock]"), 300)) await wait(600);
+        },
+        undo: () => {
+          const unlock = cardOf("clean-mode")?.querySelector("[data-clean-unlock]");
+          if (unlock && !unlock.closest("[data-clean-state]").hidden) unlock.click();
+        },
+      },
+      {
+        widget: "screen-draw",
+        query: "draw",
+        // Also switched back off: while it is on, its canvas takes every click
+        // on the hero, including the ones meant for the panel.
+        run: async (card) => {
+          const toggle = card.querySelector(".mock-switch");
+          if (!(await tap(toggle, 620))) return;
+          await wait(2000);
+          if (await tap(toggle, 240)) await wait(500);
+        },
+        undo: () => {
+          const box = cardOf("screen-draw")?.querySelector(".mock-toggle");
+          if (box && box.classList.contains("is-on")) box.querySelector(".mock-switch").click();
+        },
+      },
+      {
+        widget: "mirror",
+        query: "mirror",
+        // Searched for and left alone: switching it on asks for the camera, and
+        // nothing here should ask a visitor for their camera.
+        search: true,
+        run: async () => { await wait(1500); },
+      },
+      {
+        widget: "system-stats",
+        query: "cpu",
+        search: true,
+        run: async () => { await wait(1500); },
+      },
+    ];
+
+    async function play(item) {
+      const card = await reveal(item.widget, item.query, item.search);
+      if (card && !stopped) {
+        if (item.undo) undoing.push({ widget: item.widget, back: item.undo });
+        await item.run(card);
+        undoing = undoing.filter((entry) => entry.back !== item.undo);
+      }
+      if (!stopped) await restoreSearch();
+      return !stopped;
+    }
+
+    async function run() {
+      if (stopped || dismissed || panel.classList.contains("is-closed")) {
+        panel.classList.remove("is-demoing");
+        return;
+      }
+      ghost = document.createElement("div");
+      ghost.className = "ghost-cursor";
+      ghost.setAttribute("aria-hidden", "true");
+      ghost.innerHTML = '<svg viewBox="0 0 24 24"><path d="M4.04 4.69a.5.5 0 0 1 .65-.65l16 6.5a.5.5 0 0 1-.06.95l-6.13 1.58a2 2 0 0 0-1.44 1.43l-1.58 6.13a.5.5 0 0 1-.95.06z" fill="#111" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"></path></svg>';
+      hero.appendChild(ghost);
+      // It sets off from the line that just claimed the panel is live, so the
+      // sentence and the proof are the same gesture.
+      place(invite, ghost);
+      void ghost.offsetWidth;
+      ghost.classList.add("is-visible");
+      panel.classList.add("is-demoing");
+      await wait(340);
+
+      // Two tools, drawn fresh on every visit, so the panel is never seen doing
+      // the same thing twice and no one tool has to be the one that sells it.
+      const pool = CASES.slice();
+      const first = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+      const rest = pool.filter((item) => item.widget !== first.widget);
+      const second = rest[Math.floor(Math.random() * rest.length)];
+
+      await play(first);
+      if (!stopped) {
+        await wait(700);
+        await play(second);
+      }
+
+      if (stopped) return;
+      if (label && !dismissed) label.textContent = "Your turn — click anything in it.";
+      stop();
+    }
+
+    // On the way in, every time. Nothing is remembered between visits: a panel
+    // that only introduces itself once is a panel most people never see move.
+    const watcher = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        watcher.disconnect();
+        panel.classList.add("is-demoing");
+        window.setTimeout(run, 1600);
+      });
+    }, { threshold: 0.55 });
+    watcher.observe(panel);
   }
 
   // Screen Draw. The app draws over your whole screen; the mock draws over the
@@ -3087,6 +3437,7 @@
     initClipboard();
     initAddMenu();
     initWidgetRotation();
+    initPanelInvite();
     initPanelToggle();
     initNewFileCard();
     initStickyNotes();

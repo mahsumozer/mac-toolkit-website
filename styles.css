@@ -5500,6 +5500,122 @@ body.show-mac-handoff .mac-handoff:focus-within {
   gap: 28px;
 }
 
+/* A preview that moves on its own reads as a recording, so the panel has to
+   say out loud that its buttons are real. The auto margin eats the column's
+   free space, which keeps this line under the panel and leaves the trial card
+   at the bottom where `space-between` had it. */
+.panel-invite {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -16px 0 auto;
+  max-width: 100%;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  transition: opacity 0.35s var(--ease), transform 0.35s var(--ease);
+}
+
+.panel-invite.is-done {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.panel-invite-cursor {
+  display: flex;
+  color: var(--accent);
+  animation: panel-invite-nudge 2.6s var(--ease) infinite;
+}
+
+@keyframes panel-invite-nudge {
+  0%,
+  62%,
+  100% {
+    transform: translate(0, 0);
+  }
+  74% {
+    transform: translate(2px, -3px);
+  }
+  86% {
+    transform: translate(0, -1px);
+  }
+}
+
+/* Hovering the panel is the moment the invite has done its job. */
+.hero-window:hover ~ .panel-invite {
+  color: var(--ink);
+}
+
+/* The ghost cursor: while nobody has touched the panel it presses a couple of
+   its controls, so the panel is seen answering rather than described as
+   answering. It is decoration over the hero, never a target. */
+.ghost-cursor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* Over everything the demo can put on the hero — the clean veil, the draw
+     canvas and its toolbar — or it disappears mid-gesture. */
+  z-index: 9;
+  width: 22px;
+  height: 22px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s var(--ease);
+}
+
+.ghost-cursor.is-visible {
+  opacity: 1;
+}
+
+.ghost-cursor svg {
+  display: block;
+  width: 22px;
+  height: 22px;
+  transform-origin: 3px 3px;
+  transition: transform 0.16s var(--ease);
+  filter: drop-shadow(0 3px 6px rgba(5, 5, 5, 0.4));
+}
+
+.ghost-cursor.is-pressing svg {
+  transform: scale(0.8);
+}
+
+.ghost-cursor::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  opacity: 0;
+}
+
+.ghost-cursor.is-pressing::after {
+  animation: ghost-click 0.5s var(--ease);
+}
+
+@keyframes ghost-click {
+  from {
+    opacity: 0.9;
+    transform: scale(0.3);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-invite,
+  .panel-invite-cursor {
+    animation: none;
+    transition: none;
+  }
+}
+
 .hero-trial {
   position: relative;
   z-index: 1;
