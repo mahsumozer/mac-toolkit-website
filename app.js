@@ -857,6 +857,7 @@
     let dismissed = false;
     let typing = false;
     let undoing = [];
+    let hoverOn = null;
     // Handing the panel over is a pause, not an ending: a visitor who looked,
     // touched nothing and moved on gets the demonstration back.
     const IDLE_MS = 5000;
@@ -877,6 +878,7 @@
       if (stopped) return;
       stopped = true;
       panel.classList.remove("is-demoing");
+      ghostOver(null);
       // A timer left running or a recording left going is the point; a veil or
       // a drawing canvas over the whole hero is not, so those go back. Each
       // one names the control that means "I am driving this myself" — a stroke
@@ -969,10 +971,22 @@
       await wait(ms);
     }
 
+    // A drawn cursor casts no `:hover`, so the control it is standing on is
+    // told, and stays told until the cursor goes somewhere else — the same
+    // shape a real pointer has. Without it a control whose only answer is the
+    // hover itself, like the drawing bar's bin, looks dead under the cursor.
+    function ghostOver(el) {
+      if (hoverOn === el) return;
+      if (hoverOn) hoverOn.classList.remove("is-ghosted");
+      hoverOn = el;
+      if (el) el.classList.add("is-ghosted");
+    }
+
     async function tap(el, travel) {
       if (stopped || !el || el.hidden || (el.closest(".mock-card") || {}).hidden) return false;
       await moveTo(el, travel || 620);
       if (stopped) return false;
+      ghostOver(el);
       ghost.classList.add("is-pressing");
       await wait(150);
       ghost.classList.remove("is-pressing");
@@ -996,6 +1010,7 @@
         bubbles: true, cancelable: true, clientX: at.x, clientY: at.y,
         button: 0, buttons, pointerId: 1, pointerType: "mouse", isPrimary: true,
       }));
+      ghostOver(null);
       await slideTo(from.x, from.y, 560);
       if (stopped) return false;
       ghost.classList.add("is-pressing");

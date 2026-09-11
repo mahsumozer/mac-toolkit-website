@@ -553,7 +553,10 @@ body.show-mac-handoff .mac-handoff:focus-within {
   height: 16px;
 }
 
-.draw-button:hover {
+/* `is-ghosted` is the demo's cursor standing on a control. It cannot raise a
+   real :hover, so every hover the bar answers to is written twice. */
+.draw-button:hover,
+.draw-button.is-ghosted {
   color: var(--white);
   background: rgba(255, 255, 255, 0.14);
 }
@@ -563,13 +566,15 @@ body.show-mac-handoff .mac-handoff:focus-within {
   background: var(--accent);
 }
 
-.draw-button.is-close:hover {
+.draw-button.is-close:hover,
+.draw-button.is-close.is-ghosted {
   background: rgba(255, 69, 58, 0.52);
 }
 
 /* Clearing the board takes every mark at once, so the bin says what it is
    before it is pressed. */
-.draw-button.is-wipe:hover {
+.draw-button.is-wipe:hover,
+.draw-button.is-wipe.is-ghosted {
   color: #ff453a;
 }
 
