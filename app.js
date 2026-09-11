@@ -489,6 +489,8 @@
     const INTERVAL = 2000;
     const LEAVE_MS = 260;
     const ENTER_MS = 500;
+    // What the panel is allowed to hold at once, counted rather than measured.
+    const MAX_CARDS = 5;
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const shownAt = (card) => Number(card.dataset.shown || 0);
     const held = (card) => card.dataset.inUse === "true";
@@ -500,6 +502,7 @@
       .filter((c) => !c.matches(".mock-card") && !c.hidden)
       .reduce((sum, c) => sum + c.offsetHeight + gap, 0);
     const stackHeight = (list, gap) => list.reduce((sum, c) => sum + c.offsetHeight, 0) + gap * Math.max(0, list.length - 1);
+    const shownCount = () => cards.filter((c) => !c.hidden).length;
     const wait = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
     let clock = 0;
     let paused = false;
@@ -582,9 +585,10 @@
       });
     }
 
-    // Which of `options` fill `free` pixels best. The pool is small, so every
-    // subset is tried; the tallest total wins and older cards break ties.
-    function bestFill(options, free, gap, heightOf) {
+    // Which of `options` fill `free` pixels best, in at most `room` cards. The
+    // pool is small, so every subset is tried; the tallest total wins and older
+    // cards break ties.
+    function bestFill(options, free, gap, heightOf, room) {
       let best = { cards: [], height: 0, age: Infinity };
       const n = Math.min(options.length, 6);
       for (let mask = 1; mask < (1 << n); mask += 1) {
@@ -598,7 +602,7 @@
             age += shownAt(options[i]);
           }
         }
-        if (height > free) continue;
+        if (height > free || cards.length > room) continue;
         if (height > best.height || (height === best.height && age < best.age)) best = { cards, height, age };
       }
       return best;
@@ -633,7 +637,13 @@
           const free = budget - stackHeight(staying, gap) - (staying.length ? gap : 0) - height;
           if (free < 0) continue;
           if (!minimal) minimal = k;
-          const fill = bestFill(pool.filter((c) => c !== cand), free, gap, heightOf);
+          // Height alone is not a limit anyone can see. The short cards — a
+          // title and one switch — are a third of the Clipboard's height, so a
+          // column of them packs four or five into the same budget, and a
+          // narrower window makes it worse: the opening cards the budget is
+          // measured from grow as their text wraps, while a switch does not.
+          const room = MAX_CARDS - (shownCount() - chain.length) - 1;
+          const fill = bestFill(pool.filter((c) => c !== cand), free, gap, heightOf, Math.max(0, room));
           const score = free - fill.height + 14 * ci + 24 * (k - minimal);
           if (!best || score < best.score) best = { score, leaving: chain, entering: [cand, ...fill.cards] };
         }
@@ -847,6 +857,11 @@
     let dismissed = false;
     let typing = false;
     let undoing = [];
+    // Handing the panel over is a pause, not an ending: a visitor who looked,
+    // touched nothing and moved on gets the demonstration back.
+    const IDLE_MS = 5000;
+    const FIRST = label ? label.textContent : "";
+    let lastTouch = 0;
 
     const wait = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
@@ -863,13 +878,13 @@
       stopped = true;
       panel.classList.remove("is-demoing");
       // A timer left running or a recording left going is the point; a veil or
-      // a drawing canvas over the whole hero is not, so those go back — except
-      // for someone whose first move is a stroke on the canvas, who is taking
-      // the tool over rather than interrupting it, and keeps it.
+      // a drawing canvas over the whole hero is not, so those go back. Each
+      // one names the control that means "I am driving this myself" — a stroke
+      // on the canvas, a press on the status item — and stands down for it,
+      // or it would undo the very thing the visitor just reached for.
       const target = event && event.target;
-      const onCanvas = target && target.closest && !!target.closest(".draw-canvas, .draw-bar");
-      undoing.splice(0).forEach(({ widget, back }) => {
-        if (onCanvas && widget === "screen-draw") return;
+      undoing.splice(0).forEach(({ back, unless }) => {
+        if (unless && target && target.closest && target.closest(unless)) return;
         back();
       });
       // A half-typed search is the one thing the ghost leaves behind that a
@@ -899,18 +914,45 @@
     // demo has no business stopping for any of it.
     const MINE = ".hero-window, .desktop-strip, .sticky-layer, .draw-canvas, .draw-bar, .clean-veil, .shot-tray";
     function handover(event) {
+      // The demo draws by sending the canvas the same events a hand would, and
+      // the canvas is one of its own. Only a real hand ends it.
+      if (!event.isTrusted) return;
       const target = event.target;
-      if (target && target.closest && target.closest(MINE)) stop(event);
+      if (!target || !target.closest || !target.closest(MINE)) return;
+      lastTouch = Date.now();
+      stop(event);
     }
     document.addEventListener("pointerdown", handover, true);
     document.addEventListener("keydown", handover, true);
     // The pointer reaching the panel is the whole point of the thing, so it is
     // also the end of it: from here the panel is the visitor's.
-    panel.addEventListener("pointerenter", stop);
+    panel.addEventListener("pointerenter", (event) => {
+      lastTouch = Date.now();
+      stop(event);
+    });
 
     // A finger has no cursor to borrow, a narrow layout has no room for one,
     // and a visitor who asked for less motion did not ask for this.
     if (coarse || reduceMotion || window.innerWidth < 960) return;
+
+    // `pointerenter` needs the pointer to arrive, and a pointer already parked
+    // over the panel never arrives — nor does one resting there while the
+    // panel is away and taking no events at all. So where it last was is kept,
+    // and read again before each turn.
+    let cursorAt = null;
+    document.addEventListener("pointermove", (event) => {
+      if (!event.isTrusted) return;
+      cursorAt = { x: event.clientX, y: event.clientY };
+      // While the pointer is there the clock never starts; the five seconds are
+      // counted from the moment it leaves.
+      if (cursorOnPanel()) lastTouch = Date.now();
+    }, { passive: true });
+
+    function cursorOnPanel() {
+      if (!cursorAt) return false;
+      const box = panel.getBoundingClientRect();
+      return cursorAt.x >= box.left && cursorAt.x <= box.right && cursorAt.y >= box.top && cursorAt.y <= box.bottom;
+    }
 
     // Wide controls — the search bar — are clicked near their start rather
     // than dead centre, where a hand would go.
@@ -939,11 +981,46 @@
       return !stopped;
     }
 
-    async function type(text) {
+    // Free-hand work has no element to aim at, so the ghost is sent to a point
+    // on the hero instead of to the middle of a control.
+    async function slideTo(x, y, ms) {
+      if (!ghost) return;
+      const box = hero.getBoundingClientRect();
+      ghost.style.transition = ms ? `transform ${ms}ms cubic-bezier(0.33, 0.06, 0.14, 1)` : "none";
+      ghost.style.transform = `translate3d(${Math.round(x - box.left)}px, ${Math.round(y - box.top)}px, 0)`;
+      if (ms) await wait(ms);
+    }
+
+    async function drag(el, from, to) {
+      const send = (type, at, buttons) => el.dispatchEvent(new PointerEvent(type, {
+        bubbles: true, cancelable: true, clientX: at.x, clientY: at.y,
+        button: 0, buttons, pointerId: 1, pointerType: "mouse", isPrimary: true,
+      }));
+      await slideTo(from.x, from.y, 560);
+      if (stopped) return false;
+      ghost.classList.add("is-pressing");
+      send("pointerdown", from, 1);
+      const STEPS = 16;
+      for (let i = 1; i <= STEPS && !stopped; i += 1) {
+        const at = {
+          x: from.x + (to.x - from.x) * (i / STEPS),
+          y: from.y + (to.y - from.y) * (i / STEPS),
+        };
+        await slideTo(at.x, at.y, 0);
+        send("pointermove", at, 1);
+        await wait(28);
+      }
+      send("pointerup", to, 0);
+      if (ghost) ghost.classList.remove("is-pressing");
+      return !stopped;
+    }
+
+    async function type(text, field) {
+      const into = field || search;
       for (const letter of text) {
         if (stopped) return;
-        search.value += letter;
-        search.dispatchEvent(new Event("input", { bubbles: true }));
+        into.value += letter;
+        into.dispatchEvent(new Event("input", { bubbles: true }));
         await wait(110);
       }
     }
@@ -993,6 +1070,35 @@
         off: () => document.getElementById("focus-toggle").click(),
       },
     };
+
+    // The switch on its own only lays an empty sheet over the hero. The drawing
+    // is the tool, so the ghost picks up two of them, leaves a mark with each,
+    // and wipes the sheet clean again before it puts it away.
+    async function scribble() {
+      const canvas = document.querySelector(".draw-canvas");
+      if (!canvas || canvas.hidden) return;
+      const at = canvas.getBoundingClientRect();
+      const win = panel.getBoundingClientRect();
+      // Drawn beside the panel rather than over it: the marks are the point,
+      // and so is still being able to see what they are drawn on.
+      const left = win.left - at.left >= at.right - win.right;
+      const x0 = (left ? at.left : win.right) + 44;
+      const x1 = (left ? win.left : at.right) - 44;
+      if (x1 - x0 < 150) return;
+      const top = at.top + at.height * 0.3;
+      const bottom = at.top + at.height * 0.74;
+      const mid = (top + bottom) / 2;
+      const inset = (x1 - x0) * 0.22;
+      const tool = (name) => document.querySelector(`.draw-bar [aria-label="${name}"]`);
+
+      if (!(await tap(tool("Arrow"), 520))) return;
+      if (!(await drag(canvas, { x: x0, y: mid - 14 }, { x: x1, y: top }))) return;
+      await wait(520);
+      if (!(await tap(tool("Ellipse"), 480))) return;
+      if (!(await drag(canvas, { x: x0 + inset, y: mid + 18 }, { x: x1 - inset, y: bottom }))) return;
+      await wait(1200);
+      if (await tap(tool("Clear"), 480)) await wait(600);
+    }
 
     function takeTheBar(widget) {
       Object.keys(RUNNING).forEach((other) => {
@@ -1102,7 +1208,16 @@
           const make = card.querySelector("[data-sticky='new']");
           if (!(await tap(make, 620))) return;
           await wait(800);
-          if (await tap(make, 240)) await wait(1100);
+          if (!(await tap(make, 240))) return;
+          await wait(700);
+          // A blank note is still furniture. One written on is the only proof
+          // that these are fields and not a picture of a note.
+          const note = [...document.querySelectorAll(".sticky-note")].pop();
+          const line = note && note.querySelector(".sticky-note-row input");
+          if (!line || !(await tap(line, 520))) return;
+          line.focus({ preventScroll: true });
+          await type("I love Mac Kit", line);
+          await wait(900);
         },
       },
       {
@@ -1127,10 +1242,12 @@
         query: "draw",
         // Also switched back off: while it is on, its canvas takes every click
         // on the hero, including the ones meant for the panel.
+        unless: ".draw-canvas, .draw-bar",
         run: async (card) => {
           const toggle = card.querySelector(".mock-switch");
           if (!(await tap(toggle, 620))) return;
-          await wait(2000);
+          await wait(700);
+          await scribble();
           if (await tap(toggle, 240)) await wait(500);
         },
         undo: () => {
@@ -1152,12 +1269,33 @@
         search: true,
         run: async () => { await wait(1500); },
       },
+      {
+        // Not a card but the status item itself: the bolt puts the panel away
+        // and brings the same panel back, which is the one gesture that says
+        // this lives in the menu bar rather than on a page. The panel is never
+        // left away — unless the visitor's own press on the bolt is what cut
+        // the demo short, in which case they are the ones opening it.
+        widget: "panel-toggle",
+        bare: true,
+        unless: "#panel-toggle",
+        run: async () => {
+          const bolt = document.getElementById("panel-toggle");
+          if (!bolt || !(await tap(bolt, 700))) return;
+          await wait(1600);
+          await tap(bolt, 300);
+          await wait(600);
+        },
+        undo: () => {
+          const bolt = document.getElementById("panel-toggle");
+          if (bolt && panel.classList.contains("is-closed")) bolt.click();
+        },
+      },
     ];
 
     async function play(item) {
-      const card = await reveal(item.widget, item.query, item.search);
+      const card = item.bare ? panel : await reveal(item.widget, item.query, item.search);
       if (card && !stopped) {
-        if (item.undo) undoing.push({ widget: item.widget, back: item.undo });
+        if (item.undo) undoing.push({ back: item.undo, unless: item.unless });
         await item.run(card);
         undoing = undoing.filter((entry) => entry.back !== item.undo);
       }
@@ -1165,11 +1303,37 @@
       return !stopped;
     }
 
+    // It works its way through every tool in a shuffled order rather than
+    // drawing each one fresh, so nothing comes up twice before the rest have
+    // had a turn — and the same card never goes twice across the seam between
+    // two shuffles. The order outlives a handover, so coming back does not mean
+    // starting the round again.
+    let queue = [];
+    let last = null;
+    function next() {
+      if (!queue.length) {
+        queue = CASES.slice();
+        for (let i = queue.length - 1; i > 0; i -= 1) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [queue[i], queue[j]] = [queue[j], queue[i]];
+        }
+        if (queue.length > 1 && queue[0].widget === last) [queue[0], queue[1]] = [queue[1], queue[0]];
+      }
+      last = queue[0].widget;
+      return queue.shift();
+    }
+
     async function run() {
-      if (stopped || dismissed || panel.classList.contains("is-closed")) {
+      // A panel the visitor has just been using, or has put away, is not one to
+      // start working in front of them. Staying stopped is enough: the watch
+      // below tries again once the pointer has been gone long enough.
+      if (panel.classList.contains("is-closed") || Date.now() - lastTouch < IDLE_MS) {
+        stopped = true;
         panel.classList.remove("is-demoing");
         return;
       }
+      stopped = false;
+      if (label && !dismissed) label.textContent = FIRST;
       ghost = document.createElement("div");
       ghost.className = "ghost-cursor";
       ghost.setAttribute("aria-hidden", "true");
@@ -1183,31 +1347,13 @@
       panel.classList.add("is-demoing");
       await wait(340);
 
-      // It works its way through every tool in a shuffled order rather than
-      // drawing each one fresh, so nothing comes up twice before the rest have
-      // had a turn — and the same card never goes twice across the seam
-      // between two shuffles.
-      let queue = [];
-      let last = null;
-      function next() {
-        if (!queue.length) {
-          queue = CASES.slice();
-          for (let i = queue.length - 1; i > 0; i -= 1) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [queue[i], queue[j]] = [queue[j], queue[i]];
-          }
-          if (queue.length > 1 && queue[0].widget === last) [queue[0], queue[1]] = [queue[1], queue[0]];
-        }
-        last = queue[0].widget;
-        return queue.shift();
-      }
-
       // It keeps going for as long as nobody comes near it. There is no point
       // working the panel for a tab nobody is looking at or a hero that has
       // been scrolled past, so it waits those out rather than counting them.
       while (!stopped) {
         while (!stopped && (document.hidden || !onScreen)) await wait(600);
         if (stopped) break;
+        if (cursorOnPanel()) { stop(); break; }
         await play(next());
         if (stopped) break;
         await wait(2400);
@@ -1228,6 +1374,15 @@
       });
     }, { threshold: 0.55 });
     watcher.observe(panel);
+
+    // And back in, once the pointer has been away from the panel for five
+    // seconds. Somebody who leant in, took nothing and moved on left the panel
+    // no better explained than they found it.
+    window.setInterval(() => {
+      if (!stopped || !started || document.hidden || !onScreen) return;
+      if (cursorOnPanel() || Date.now() - lastTouch < IDLE_MS) return;
+      run();
+    }, 500);
   }
 
   // Screen Draw. The app draws over your whole screen; the mock draws over the
@@ -1337,7 +1492,7 @@
 
     const undo = button("draw-button", "Undo", '<path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path>');
     const redo = button("draw-button", "Redo", '<path d="M21 7v6h-6"></path><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"></path>');
-    const wipe = button("draw-button", "Clear", '<path d="M3 6h18"></path><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>');
+    const wipe = button("draw-button is-wipe", "Clear", '<path d="M3 6h18"></path><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>');
     const close = button("draw-button is-close", "Close", '<path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>');
     const tailRow = document.createElement("span");
     tailRow.className = "draw-group";
@@ -1465,7 +1620,11 @@
     canvas.addEventListener("pointerdown", (event) => {
       if (event.button !== 0) return;
       const point = pointIn(event);
-      canvas.setPointerCapture(event.pointerId);
+      // Capture keeps a stroke that wanders off the canvas attached to it. A
+      // pointer that was never really down — the hero's own demo drawing
+      // itself — has nothing to capture, and that is not a reason to drop the
+      // stroke on the floor.
+      try { canvas.setPointerCapture(event.pointerId); } catch (error) { /* no live pointer */ }
 
       if (tool === "eraser") {
         let erased = shapes;

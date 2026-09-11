@@ -567,6 +567,12 @@ body.show-mac-handoff .mac-handoff:focus-within {
   background: rgba(255, 69, 58, 0.52);
 }
 
+/* Clearing the board takes every mark at once, so the bin says what it is
+   before it is pressed. */
+.draw-button.is-wipe:hover {
+  color: #ff453a;
+}
+
 .draw-swatch {
   width: 26px;
   height: 26px;
