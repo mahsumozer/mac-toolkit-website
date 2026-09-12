@@ -89,7 +89,9 @@ svg {
   z-index: 50;
   width: min(100% - 24px, 1240px);
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  /* Equal outer tracks put the nav in the middle of the island rather than
+     against the buttons, where it read as one block with them. */
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: clamp(16px, 3vw, 36px);
   padding: 8px 8px 8px 16px;
@@ -102,12 +104,6 @@ svg {
   -webkit-backdrop-filter: blur(20px) saturate(150%);
   transform: translateX(-50%);
   transition: background 220ms var(--ease), box-shadow 220ms var(--ease);
-}
-
-/* The right side is cut close for a button to sit in. Pages that carry none —
-   pricing, the legal ones — would otherwise end on the last nav word. */
-.site-header:not(:has(.header-actions .button)) {
-  padding-right: 20px;
 }
 
 /* Off the top of the page it has something to sit above, so it casts.  */
@@ -158,6 +154,7 @@ svg {
 }
 
 .header-actions {
+  justify-self: end;
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
