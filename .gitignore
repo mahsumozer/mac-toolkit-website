@@ -69,6 +69,9 @@ new-videos/*
 # render.mjs is source, preview.mjs and out/ are generated.
 videos/*/out/
 videos/*/preview.mjs
+# The compare clip's capture script is tuned per render (type sizes for the
+# feed it is going to), so it is kept local rather than committed half-tuned.
+videos/compare-video/capture.mjs
 videos/video-screenshots/
 videos/*.png
 # social-media-video/: the app screenshots are sources (scripts/og-card.html
