@@ -2164,15 +2164,6 @@
       frame.classList.remove("is-live");
     }
 
-    async function allowed() {
-      if (!navigator.permissions || !navigator.permissions.query) return false;
-      try {
-        return (await navigator.permissions.query({ name: "camera" })).state === "granted";
-      } catch {
-        return false;
-      }
-    }
-
     async function ask() {
       if (asking || stream) return;
       asking = true;
@@ -2205,16 +2196,13 @@
         return;
       }
       place();
-      blindWith("Camera off. Press to turn it on.");
+      blindWith("Open camera");
       frame.hidden = false;
-      // A camera prompt belongs to whoever asked for it. A real press can raise
-      // one; the hero's own demonstration flipping this switch cannot, so it
-      // leaves the frame sitting there blind until somebody wants the picture.
-      // Where the camera was allowed already there is nothing to ask.
-      if (navigator.userActivation && !navigator.userActivation.isActive) {
-        allowed().then((yes) => { if (yes && box.classList.contains("is-on")) ask(); });
-        return;
-      }
+      // The picture belongs to whoever asked for it, and an allowed camera asks
+      // for nothing — so a switch the visitor did not flip never reaches it.
+      // The hero's own demonstration puts this window out by itself, and the
+      // frame sits there with its button until somebody presses for the camera.
+      if (navigator.userActivation && !navigator.userActivation.isActive) return;
       ask();
     }
 

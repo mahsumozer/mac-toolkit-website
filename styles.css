@@ -945,10 +945,23 @@ body.show-mac-handoff .mac-handoff:focus-within {
   height: 30px;
 }
 
+/* The camera is never opened without a press, so what the empty frame says is
+   a control and wears the same pill the mirror's own toolbar is made of. */
 .mirror-note {
+  padding: 6px 13px;
+  background: rgba(0, 0, 0, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  box-shadow: 0 12px 26px -14px rgba(0, 0, 0, 0.7);
   font-size: 11.5px;
   font-weight: 650;
   line-height: 1.35;
+  transition: background 0.14s var(--ease), border-color 0.14s var(--ease);
+}
+
+.mirror-blind:hover .mirror-note {
+  background: rgba(0, 0, 0, 0.72);
+  border-color: rgba(255, 255, 255, 0.32);
 }
 
 .mirror-frame.is-live .mirror-blind {
