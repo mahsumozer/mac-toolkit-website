@@ -87,7 +87,7 @@ svg {
   top: 12px;
   left: 50%;
   z-index: 50;
-  width: min(100% - 24px, 1240px);
+  width: min(100% - 24px, 1020px);
   display: grid;
   /* Equal outer tracks put the nav in the middle of the island rather than
      against the buttons, where it read as one block with them. */
