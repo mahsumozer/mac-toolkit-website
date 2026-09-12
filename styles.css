@@ -2688,6 +2688,13 @@ body.show-mac-handoff .mac-handoff:focus-within {
   border-color: rgba(245, 148, 29, 0.55);
 }
 
+/* A card the grid has no room for (app.js marks it while it sets the height).
+   It keeps its place in the layout the height was measured from and simply is
+   not drawn, so the window's edge falls between cards instead of through one. */
+.mock-card.is-clipped {
+  visibility: hidden;
+}
+
 /* The grid is shorter while a hit is shown; its cut edge fades out. */
 .hero-window.is-searching .app-mock {
   -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent);

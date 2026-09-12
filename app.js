@@ -552,11 +552,13 @@
     // beside it down the page and back.
     function applyHeight(now) {
       if (!openHeight) return;
-      let ceiling = openHeight;
-      if (hit) {
-        const windowGap = parseFloat(getComputedStyle(surface).rowGap) || parseFloat(getComputedStyle(surface).gap) || 0;
-        ceiling = Math.max(0, openHeight - hitRow.offsetHeight - windowGap);
-      }
+      // The grid never grows past the line-up the panel opened with, and never
+      // past what the column it sits in can still give. When a search hit opens
+      // a row above the grid, that row is paid for out of the column's spare
+      // room first — the reservation is taller than the panel — so the grid
+      // keeps its cards instead of being cut off at the window's edge. Only
+      // where the column has nothing left to give does the grid give way.
+      const ceiling = Math.min(openHeight, roomFor());
       const full = contentHeight();
       const height = Math.min(full, ceiling);
       if (now) mock.style.transition = "none";
@@ -567,12 +569,55 @@
       }
       // The fade belongs to a grid that is actually cut, not to every search.
       surface.classList.toggle("is-searching", full > height + 1);
+      clip(height);
+    }
+
+    // What the grid has no room for is left out, not shown sliced: a card cut
+    // through the middle by the window's edge draws a hard line across the
+    // panel, and the line moves every time the line-up changes. Hidden by
+    // visibility rather than by `hidden`, so the layout these heights were
+    // measured from does not shift under the measurement.
+    function clip(height) {
+      // Off the layout, not off the painted box: cards carry a transform while
+      // they glide into their new places, and a card measured mid-glide reads
+      // as hanging out of the grid when its slot is well inside it.
+      cols.forEach((col) => {
+        visibleIn(col).forEach((card) => {
+          const bottom = card.offsetTop - mock.offsetTop + card.offsetHeight;
+          card.classList.toggle("is-clipped", bottom > height + 1);
+        });
+      });
     }
     // The hero's first grid row is as tall as its tallest column, and the copy
     // beside the panel is aligned to that row's bottom edge. A panel that
     // breathes would drag the headline up and down with it, so the column keeps
     // the height it opens at and the panel shrinks inside that reservation.
     const product = surface.closest(".hero-product");
+
+    // How tall the grid may be before the column outgrows the height it was
+    // reserved at: the reservation, less everything in the column that is not
+    // the grid. The column is stretched to the hero's first row, so what it was
+    // locked at is usually taller than the panel and there is room to spare.
+    function roomFor() {
+      if (!product) return Infinity;
+      const locked = parseFloat(product.style.minHeight) || 0;
+      if (!locked) return Infinity;
+      const style = getComputedStyle(product);
+      const gap = parseFloat(style.rowGap) || parseFloat(style.gap) || 0;
+      let rest = 0;
+      let count = 0;
+      Array.from(product.children).forEach((child) => {
+        if (child.hidden) return;
+        const box = child.getBoundingClientRect();
+        if (!box.height) return;
+        rest += box.height + (parseFloat(getComputedStyle(child).marginTop) || 0);
+        count += 1;
+      });
+      rest += gap * Math.max(0, count - 1);
+      rest -= mock.getBoundingClientRect().height;
+      return Math.max(0, locked - rest);
+    }
+
     function lockHeight() {
       mock.style.height = "";
       if (product) product.style.minHeight = "";
@@ -1020,7 +1065,9 @@
     }
 
     async function tap(el, travel) {
-      if (stopped || !el || el.hidden || (el.closest(".mock-card") || {}).hidden) return false;
+      if (stopped || !el || el.hidden) return false;
+      const card = el.closest(".mock-card");
+      if (card && (card.hidden || card.classList.contains("is-clipped"))) return false;
       await moveTo(el, travel || 620);
       if (stopped) return false;
       ghostOver(el);
