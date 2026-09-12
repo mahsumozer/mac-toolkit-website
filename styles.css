@@ -1393,8 +1393,7 @@ body.show-mac-handoff .mac-handoff:focus-within {
 
 .hero-product {
   position: relative;
-  /* The panel hangs closer to the bar it belongs to; the trial card below it
-     stays where it is, since the column is stretched. */
+  /* The panel hangs closer to the bar it belongs to. */
   margin-top: -2px;
   align-self: stretch;
   display: flex;
@@ -5078,13 +5077,6 @@ body.show-mac-handoff .mac-handoff:focus-within {
     display: none;
   }
 
-  /* A phone cannot run the app, so the hero's download card has nothing to
-     offer there; the handoff button in the corner covers that visitor. */
-  /* Outranks the card's own rule, which is declared later in the sheet. */
-  .hero-product .hero-trial {
-    display: none;
-  }
-
   /* On a phone the buy card is the whole column, so it sits in the middle of it
      rather than pushed to the right edge the wide layout puts it against. */
   .download-section .pricing-plans {
@@ -5539,8 +5531,8 @@ body.show-mac-handoff .mac-handoff:focus-within {
   font-weight: 800;
 }
 
-/* Hero trial card: sits under the product preview, bottom-aligned with the
-   copy column's buttons so the two CTAs read as one row. */
+/* The product column stacks: the panel at the top of the row, its invite line
+   directly under it. */
 .hero-product {
   flex-direction: column;
   align-items: flex-end;
@@ -5550,8 +5542,8 @@ body.show-mac-handoff .mac-handoff:focus-within {
 
 /* A preview that moves on its own reads as a recording, so the panel has to
    say out loud that its buttons are real. The auto margin eats the column's
-   free space, which keeps this line under the panel and leaves the trial card
-   at the bottom where `space-between` had it. */
+   free space, which keeps this line under the panel instead of letting
+   `space-between` push it to the bottom of the stretched column. */
 .panel-invite {
   display: flex;
   align-items: center;
@@ -5661,127 +5653,6 @@ body.show-mac-handoff .mac-handoff:focus-within {
   .panel-invite-cursor {
     animation: none;
     transition: none;
-  }
-}
-
-.hero-trial {
-  position: relative;
-  z-index: 1;
-  width: fit-content;
-  max-width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  padding: 6px 6px 6px 18px;
-  background: var(--paper-2);
-  border: 1px solid rgba(245, 148, 29, 0.5);
-  border-radius: 999px;
-  box-shadow: 0 0 0 4px rgba(245, 148, 29, 0.1), 0 16px 40px rgba(5, 5, 5, 0.08);
-  animation: hero-trial-pulse 2.4s ease-in-out infinite;
-}
-
-@keyframes hero-trial-pulse {
-  0%,
-  100% {
-    border-color: rgba(245, 148, 29, 0.35);
-    box-shadow: 0 0 0 4px rgba(245, 148, 29, 0.06), 0 16px 40px rgba(5, 5, 5, 0.08);
-  }
-  50% {
-    border-color: rgba(245, 148, 29, 1);
-    box-shadow: 0 0 0 6px rgba(245, 148, 29, 0.22), 0 16px 40px rgba(5, 5, 5, 0.08);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hero-trial,
-  .hero-trial-dot {
-    animation: none;
-  }
-}
-
-.hero-trial-text {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0;
-  min-width: 0;
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-  white-space: nowrap;
-}
-
-.hero-trial-dot {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 0 4px rgba(245, 148, 29, 0.22);
-  animation: hero-trial-dot-pulse 2.4s ease-in-out infinite;
-}
-
-@keyframes hero-trial-dot-pulse {
-  0%,
-  100% {
-    transform: scale(0.85);
-    box-shadow: 0 0 0 3px rgba(245, 148, 29, 0.16);
-  }
-  50% {
-    transform: scale(1.25);
-    box-shadow: 0 0 0 5px rgba(245, 148, 29, 0.3);
-  }
-}
-
-/* Icon-only: a 44px disc that matches the pill's inner height. */
-.hero-trial-cta {
-  flex: none;
-  width: 44px;
-  padding: 0;
-  border-radius: 50%;
-}
-
-.hero-trial-cta svg {
-  width: 18px;
-  height: 18px;
-  transition: transform 180ms var(--ease);
-}
-
-/* Desktop keeps the round icon-only button; the label is for the stacked
-   mobile layout, where a full-width circle would render as an ellipse. */
-.hero-trial-cta-label {
-  display: none;
-}
-
-.hero-trial-cta:hover svg {
-  transform: translateY(2px);
-}
-
-@media (max-width: 1100px) {
-  .hero-trial {
-    width: 100%;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-    padding: 14px;
-    border-radius: 18px;
-  }
-
-  .hero-trial-text {
-    justify-content: center;
-    white-space: normal;
-  }
-
-  .hero-trial-cta {
-    width: 100%;
-    gap: 9px;
-    padding: 0 20px;
-    border-radius: 999px;
-  }
-
-  .hero-trial-cta-label {
-    display: inline;
   }
 }
 
