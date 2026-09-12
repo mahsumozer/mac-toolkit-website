@@ -266,7 +266,10 @@ svg {
 .hero {
   position: relative;
   min-height: 100svh;
-  padding: 0 clamp(18px, 4vw, 48px) 64px;
+  /* The copy column and the trial card both sit on this padding, so it is what
+     decides how low the hero content rides. Narrow layouts stack instead of
+     bottom-aligning and keep the original 64px (see the 1080px block). */
+  padding: 0 clamp(18px, 4vw, 48px) 40px;
   display: grid;
   grid-template-columns: minmax(0, 0.95fr) minmax(420px, 1.05fr);
   grid-template-rows: auto 1fr;
@@ -1419,7 +1422,10 @@ body.show-mac-handoff .mac-handoff:focus-within {
   position: relative;
   grid-column: 1 / -1;
   align-self: start;
-  margin-top: clamp(48px, 8vw, 110px);
+  /* The header island floats over the hero and ends at 66px, so the gap the eye
+     sees is this offset minus 66. Halving that visible gap means halving the
+     offset and adding the header back: 66 + (x - 66) / 2 == x / 2 + 33. */
+  margin-top: clamp(57px, calc(4vw + 33px), 88px);
   display: flex;
   align-items: center;
   gap: 17px;
@@ -4805,6 +4811,7 @@ body.show-mac-handoff .mac-handoff:focus-within {
   .hero {
     align-items: start;
     grid-template-rows: auto auto 1fr;
+    padding-bottom: 64px;
   }
 
   .hero-copy {
