@@ -1485,15 +1485,20 @@ body.show-mac-handoff .mac-handoff:focus-within {
   top: 0;
   right: -4vw;
   color: rgba(5, 5, 5, 0.055);
-  /* Ends where the panel starts. The panel's glass no longer blurs what is
-     behind it, and unblurred letters read straight through it as a hole in
-     the app rather than as frosted glass. */
-  clip-path: inset(0 calc(4vw + var(--panel-w)) 0 0);
   font-size: clamp(92px, 12vw, 192px);
   font-weight: 850;
   letter-spacing: -0.095em;
   line-height: 0.8;
   white-space: nowrap;
+}
+
+/* Ends where the panel starts, and only while the panel is up to end it: the
+   glass no longer blurs what is behind it, so unblurred letters would read
+   straight through it as a hole in the app. Folded away from the status item
+   the panel covers nothing, and a word cut off over bare paper is worse than
+   the hole ever was. */
+.hero-product:has(.hero-window:not(.is-closed))::before {
+  clip-path: inset(0 calc(4vw + var(--panel-w)) 0 0);
 }
 
 .desktop-strip {
