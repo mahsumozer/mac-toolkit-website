@@ -1682,6 +1682,9 @@ body.show-mac-handoff .mac-handoff:focus-within {
 
 
 .mock-card {
+  /* A card keeps its own height. The window is measured from these while a
+     swap is landing, and a card squashed to fit would be measured short. */
+  flex: none;
   padding: 14px;
   background:
     linear-gradient(160deg, rgba(255, 255, 255, 0.07), transparent 55%),
@@ -2525,7 +2528,8 @@ body.show-mac-handoff .mac-handoff:focus-within {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero-product .hero-window {
+  .hero-product .hero-window,
+  .hero-product .app-mock {
     transition: none;
   }
 
@@ -2537,6 +2541,9 @@ body.show-mac-handoff .mac-handoff:focus-within {
 
 .hero-product .app-mock {
   flex: none;
+  /* The window settles on whatever is in it, so the change reads as the panel
+     giving up the space rather than snapping to a new size. */
+  transition: height 0.42s var(--ease);
 }
 
 /* Cards stack from the top with one gap; the rotation fills the rest. */

@@ -533,32 +533,58 @@
       return height;
     }
 
-    // The panel keeps the height of its opening layout, so swaps never move
-    // the rest of the hero; the columns fill that budget and no more. While a
-    // search hit sits above the grid, the grid gives up that much height so
-    // the window's outer size, and everything below it, stays put.
+    // The panel is only as tall as what is in it: every swap re-measures the
+    // columns and the window settles on the taller one, so a line-up that
+    // comes up short leaves no band of empty glass under the cards. The
+    // opening layout still sets the ceiling — growing past it would push the
+    // hero around — and while a search hit sits above the grid, the grid gives
+    // up that much of the ceiling so the window's outer size stays put.
     const surface = mock.closest(".hero-window") || mock;
-    let lockedHeight = 0;
-    function applyHeight() {
-      if (!lockedHeight) return;
-      let height = lockedHeight;
+    let openHeight = 0;
+    const contentHeight = () => cols.reduce((tallest, col) => {
+      const gap = gapOf(col);
+      return Math.max(tallest, stackHeight(visibleIn(col), gap) + extrasHeight(col, gap));
+    }, 0);
+    // `now` skips the height animation. The search hit's row opens in the same
+    // frame it is filled, and the grid has to give up its share in that frame
+    // too — a grid still easing down while the row is already there makes the
+    // panel briefly taller than it has ever been, which pushes the headline
+    // beside it down the page and back.
+    function applyHeight(now) {
+      if (!openHeight) return;
+      let ceiling = openHeight;
       if (hit) {
         const windowGap = parseFloat(getComputedStyle(surface).rowGap) || parseFloat(getComputedStyle(surface).gap) || 0;
-        height = Math.max(0, lockedHeight - hitRow.offsetHeight - windowGap);
+        ceiling = Math.max(0, openHeight - hitRow.offsetHeight - windowGap);
       }
+      const full = contentHeight();
+      const height = Math.min(full, ceiling);
+      if (now) mock.style.transition = "none";
       mock.style.height = `${Math.ceil(height)}px`;
-      surface.classList.toggle("is-searching", !!hit);
+      if (now) {
+        void mock.offsetHeight;
+        mock.style.transition = "";
+      }
+      // The fade belongs to a grid that is actually cut, not to every search.
+      surface.classList.toggle("is-searching", full > height + 1);
     }
+    // The hero's first grid row is as tall as its tallest column, and the copy
+    // beside the panel is aligned to that row's bottom edge. A panel that
+    // breathes would drag the headline up and down with it, so the column keeps
+    // the height it opens at and the panel shrinks inside that reservation.
+    const product = surface.closest(".hero-product");
     function lockHeight() {
       mock.style.height = "";
+      if (product) product.style.minHeight = "";
       let tallest = 0;
       cols.forEach((col) => {
         const gap = gapOf(col);
         const set = Array.from(col.querySelectorAll(".mock-card[data-initial]"));
         tallest = Math.max(tallest, set.reduce((sum, c) => sum + measure(c, col), 0) + gap * Math.max(0, set.length - 1) + extrasHeight(col, gap));
       });
-      lockedHeight = tallest;
-      applyHeight();
+      openHeight = tallest;
+      applyHeight(true);
+      if (product) product.style.minHeight = `${Math.ceil(product.getBoundingClientRect().height)}px`;
     }
 
     function fadeOut(list) {
@@ -616,7 +642,10 @@
     // widget passed over four times goes in next no matter what.
     function plan(pool, oldest, col) {
       const gap = gapOf(col);
-      const budget = col.clientHeight - extrasHeight(col, gap);
+      // Taken from the opening layout, not from the panel's current height:
+      // the panel follows its contents now, and reading that back would mean a
+      // column that once came up short could never fill again.
+      const budget = openHeight - extrasHeight(col, gap);
       const colCards = visibleIn(col);
       // A held card keeps its place and its height; only the rest can leave.
       const colByAge = colCards.filter((c) => !held(c)).sort(byOldest);
@@ -687,6 +716,7 @@
         card.classList.add("is-entering");
       });
       flip(before);
+      applyHeight();
       await wait(ENTER_MS);
       entering.forEach((card) => card.classList.remove("is-entering"));
       busy = false;
@@ -739,7 +769,7 @@
       card.hidden = wasHidden;
       hitRow.hidden = true;
       hit = null;
-      applyHeight();
+      applyHeight(true);
     }
 
     function showHit(card) {
@@ -755,7 +785,7 @@
       card.hidden = false;
       card.classList.add("is-hit");
       hitRow.hidden = false;
-      applyHeight();
+      applyHeight(true);
     }
 
     function runSearch() {
