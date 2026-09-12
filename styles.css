@@ -769,9 +769,10 @@ body.show-mac-handoff .mac-handoff:focus-within {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: rgba(0, 0, 0, 0.62);
-  -webkit-backdrop-filter: blur(18px);
-  backdrop-filter: blur(18px);
+  /* This surface is always covered by either the camera or the blind below.
+     Giving it another backdrop layer makes WebKit leak the frame's horizontal
+     compositing edge into the separate glass panel to its right. */
+  background: #202024;
   border: 1px solid var(--line-dark);
   border-radius: 14px;
   box-shadow: 0 30px 70px -26px rgba(0, 0, 0, 0.55);
@@ -801,10 +802,9 @@ body.show-mac-handoff .mac-handoff:focus-within {
   align-items: center;
   gap: 2px;
   padding: 4px;
-  /* Glass over the picture rather than a bar on top of it. */
-  background: rgba(0, 0, 0, 0.38);
-  -webkit-backdrop-filter: blur(16px) saturate(140%);
-  backdrop-filter: blur(16px) saturate(140%);
+  /* A dark overlay reads as glass over the moving picture without creating a
+     second backdrop-filter layer inside the mirror's compositor surface. */
+  background: rgba(0, 0, 0, 0.62);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 999px;
   box-shadow: 0 12px 26px -14px rgba(0, 0, 0, 0.7);
@@ -911,7 +911,9 @@ body.show-mac-handoff .mac-handoff:focus-within {
    dark glass, only lifted off black, so an empty mirror reads as part of the
    app rather than as a grey hole cut in the hero. */
 .mirror-frame:not(.is-live) {
-  background: rgba(42, 42, 48, 0.54);
+  /* Visually matches the old blurred blind on the hero's paper background,
+     but stays self-contained so it cannot affect sibling glass surfaces. */
+  background: rgb(128, 127, 128);
 }
 
 .mirror-blind {
@@ -1451,6 +1453,8 @@ body.show-mac-handoff .mac-handoff:focus-within {
 
 .hero-product {
   position: relative;
+  /* The width of the panel below, shared with the watermark's clip. */
+  --panel-w: 445px;
   /* The panel hangs closer to the bar it belongs to. */
   margin-top: -2px;
   align-self: stretch;
@@ -1468,6 +1472,10 @@ body.show-mac-handoff .mac-handoff:focus-within {
   top: 0;
   right: -4vw;
   color: rgba(5, 5, 5, 0.055);
+  /* Ends where the panel starts. The panel's glass no longer blurs what is
+     behind it, and unblurred letters read straight through it as a hole in
+     the app rather than as frosted glass. */
+  clip-path: inset(0 calc(4vw + var(--panel-w)) 0 0);
   font-size: clamp(92px, 12vw, 192px);
   font-weight: 850;
   letter-spacing: -0.095em;
@@ -1646,7 +1654,7 @@ body.show-mac-handoff .mac-handoff:focus-within {
   position: relative;
   /* Above the trial card so the "+" add-tool menu isn't covered by it. */
   z-index: 2;
-  width: min(100%, 445px);
+  width: min(100%, var(--panel-w, 445px));
   height: auto;
   display: grid;
   grid-template-rows: minmax(0, 1fr);
@@ -2573,11 +2581,16 @@ body.show-mac-handoff .mac-handoff:focus-within {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  /* Safari/WebKit can leave the old backing-store edge behind when a
-     backdrop-filtered element grows for a search result. The hero sits on a
-     flat paper field, so the blur changes no visible colour here; removing
-     only this panel's filter avoids the horizontal seam without changing the
-     glass used by the fixed-size menu bar and compare panel. */
+  /* No live glass on this one panel, and the mirror is the reason: the camera
+     window the panel puts on the desktop is promoted to a compositing surface
+     of its own, and the browser then samples this panel's backdrop in two
+     halves either side of that surface's edge. The halves come back a shade
+     apart, so the frame's bottom edge draws itself across the glass as a hard
+     horizontal line, hundreds of pixels away from the mirror itself. Nothing
+     here needs a live blur: the panel sits on flat paper and one soft shadow,
+     and the watermark that used to show through it is clipped at the panel's
+     edge instead (.hero-product::before). The menu bar and the compare
+     popover keep their glass — no camera window is ever promoted over them. */
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
   transform-origin: top right;
