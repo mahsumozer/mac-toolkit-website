@@ -582,9 +582,9 @@
       // they glide into their new places, and a card measured mid-glide reads
       // as hanging out of the grid when its slot is well inside it.
       cols.forEach((col) => {
-        visibleIn(col).forEach((card) => {
-          const bottom = card.offsetTop - mock.offsetTop + card.offsetHeight;
-          card.classList.toggle("is-clipped", bottom > height + 1);
+        Array.from(col.children).filter((item) => !item.hidden).forEach((item) => {
+          const bottom = item.offsetTop - mock.offsetTop + item.offsetHeight;
+          item.classList.toggle("is-clipped", bottom > height + 1);
         });
       });
     }
@@ -823,7 +823,7 @@
       clearHit();
       if (!card) return;
       hit = { card, parent: card.parentElement, next: card.nextElementSibling, wasHidden: card.hidden };
-      card.classList.remove("is-entering", "is-leaving");
+      card.classList.remove("is-entering", "is-leaving", "is-clipped");
       card.style.transition = "";
       card.style.transform = "";
       hitRow.appendChild(card);
