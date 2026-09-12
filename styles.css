@@ -195,34 +195,12 @@ svg {
   font-size: 12px;
 }
 
-/* One button in the header, not two. Buying keeps its place but takes the
-   nav's voice, so the eye has a single thing to land on. Flat until the pointer
-   arrives, where it takes a pane of its own rather than only changing colour —
-   enough to answer the press without borrowing the accent's job. */
+/* The header asks for the sale. Buying is the button it is built around, so
+   that one is the warm glass: a gradient with a lit top edge and an accent
+   shadow setting it on the island, with the Apple mark saying what it is for.
+   The trial stands beside it as plain type — a second filled pill would only
+   split the attention the header has to give. */
 .header-buy {
-  min-height: 34px;
-  padding: 0 14px;
-  color: var(--soft-black);
-  background: none;
-  border-color: transparent;
-  font-size: 13px;
-  font-weight: 700;
-  transition: color 180ms var(--ease), background 180ms var(--ease), border-color 180ms var(--ease);
-}
-
-.header-buy:hover {
-  color: var(--ink);
-  background: rgba(5, 5, 5, 0.05);
-  border-color: var(--line);
-  transform: none;
-}
-
-/* The header's call to action, in the accent rather than in black: the island
-   is a light pane and a black slab on it reads as a hole. Warm glass instead of
-   a flat tint — the gradient gives it a top edge to catch the light, the inset
-   line is that light, and the accent-coloured shadow sets it on the island
-   rather than painting it onto the island. */
-.header-actions .button:not(.header-buy) {
   position: relative;
   overflow: hidden;
   gap: 7px;
@@ -238,7 +216,7 @@ svg {
 
 /* A single pass of light across the pill when the pointer arrives: the one
    flourish on a header that is otherwise still. */
-.header-actions .button:not(.header-buy)::after {
+.header-buy::after {
   content: "";
   position: absolute;
   top: 0;
@@ -250,17 +228,17 @@ svg {
   pointer-events: none;
 }
 
-.header-actions .button:not(.header-buy):hover {
+.header-buy:hover {
   background: linear-gradient(180deg, rgba(245, 148, 29, 0.46), rgba(245, 148, 29, 0.26));
   border-color: rgba(245, 148, 29, 0.82);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 10px 22px -12px rgba(245, 148, 29, 1);
 }
 
-.header-actions .button:not(.header-buy):hover::after {
-  animation: header-cta-shine 0.8s var(--ease);
+.header-buy:hover::after {
+  animation: header-buy-shine 0.8s var(--ease);
 }
 
-@keyframes header-cta-shine {
+@keyframes header-buy-shine {
   from {
     opacity: 0.9;
     transform: translateX(0);
@@ -272,19 +250,39 @@ svg {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .header-actions .button:not(.header-buy):hover::after {
+  .header-buy:hover::after {
     animation: none;
   }
 }
 
-.header-cta-apple {
+/* The trial: quiet type until the pointer arrives, where it takes a pane of its
+   own so it still answers the press. */
+.header-cta {
+  min-height: 34px;
+  padding: 0 14px;
+  color: var(--soft-black);
+  background: none;
+  border-color: transparent;
+  font-size: 13px;
+  font-weight: 700;
+  transition: color 180ms var(--ease), background 180ms var(--ease), border-color 180ms var(--ease);
+}
+
+.header-cta:hover {
+  color: var(--ink);
+  background: rgba(5, 5, 5, 0.05);
+  border-color: var(--line);
+  transform: none;
+}
+
+.header-apple {
   width: 13px;
   height: 13px;
   margin-top: -2px;
 }
 
-/* The glyph on a full-size button: the same mark the header's trial button
-   carries, so both places say macOS the same way. */
+/* The glyph on a full-size button: the same mark the header carries, so both
+   places say macOS the same way. */
 .button-apple {
   flex: none;
   width: 15px;
@@ -2575,6 +2573,13 @@ body.show-mac-handoff .mac-handoff:focus-within {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  /* Safari/WebKit can leave the old backing-store edge behind when a
+     backdrop-filtered element grows for a search result. The hero sits on a
+     flat paper field, so the blur changes no visible colour here; removing
+     only this panel's filter avoids the horizontal seam without changing the
+     glass used by the fixed-size menu bar and compare panel. */
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
   transform-origin: top right;
   transition: opacity 0.2s var(--ease), transform 0.2s var(--ease);
 }
@@ -4966,7 +4971,9 @@ body.show-mac-handoff .mac-handoff:focus-within {
     display: none;
   }
 
-  .header-actions .button.header-cta {
+  /* The one the header is built around is the one that survives the narrow
+     layout; the trial is a tap away in the drawer. */
+  .header-actions .button.header-buy {
     display: inline-flex;
   }
 
