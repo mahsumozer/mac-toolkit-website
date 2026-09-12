@@ -1042,7 +1042,15 @@
       if (ms) await wait(ms);
     }
 
-    async function drag(el, from, to) {
+    // A drag is the one gesture where the cursor and the thing under it have to
+    // agree frame by frame: a window that moves in steps the cursor does not
+    // take, or takes late, reads as a dropped grip rather than as a hand. So
+    // both come off the same clock — every animation frame places the ghost and
+    // sends the move that goes with it — instead of the ghost being handed to a
+    // CSS transition while the element is fed a coarser set of positions.
+    const swell = (t) => (t < 0.5 ? 2 * t * t : 1 - ((2 - 2 * t) ** 2) / 2);
+
+    async function drag(el, from, to, span) {
       const send = (type, at, buttons) => el.dispatchEvent(new PointerEvent(type, {
         bubbles: true, cancelable: true, clientX: at.x, clientY: at.y,
         button: 0, buttons, pointerId: 1, pointerType: "mouse", isPrimary: true,
@@ -1051,16 +1059,28 @@
       await slideTo(from.x, from.y, 560);
       if (stopped) return false;
       ghost.classList.add("is-pressing");
+      // The press lands before anything moves, the way a hand takes hold of
+      // something before it pulls.
+      await wait(140);
+      if (stopped) { ghost.classList.remove("is-pressing"); return false; }
       send("pointerdown", from, 1);
-      const STEPS = 16;
-      for (let i = 1; i <= STEPS && !stopped; i += 1) {
+      // Read off the clock rather than counted out in fixed steps: a browser
+      // that cannot give it 60 frames a second covers the same ground in the
+      // same time with fewer, larger ones, instead of the whole gesture slowing
+      // to a crawl. `requestAnimationFrame` would be the other way to pace it,
+      // but it stops dead in a hidden tab and would leave the drag half done.
+      const ms = span || 620;
+      const begun = performance.now();
+      for (;;) {
+        const t = Math.min(1, (performance.now() - begun) / ms);
         const at = {
-          x: from.x + (to.x - from.x) * (i / STEPS),
-          y: from.y + (to.y - from.y) * (i / STEPS),
+          x: from.x + (to.x - from.x) * swell(t),
+          y: from.y + (to.y - from.y) * swell(t),
         };
-        await slideTo(at.x, at.y, 0);
+        slideTo(at.x, at.y, 0);
         send("pointermove", at, 1);
-        await wait(28);
+        if (t >= 1 || stopped || !ghost) break;
+        await wait(16);
       }
       send("pointerup", to, 0);
       if (ghost) ghost.classList.remove("is-pressing");
@@ -1110,16 +1130,19 @@
 
     // The menu bar can only be telling one story at a time: a recording clock
     // and a focus clock running side by side there reads as a bug rather than
-    // as two tools. Whichever the ghost starts puts the other one out, in the
-    // same click, so the bar is seen handing over rather than filling up.
+    // as two tools. So whichever is running is put out before the next one is
+    // started — and put out where it can be seen, through its own card and its
+    // own button, rather than switched off behind the visitor's back.
     const RUNNING = {
       "screenshot": {
+        query: "record",
         on: () => !!cardOf("screenshot")?.classList.contains("is-recording"),
-        off: () => cardOf("screenshot").querySelector("[data-shot='record']").click(),
+        stop: (card) => card.querySelector("[data-shot='record']"),
       },
       "pomodoro": {
+        query: "focus",
         on: () => document.getElementById("focus-toggle")?.textContent.trim() === "Pause",
-        off: () => document.getElementById("focus-toggle").click(),
+        stop: (card) => card.querySelector("#focus-toggle"),
       },
     };
 
@@ -1143,10 +1166,21 @@
       const inset = (x1 - x0) * 0.22;
       const tool = (name) => document.querySelector(`.draw-bar [aria-label="${name}"]`);
 
+      // Whichever swatch or nib is not the one already lit, so the second mark
+      // always comes out in a different colour and a different weight from the
+      // first — the bar is a set of settings, not one fixed pen, and only a
+      // change in front of the visitor says so.
+      const unlit = (names) => names.map(tool).find((item) => item && !item.classList.contains("is-on"));
+
       if (!(await tap(tool("Arrow"), 520))) return;
       if (!(await drag(canvas, { x: x0, y: mid - 14 }, { x: x1, y: top }))) return;
       await wait(520);
       if (!(await tap(tool("Ellipse"), 480))) return;
+      const swatch = unlit(["Colour #f5941d", "Colour #4c6ef5", "Colour #ff453a"]);
+      if (swatch && !(await tap(swatch, 420))) return;
+      const nib = unlit(["12px", "3px"]);
+      if (nib && !(await tap(nib, 360))) return;
+      await wait(240);
       if (!(await drag(canvas, { x: x0 + inset, y: mid + 18 }, { x: x1 - inset, y: bottom }))) return;
       await wait(1200);
       if (await tap(tool("Clear"), 480)) await wait(600);
@@ -1164,8 +1198,13 @@
       const ceiling = strip ? strip.getBoundingClientRect().bottom : heroBox.top;
       let at = frame.getBoundingClientRect();
       // Docked, the corner widens the frame from the middle, so the handle
-      // travels half of what the frame gains: 45px out is 90px wider.
-      if (grip && !(await drag(grip, { x: at.right - 10, y: at.bottom - 10 }, { x: at.right + 45, y: at.bottom + 28 }))) return;
+      // travels half of what the frame gains: 45px out is 90px wider. The frame
+      // keeps its 16/10 ratio and hangs from the bar, so its bottom edge drops
+      // by the same 90px times that ratio — and the cursor has to fall with it,
+      // or it slides off the corner it is supposed to be holding.
+      const pull = 45;
+      const drop = pull * 2 * (at.height / at.width);
+      if (grip && !(await drag(grip, { x: at.right - 10, y: at.bottom - 10 }, { x: at.right - 10 + pull, y: at.bottom - 10 + drop }, 760))) return;
       await wait(560);
       at = frame.getBoundingClientRect();
       // Held by the glass above the blind button: that button is how the camera
@@ -1217,10 +1256,19 @@
       frame.style.width = "";
     }
 
-    function takeTheBar(widget) {
-      Object.keys(RUNNING).forEach((other) => {
-        if (other !== widget && RUNNING[other].on()) RUNNING[other].off();
-      });
+    async function takeTheBar(widget) {
+      for (const other of Object.keys(RUNNING)) {
+        if (other === widget || !RUNNING[other].on()) continue;
+        // Fetched the way a visitor would fetch it: used where it stands if the
+        // rotation still has the card, searched for if it does not.
+        const card = await reveal(other, RUNNING[other].query);
+        if (!card || stopped) return false;
+        if (!(await tap(RUNNING[other].stop(card), 620))) return false;
+        await wait(800);
+        await restoreSearch();
+        if (stopped) return false;
+      }
+      return true;
     }
 
     // Every tool the panel holds, as something to watch it do. `undo` is the
@@ -1240,10 +1288,9 @@
         // Left running: the red badge and the clock in the menu bar keep
         // moving after the ghost has gone, and the button now says Stop, which
         // is a better invitation than anything written under the panel.
+        bar: true,
         run: async (card) => {
-          const starting = !card.classList.contains("is-recording");
           if (!(await tap(card.querySelector("[data-shot='record']"), 620))) return;
-          if (starting) takeTheBar("screenshot");
           await wait(1600);
         },
       },
@@ -1260,11 +1307,9 @@
         query: "focus",
         // Left running, so the clock is still counting down — in the card and
         // in the menu bar — long after the demo is over.
+        bar: true,
         run: async (card) => {
-          const button = card.querySelector("#focus-toggle");
-          const starting = button.textContent.trim() === "Start";
-          if (!(await tap(button, 620))) return;
-          if (starting) takeTheBar("pomodoro");
+          if (!(await tap(card.querySelector("#focus-toggle"), 620))) return;
           await wait(1800);
         },
       },
@@ -1424,6 +1469,9 @@
     ];
 
     async function play(item) {
+      // Whatever is holding the menu bar stands down first, so the clock the
+      // visitor is about to be shown is not the second one up there.
+      if (item.bar && !(await takeTheBar(item.widget))) return !stopped;
       const card = item.bare ? panel : await reveal(item.widget, item.query, item.search);
       if (card && !stopped) {
         if (item.undo) undoing.push({ back: item.undo, unless: item.unless });
@@ -1441,6 +1489,7 @@
     // starting the round again.
     let queue = [];
     let last = null;
+    let lastBar = false;
     function next() {
       if (!queue.length) {
         queue = CASES.slice();
@@ -1449,8 +1498,18 @@
           [queue[i], queue[j]] = [queue[j], queue[i]];
         }
         if (queue.length > 1 && queue[0].widget === last) [queue[0], queue[1]] = [queue[1], queue[0]];
+        // The two tools that live in the menu bar are kept apart. Back to back,
+        // the second one opens by putting the first away, which is a minute of
+        // the panel arguing with itself rather than showing anything; a tool
+        // that wants nothing from the bar is pulled in between.
+        for (let i = 0; i < queue.length; i += 1) {
+          if (!queue[i].bar || !(i === 0 ? lastBar : queue[i - 1].bar)) continue;
+          const j = queue.findIndex((item, k) => k > i && !item.bar);
+          if (j > -1) [queue[i], queue[j]] = [queue[j], queue[i]];
+        }
       }
       last = queue[0].widget;
+      lastBar = !!queue[0].bar;
       return queue.shift();
     }
 
