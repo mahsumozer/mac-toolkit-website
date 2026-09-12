@@ -80,28 +80,40 @@ svg {
   background: var(--ink);
 }
 
+/* An island rather than a lid: a rounded pane floating clear of the edges, so
+   the page runs on past it instead of starting underneath a bar. */
 .site-header {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+  top: 12px;
+  left: 50%;
   z-index: 50;
+  width: min(100% - 24px, 1240px);
   display: grid;
   grid-template-columns: 1fr auto auto;
   align-items: center;
-  gap: 24px;
-  padding: 20px clamp(18px, 4vw, 48px);
+  gap: clamp(16px, 3vw, 36px);
+  padding: 8px 8px 8px 16px;
   color: var(--ink);
-  background: rgba(244, 242, 237, 0.82);
-  border-bottom: 1px solid transparent;
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  transition: background 220ms var(--ease), border-color 220ms var(--ease);
+  background: rgba(253, 252, 250, 0.76);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(5, 5, 5, 0.04);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  transform: translateX(-50%);
+  transition: background 220ms var(--ease), box-shadow 220ms var(--ease);
 }
 
+/* The right side is cut close for a button to sit in. Pages that carry none —
+   pricing, the legal ones — would otherwise end on the last nav word. */
+.site-header:not(:has(.header-actions .button)) {
+  padding-right: 20px;
+}
+
+/* Off the top of the page it has something to sit above, so it casts.  */
 .site-header.scrolled {
-  border-bottom-color: var(--line);
-  background: rgba(244, 242, 237, 0.94);
+  background: rgba(253, 252, 250, 0.93);
+  box-shadow: 0 20px 44px -30px rgba(5, 5, 5, 0.5);
 }
 
 .brand {
@@ -115,23 +127,23 @@ svg {
 
 .brand-mark {
   display: inline-flex;
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
   align-items: center;
   justify-content: center;
   color: var(--ink);
 }
 
 .brand-mark svg {
-  width: 27px;
-  height: 27px;
+  width: 23px;
+  height: 23px;
   fill: currentColor;
 }
 
 .main-nav {
   display: inline-flex;
   align-items: center;
-  gap: 34px;
+  gap: 28px;
   font-size: 13px;
   font-weight: 650;
   color: var(--soft-black);
@@ -149,7 +161,7 @@ svg {
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 18px;
+  gap: 6px;
 }
 
 .button {
@@ -186,13 +198,45 @@ svg {
   font-size: 12px;
 }
 
+/* One button in the header, not two. Buying keeps its place but takes the
+   nav's voice, so the eye has a single thing to land on. */
 .header-buy {
-  color: var(--ink);
+  min-height: 34px;
+  padding: 0 12px;
+  color: var(--soft-black);
+  background: none;
+  border-color: transparent;
+  font-size: 13px;
+  font-weight: 650;
 }
 
 .header-buy:hover {
-  color: var(--white);
-  background: var(--ink);
+  color: var(--ink);
+  background: none;
+  transform: none;
+}
+
+/* The header's call to action, in the accent rather than in black: the island
+   is a light pane and a black slab on it reads as a hole. */
+.header-actions .button:not(.header-buy) {
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 15px;
+  color: var(--ink);
+  background: rgba(245, 148, 29, 0.2);
+  border-color: rgba(245, 148, 29, 0.5);
+  font-size: 13px;
+}
+
+.header-actions .button:not(.header-buy):hover {
+  background: rgba(245, 148, 29, 0.32);
+  border-color: rgba(245, 148, 29, 0.72);
+}
+
+.header-cta-apple {
+  width: 13px;
+  height: 13px;
+  margin-top: -2px;
 }
 
 .menu-button {
@@ -4816,7 +4860,8 @@ body.show-mac-handoff .mac-handoff:focus-within {
 
   .main-nav {
     position: fixed;
-    inset: 73px 12px auto;
+    /* Under the island, edge to edge with it. */
+    inset: 74px 12px auto;
     display: none;
     flex-direction: column;
     align-items: stretch;
@@ -4858,7 +4903,6 @@ body.show-mac-handoff .mac-handoff:focus-within {
     gap: 10px;
     padding-top: 12px;
     padding-bottom: 12px;
-    border-bottom-color: var(--line);
   }
 
   .site-header:not(:has(.menu-button)) .main-nav {
