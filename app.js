@@ -887,6 +887,12 @@
     let dismissed = false;
     let typing = false;
     let undoing = [];
+    // How many more tools are shown before the mirror is put away. It is the one
+    // thing the panel hands to the desktop and leaves there, so closing it in
+    // the same breath would make it read as a preview rather than as a window.
+    // Declared up here with the rest of the state because `stop` reads it, and
+    // `stop` is live on touch devices, where the ghost never gets this far.
+    let mirrorFor = 0;
     let hoverOn = null;
     // Handing the panel over is a pause, not an ending: a visitor who looked,
     // touched nothing and moved on gets the demonstration back.
@@ -907,6 +913,7 @@
     function stop(event) {
       if (stopped) return;
       stopped = true;
+      mirrorFor = 0;
       panel.classList.remove("is-demoing");
       ghostOver(null);
       // A timer left running or a recording left going is the point; a veil or
@@ -1145,6 +1152,71 @@
       if (await tap(tool("Clear"), 480)) await wait(600);
     }
 
+    // Hung under the menu bar the frame still reads as part of the bar. Pulling
+    // its corner out and carrying it onto the desktop is the thing that says it
+    // is a window of its own, so the ghost does both before it puts the camera
+    // away again.
+    async function carryTheMirror() {
+      const frame = document.querySelector(".mirror-frame");
+      if (!frame || frame.hidden) return;
+      const grip = frame.querySelector(".mirror-grip");
+      const heroBox = hero.getBoundingClientRect();
+      const ceiling = strip ? strip.getBoundingClientRect().bottom : heroBox.top;
+      let at = frame.getBoundingClientRect();
+      // Docked, the corner widens the frame from the middle, so the handle
+      // travels half of what the frame gains: 45px out is 90px wider.
+      if (grip && !(await drag(grip, { x: at.right - 10, y: at.bottom - 10 }, { x: at.right + 45, y: at.bottom + 28 }))) return;
+      await wait(560);
+      at = frame.getBoundingClientRect();
+      // Held by the glass above the blind button: that button is how the camera
+      // gets asked for, and the frame refuses to be dragged by it.
+      const hold = { x: at.left + 26, y: at.top + 22 };
+      // Parked in the empty half of the hero, and on a narrow desktop backed off
+      // far enough to keep the panel it came out of uncovered.
+      const room = panel.getBoundingClientRect().left - at.width - 24;
+      const left = Math.max(heroBox.left + 16, Math.min(heroBox.left + 150, room));
+      await drag(frame, { x: hold.x, y: hold.y }, { x: left + 26, y: ceiling + 70 });
+    }
+
+    // Its way back out, for a visitor who takes the panel over while it is
+    // still up. Unlike every other case this one outlives its own turn, so the
+    // undo list keeps it until the frame is actually put away.
+    function dropTheMirror() {
+      const box = cardOf("mirror")?.querySelector(".mock-toggle");
+      if (box && box.classList.contains("is-on")) box.querySelector(".mock-switch").click();
+      putTheMirrorBack();
+      mirrorFor = 0;
+    }
+
+    // Two tools later it goes away the way a visitor would put it away: through
+    // the card, which is taken off the panel where it stands if the rotation
+    // still has it, and fetched back through the search if it does not.
+    async function closeTheMirror() {
+      mirrorFor = 0;
+      const frame = document.querySelector(".mirror-frame");
+      if (!frame || frame.hidden) return;
+      const card = await reveal("mirror", "mirror");
+      if (card && !stopped) {
+        const box = card.querySelector(".mock-toggle");
+        if (box && box.classList.contains("is-on") && (await tap(card.querySelector(".mock-switch"), 620))) {
+          await wait(400);
+          putTheMirrorBack();
+          undoing = undoing.filter((entry) => entry.back !== dropTheMirror);
+        }
+      }
+      if (!stopped) await restoreSearch();
+    }
+
+    // Put away wide and parked where the ghost left it, the mirror would open
+    // there for the next visitor. Its own gesture for going home keeps whatever
+    // width it was given, by design, so that half is wound back here.
+    function putTheMirrorBack() {
+      const frame = document.querySelector(".mirror-frame");
+      if (!frame) return;
+      frame.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+      frame.style.width = "";
+    }
+
     function takeTheBar(widget) {
       Object.keys(RUNNING).forEach((other) => {
         if (other !== widget && RUNNING[other].on()) RUNNING[other].off();
@@ -1308,16 +1380,19 @@
         // permission prompt nobody invited. Switched back off after, like the
         // veil: a grey pane parked on the hero is not a tool being shown.
         unless: ".mirror-frame",
+        // The only case that is not over when its turn is: the frame is left on
+        // the desktop while the next two tools are shown, which is the whole
+        // point of a window that comes out of the panel. `closeTheMirror` is
+        // what ends it, so this one's undo stays on the list until then.
+        keep: true,
         run: async (card) => {
           const toggle = card.querySelector(".mock-switch");
           if (!(await tap(toggle, 620))) return;
-          await wait(2400);
-          if (await tap(toggle, 240)) await wait(500);
+          await wait(900);
+          await carryTheMirror();
+          if (!stopped) mirrorFor = 2;
         },
-        undo: () => {
-          const box = cardOf("mirror")?.querySelector(".mock-toggle");
-          if (box && box.classList.contains("is-on")) box.querySelector(".mock-switch").click();
-        },
+        undo: dropTheMirror,
       },
       {
         widget: "system-stats",
@@ -1353,7 +1428,7 @@
       if (card && !stopped) {
         if (item.undo) undoing.push({ back: item.undo, unless: item.unless });
         await item.run(card);
-        undoing = undoing.filter((entry) => entry.back !== item.undo);
+        if (!item.keep) undoing = undoing.filter((entry) => entry.back !== item.undo);
       }
       if (!stopped) await restoreSearch();
       return !stopped;
@@ -1389,7 +1464,13 @@
         return;
       }
       stopped = false;
-      if (label && !dismissed) label.textContent = FIRST;
+      // The line is the caption on the demonstration, not a one-off greeting:
+      // while the ghost is working the panel it is up, even for a visitor who
+      // has already sent it away once. Handing the panel back is what takes it
+      // down again.
+      if (label) label.textContent = FIRST;
+      dismissed = false;
+      invite.classList.remove("is-done");
       ghost = document.createElement("div");
       ghost.className = "ghost-cursor";
       ghost.setAttribute("aria-hidden", "true");
@@ -1410,9 +1491,15 @@
         while (!stopped && (document.hidden || !onScreen)) await wait(600);
         if (stopped) break;
         if (cursorOnPanel()) { stop(); break; }
-        await play(next());
+        const item = next();
+        await play(item);
         if (stopped) break;
         await wait(2400);
+        if (item.widget !== "mirror" && mirrorFor > 0 && --mirrorFor === 0) {
+          await closeTheMirror();
+          if (stopped) break;
+          await wait(1600);
+        }
       }
     }
 
@@ -1879,7 +1966,7 @@
       const from = { x: event.clientX, y: event.clientY, left: at.left - box.left, top: at.top - box.top };
       let moving = false;
       event.preventDefault();
-      frame.setPointerCapture(event.pointerId);
+      try { frame.setPointerCapture(event.pointerId); } catch (error) { /* no live pointer */ }
 
       const move = (moveEvent) => {
         const dx = moveEvent.clientX - from.x;
@@ -1933,7 +2020,7 @@
       const box = hero.getBoundingClientRect();
       const startX = event.clientX;
       const startWidth = frame.offsetWidth;
-      grip.setPointerCapture(event.pointerId);
+      try { grip.setPointerCapture(event.pointerId); } catch (error) { /* no live pointer */ }
       frame.classList.add("is-sizing");
 
       const move = (moveEvent) => {
