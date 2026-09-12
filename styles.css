@@ -1492,13 +1492,17 @@ body.show-mac-handoff .mac-handoff:focus-within {
   white-space: nowrap;
 }
 
-/* Ends where the panel starts, and only while the panel is up to end it: the
-   glass no longer blurs what is behind it, so unblurred letters would read
-   straight through it as a hole in the app. Folded away from the status item
-   the panel covers nothing, and a word cut off over bare paper is worse than
-   the hole ever was. */
+/* The band the panel stands on is taken out of the watermark, and nothing
+   else: the glass no longer blurs what is behind it, so unblurred letters
+   would read through it as a hole in the app. What the panel does not cover
+   is left alone — the word runs up to its left edge and picks up again in the
+   margin past its right one — and folded away from the status item the panel
+   covers nothing, so the word is whole. */
 .hero-product:has(.hero-window:not(.is-closed))::before {
-  clip-path: inset(0 calc(4vw + var(--panel-w)) 0 0);
+  --panel-left: calc(100% - 4vw - var(--panel-w));
+  --panel-right: calc(100% - 4vw);
+  -webkit-mask-image: linear-gradient(to right, #000 var(--panel-left), transparent var(--panel-left), transparent var(--panel-right), #000 var(--panel-right));
+  mask-image: linear-gradient(to right, #000 var(--panel-left), transparent var(--panel-left), transparent var(--panel-right), #000 var(--panel-right));
 }
 
 .desktop-strip {
