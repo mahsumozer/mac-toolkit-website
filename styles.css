@@ -4798,11 +4798,25 @@ body.show-mac-handoff .mac-handoff:focus-within {
   padding-left: 20px;
 }
 
-.legal-content a {
+.legal-content a:not(.button) {
   color: var(--ink);
   font-weight: 750;
   text-decoration: underline;
   text-underline-offset: 4px;
+}
+
+/* Buttons inside legal/blog prose keep pill colours (not black-on-black). */
+.legal-content a.button {
+  text-decoration: none;
+  font-weight: 750;
+}
+
+.legal-content a.button-dark {
+  color: var(--white);
+}
+
+.legal-content a.button-light {
+  color: var(--ink);
 }
 
 .toast-region {
