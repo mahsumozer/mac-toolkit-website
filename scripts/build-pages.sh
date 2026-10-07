@@ -1,9 +1,6 @@
 #!/bin/sh
 set -eu
 
-# public/ is generated output, never a place to keep files: wipe it first so a
-# renamed or dropped asset cannot linger here and get re-uploaded on every
-# deploy (two unreferenced promo videos, 10.7 MB, shipped this way for weeks).
 rm -rf public
 mkdir -p public/assets
 
@@ -26,9 +23,8 @@ cp sitemap.xml public/
 cp styles.css public/
 cp success.html public/
 cp terms.html public/
-cp mac-kit-launch-promo-3.mp4 public/
+if [ -f mac-kit-launch-promo-3.mp4 ]; then
+  cp mac-kit-launch-promo-3.mp4 public/
+fi
 cp -R assets/. public/assets/
 cp -R blog public/blog
-
-# social/ and social-media/ are deliberately not copied: the social hub is a
-# local-only tool (npm run hub), never part of the deployed site.
