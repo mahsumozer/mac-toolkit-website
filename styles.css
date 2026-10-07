@@ -383,6 +383,16 @@ svg {
   letter-spacing: -0.035em;
 }
 
+.hero-sub {
+  max-width: 650px;
+  margin: 12px 0 0;
+  color: var(--soft-black);
+  font-size: clamp(15px, 1.3vw, 18px);
+  line-height: 1.4;
+  letter-spacing: -0.03em;
+  opacity: 0.88;
+}
+
 .hero-actions {
   display: flex;
   flex-wrap: wrap;

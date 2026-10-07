@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="description" content="Notes on building Mac Kit, a Mac menu bar toolkit for Apple Silicon: product thinking, honest comparisons, and updates." />
+    <title>Blog — Mac Menu Bar Toolkit Notes | Mac Kit</title>
+    <link rel="canonical" href="https://usemackit.com/blog" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Mac Kit" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:title" content="Blog — Mac Menu Bar Toolkit Notes | Mac Kit" />
+    <meta property="og:description" content="Notes on building Mac Kit, a Mac menu bar toolkit for Apple Silicon: product thinking, honest comparisons, and updates." />
+    <meta property="og:url" content="https://usemackit.com/blog" />
+    <meta property="og:image" content="https://usemackit.com/assets/og-cover.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="2400" />
+    <meta property="og:image:height" content="1260" />
+    <meta property="og:image:alt" content="Mac Kit running on macOS: system stats and screenshot tools in the menu bar panel" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Blog — Mac Menu Bar Toolkit Notes | Mac Kit" />
+    <meta name="twitter:description" content="Notes on building Mac Kit, a Mac menu bar toolkit for Apple Silicon: product thinking, honest comparisons, and updates." />
+    <meta name="twitter:image" content="https://usemackit.com/assets/og-cover.png" />
+    <meta name="twitter:image:alt" content="Mac Kit running on macOS: system stats and screenshot tools in the menu bar panel" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://usemackit.com/#software",
+            "name": "Mac Kit",
+            "url": "https://usemackit.com/",
+            "image": "https://usemackit.com/assets/app-icon-512.png",
+            "operatingSystem": "macOS",
+            "applicationCategory": "UtilitiesApplication",
+            "processorRequirements": "Apple Silicon (M1 or later)",
+            "offers": {
+              "@type": "Offer",
+              "name": "Mac Kit lifetime license",
+              "price": "9.99",
+              "priceCurrency": "USD",
+              "url": "https://usemackit.com/pricing",
+              "availability": "https://schema.org/InStock"
+            }
+          },
+          {
+            "@type": "Blog",
+            "@id": "https://usemackit.com/blog#blog",
+            "url": "https://usemackit.com/blog",
+            "name": "Mac Kit blog",
+            "description": "Notes on building Mac Kit, a Mac menu bar toolkit for Apple Silicon: product thinking, honest comparisons, and updates.",
+            "inLanguage": "en",
+            "breadcrumb": { "@id": "https://usemackit.com/blog#breadcrumb" },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Mac Kit",
+              "url": "https://usemackit.com/"
+            },
+            "blogPost": [
+              {
+                "@type": "BlogPosting",
+                "@id": "https://usemackit.com/blog/choose-mac-menu-bar-toolkit#article",
+                "headline": "How to choose a Mac menu bar toolkit (and when a specialist still wins)",
+                "url": "https://usemackit.com/blog/choose-mac-menu-bar-toolkit",
+                "datePublished": "2026-10-07"
+              },
+              {
+                "@type": "BlogPosting",
+                "@id": "https://usemackit.com/blog/mac-menu-bar-toolkit#article",
+                "headline": "Mac menu bar toolkit: your Mac doesn’t need ten apps",
+                "url": "https://usemackit.com/blog/mac-menu-bar-toolkit",
+                "datePublished": "2026-09-28"
+              }
+            ]
+          },
+          {
+            "@type": "BreadcrumbList",
+            "@id": "https://usemackit.com/blog#breadcrumb",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Mac Kit",
+                "item": "https://usemackit.com/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Blog",
+                "item": "https://usemackit.com/blog"
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" href="/assets/favicon-black.svg" type="image/svg+xml" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32-black.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/assets/app-icon-512-black.png" />
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon-black.png" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="Mac Kit home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+        </span>
+        <span>Mac Kit</span>
+      </a>
+
+      <nav class="main-nav" aria-label="Primary navigation">
+        <a href="/#product">Product</a>
+        <a href="/#tools">Tools</a>
+        <a href="/#compare">Compare</a>
+        <a href="/blog" aria-current="page">Blog</a>
+        <a href="/pricing">Pricing</a>
+      </nav>
+
+      <div class="header-actions">
+        <a class="button button-dark button-small" href="/pricing">View pricing</a>
+      </div>
+    </header>
+
+    <main class="legal-main blog-main">
+      <div class="legal-hero blog-hero">
+        <nav class="eyebrow blog-crumbs" aria-label="Breadcrumb">
+          <ol>
+            <li><a href="/">Home</a></li>
+            <li aria-current="page">Blog</li>
+          </ol>
+        </nav>
+        <h1>Mac Kit blog</h1>
+        <p>Notes on building Mac Kit, a Mac menu bar toolkit for Apple Silicon: product thinking, honest comparisons, and updates.</p>
+      </div>
+
+      <ol class="blog-list">
+        <li>
+          <a class="blog-card" href="/blog/choose-mac-menu-bar-toolkit">
+            <img class="blog-card-thumb" src="/assets/og-cover.png" width="2400" height="1260" decoding="async" alt="" />
+            <div class="blog-card-body">
+              <p class="blog-meta"><time datetime="2026-10-07">October 7, 2026</time></p>
+              <h2>How to choose a Mac menu bar toolkit (and when a specialist still wins)</h2>
+              <p>A buyer&rsquo;s framework for breadth vs specialist apps, offline vs cloud, and pay-once vs subscriptions.</p>
+            </div>
+          </a>
+        </li>
+        <li>
+          <a class="blog-card" href="/blog/mac-menu-bar-toolkit">
+            <img class="blog-card-thumb" src="/assets/blog/mac-menu-bar-toolkit/menu-bar-tax.webp" width="1600" height="901" decoding="async" alt="" />
+            <div class="blog-card-body">
+              <p class="blog-meta"><time datetime="2026-09-28">September 28, 2026</time></p>
+              <h2>Mac menu bar toolkit: your Mac doesn&rsquo;t need ten apps</h2>
+              <p>Why we built Mac Kit: 14 everyday tools behind one menu bar icon, offline, for $9.99 once.</p>
+            </div>
+          </a>
+        </li>
+      </ol>
+    </main>
+
+    <footer class="site-footer">
+      <p class="footer-copy">&copy; Mac Kit 2026.</p>
+      <nav class="footer-links" aria-label="Comparisons">
+        <span class="footer-links-label">Compare</span>
+        <a href="/cleanshot-x-alternative">CleanShot X</a>
+        <a href="/istat-menus-alternative">iStat Menus</a>
+        <a href="/paste-app-alternative">Paste</a>
+        <a href="/permute-alternative">Permute</a>
+        <a href="/brow-alternative">Brow</a>
+      </nav>
+      <nav class="footer-links" aria-label="Resources">
+        <a href="/blog" aria-current="page">Blog</a>
+      </nav>
+      <nav class="footer-links" aria-label="Legal">
+        <a href="/terms">Terms &amp; Conditions</a>
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/accessibility">Accessibility Statement</a>
+      </nav>
+    </footer>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
