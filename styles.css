@@ -383,16 +383,6 @@ svg {
   letter-spacing: -0.035em;
 }
 
-.hero-sub {
-  max-width: 650px;
-  margin: 12px 0 0;
-  color: var(--soft-black);
-  font-size: clamp(15px, 1.3vw, 18px);
-  line-height: 1.4;
-  letter-spacing: -0.03em;
-  opacity: 0.88;
-}
-
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
@@ -5850,7 +5840,8 @@ body.show-mac-handoff .mac-handoff:focus-within {
    two-column table that has to survive a phone. Additive only — nothing above
    is touched.
    -------------------------------------------------------------------------- */
-.vs-hero h1 {
+.vs-hero h1,
+.blog-post-hero h1 {
   font-size: clamp(34px, 5vw, 62px);
   max-width: 20ch;
 }
@@ -5870,12 +5861,14 @@ body.show-mac-handoff .mac-handoff:focus-within {
   margin-top: 0;
 }
 
-.vs-content strong {
+.vs-content strong,
+.blog-content strong {
   color: var(--ink);
   font-weight: 750;
 }
 
-.vs-content ul {
+.vs-content ul,
+.blog-content ul {
   display: grid;
   gap: 10px;
 }
@@ -5883,16 +5876,19 @@ body.show-mac-handoff .mac-handoff:focus-within {
 /* The prose link rule (.legal-content a) outranks .button-dark on
    specificity, which paints the dark pill's label black on black. Restore the
    button's own colours and drop the prose underline. */
-.vs-content .button {
+.vs-content .button,
+.blog-content .button {
   margin: 18px 8px 0 0;
   text-decoration: none;
 }
 
-.vs-content .button-dark {
+.vs-content .button-dark,
+.blog-content .button-dark {
   color: var(--white);
 }
 
-.vs-content .button-light {
+.vs-content .button-light,
+.blog-content .button-light {
   color: var(--ink);
 }
 
@@ -5963,147 +5959,124 @@ body.show-mac-handoff .mac-handoff:focus-within {
   }
 }
 
-/* —— Blog index + posts (missing styles caused unstyled cards / giant legal H1) —— */
+/* ---------------------------------------------------------------------------
+   Blog (/blog and /blog/*). Same legal-page prose as the comparison pages
+   (the shared rules above list .blog-content too); this only adds what a post
+   needs on top: breadcrumbs in the eyebrow slot, a date line, paragraph
+   spacing for long-form sections, figures, and the index cards.
+   -------------------------------------------------------------------------- */
 .blog-crumbs ol {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin: 0 0 18px;
+  gap: 4px 8px;
+  margin: 0;
   padding: 0;
   list-style: none;
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 650;
 }
 
-.blog-crumbs li:not(:last-child)::after {
+.blog-crumbs li + li::before {
   content: "/";
-  margin-left: 8px;
-  color: var(--soft-black);
+  margin-right: 8px;
 }
 
 .blog-crumbs a {
-  color: var(--soft-black);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  transition: color 180ms var(--ease);
 }
 
 .blog-crumbs a:hover {
   color: var(--ink);
 }
 
-.blog-hero h1 {
-  font-size: clamp(36px, 6vw, 64px);
-  line-height: 1.02;
-  letter-spacing: -0.06em;
-}
-
-.blog-post-hero h1 {
-  font-size: clamp(34px, 5.5vw, 56px);
-  max-width: 18ch;
-}
-
 .blog-meta {
-  margin: 14px 0 0;
+  margin: 20px 0 0;
   color: var(--muted);
   font-size: 14px;
   font-weight: 650;
-  letter-spacing: -0.01em;
+}
+
+/* The legal prose sets every paragraph to margin 0, which reads fine for a
+   one-paragraph clause but runs a post's paragraphs into one block. */
+.blog-content section > * + * {
+  margin-top: 16px;
+}
+
+.blog-content section > * + .blog-figure,
+.blog-content section > .blog-figure + * {
+  margin-top: 26px;
+}
+
+.blog-figure {
+  margin: 0;
+}
+
+.blog-figure img,
+.blog-card-thumb {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: 14px;
 }
 
 .blog-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+  max-width: 880px;
   display: grid;
   gap: 18px;
-  max-width: 880px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .blog-card {
   display: grid;
-  grid-template-columns: minmax(120px, 220px) minmax(0, 1fr);
-  gap: 22px;
-  align-items: stretch;
-  padding: 16px;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  align-items: center;
+  gap: 28px;
+  padding: 14px;
   background: var(--paper-2);
   border: 1px solid var(--line);
-  border-radius: 14px;
-  transition: border-color 180ms var(--ease), box-shadow 180ms var(--ease), transform 180ms var(--ease);
+  border-radius: 18px;
+  transition: border-color 180ms var(--ease);
 }
 
 .blog-card:hover {
-  border-color: rgba(5, 5, 5, 0.28);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.08);
-  transform: translateY(-1px);
+  border-color: rgba(5, 5, 5, 0.32);
 }
 
 .blog-card-thumb {
-  width: 100%;
-  height: 100%;
-  min-height: 120px;
-  max-height: 148px;
-  object-fit: cover;
   border-radius: 10px;
-  background: var(--paper);
 }
 
 .blog-card-body {
-  display: grid;
-  align-content: center;
-  gap: 8px;
-  min-width: 0;
+  padding: 8px 14px 8px 0;
 }
 
-.blog-card-body .blog-meta {
+.blog-card .blog-meta {
   margin: 0;
 }
 
-.blog-card-body h2 {
-  margin: 0;
-  font-size: clamp(20px, 2.4vw, 26px);
-  line-height: 1.15;
-  letter-spacing: -0.04em;
+.blog-card h2 {
+  margin: 10px 0 0;
+  font-size: clamp(22px, 2.4vw, 30px);
+  line-height: 1.05;
+  letter-spacing: -0.045em;
 }
 
 .blog-card-body p:last-child {
-  margin: 0;
+  margin: 12px 0 0;
   color: var(--soft-black);
-  font-size: 15px;
-  line-height: 1.45;
-}
-
-.blog-content {
-  max-width: 760px;
-}
-
-.blog-content .blog-figure {
-  margin: 8px 0 0;
-}
-
-.blog-figure img {
-  display: block;
-  width: 100%;
-  height: auto;
-  border-radius: 12px;
-  border: 1px solid var(--line);
-}
-
-.blog-figure figcaption {
-  margin-top: 10px;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.4;
+  font-size: 16px;
+  line-height: 1.55;
 }
 
 @media (max-width: 720px) {
   .blog-card {
     grid-template-columns: 1fr;
-    gap: 14px;
+    gap: 16px;
   }
 
-  .blog-card-thumb {
-    max-height: 180px;
-    min-height: 140px;
+  .blog-card-body {
+    padding: 0 6px 8px;
   }
 }

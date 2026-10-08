@@ -27,4 +27,12 @@ if [ -f mac-kit-launch-promo-3.mp4 ]; then
   cp mac-kit-launch-promo-3.mp4 public/
 fi
 cp -R assets/. public/assets/
-cp -R blog public/blog
+# Blog pages ship as flat files (blog.html, blog/<slug>.html) so the canonical
+# URLs without a trailing slash (/blog, /blog/<slug>) answer 200 directly
+# instead of redirecting to a trailing-slash directory index.
+mkdir -p public/blog
+cp blog/index.html public/blog.html
+for page in blog/*/index.html; do
+  slug=$(basename "$(dirname "$page")")
+  cp "$page" "public/blog/$slug.html"
+done
