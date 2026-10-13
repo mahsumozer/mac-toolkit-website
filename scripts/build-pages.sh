@@ -15,6 +15,7 @@ cp istat-menus-alternative.html public/
 cp paste-app-alternative.html public/
 cp permute-alternative.html public/
 cp brow-alternative.html public/
+cp octobar-alternative.html public/
 cp index.html public/
 cp pricing.html public/
 cp privacy.html public/
